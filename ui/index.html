@@ -120,6 +120,38 @@
       </form>
       <div id="role-help" class="ccre-role-help"></div>
       <div id="user-table"></div>
+
+      <h2 class="ccre-section-gap">UAT execution endpoints</h2>
+      <p class="ccre-hint">Where UAT test cases are sent (e.g. CRMS TEST, CRMS UAT, CCRE UAT). Enter the URL and credential here once; the CCRE team only picks the endpoint by name. Credentials are stored encrypted and are never shown again.</p>
+      <form id="ep-form" class="ccre-card ccre-ep-form">
+        <input type="hidden" id="ep-id">
+        <div class="ccre-grid2">
+          <div><label class="ccre-field-label">Preset</label><select id="ep-preset" class="dhl-input"><option value="">— choose to fill the response paths —</option></select></div>
+          <div><label class="ccre-field-label">Name *</label><input id="ep-name" class="dhl-input" placeholder="CRMS TEST" required></div>
+          <div><label class="ccre-field-label">URL *</label><input id="ep-url" class="dhl-input" placeholder="https://…/api/v1/rules/…" required></div>
+          <div><label class="ccre-field-label">Method</label><select id="ep-method" class="dhl-input"><option>POST</option><option>PUT</option><option>GET</option></select></div>
+          <div><label class="ccre-field-label">Credential header</label><input id="ep-auth" class="dhl-input" value="x-api-key"></div>
+          <div><label class="ccre-field-label">Credential value</label><input id="ep-secret" class="dhl-input" type="password" autocomplete="new-password" placeholder="API key (leave empty to keep)"></div>
+          <div><label class="ccre-field-label">Timeout (seconds)</label><input id="ep-timeout" class="dhl-input" type="number" value="30" min="1"></div>
+          <div><label class="ccre-field-label">Active</label><select id="ep-active" class="dhl-input"><option value="true">Yes</option><option value="false">No</option></select></div>
+        </div>
+        <details class="ccre-details ccre-gap"><summary>Response mapping and extra headers</summary>
+          <div class="ccre-grid2 ccre-gap">
+            <div><label class="ccre-field-label">Where the result codes are</label><input id="ep-groups" class="dhl-input" placeholder="requirements[].group"></div>
+            <div><label class="ccre-field-label">Case-created flag (empty = any result raised)</label><input id="ep-case" class="dhl-input"></div>
+            <div><label class="ccre-field-label">Service status path</label><input id="ep-status" class="dhl-input" placeholder="MvmtMsg.RespStatus[].Sev"></div>
+            <div><label class="ccre-field-label">Status value meaning success</label><input id="ep-ok" class="dhl-input" placeholder="10"></div>
+            <div><label class="ccre-field-label">Compare section (environment comparison)</label><input id="ep-compare" class="dhl-input" placeholder="MvmtMsg.Bd"></div>
+            <div><label class="ccre-field-label">Extra headers (JSON)</label><input id="ep-headers" class="dhl-input" value='{"Content-Type": "application/json"}'></div>
+          </div>
+        </details>
+        <div class="ccre-row ccre-gap">
+          <button class="dhl-btn dhl-btn--primary" type="submit" id="ep-save">Save endpoint</button>
+          <button class="dhl-btn dhl-btn--ghost" type="button" id="ep-reset">Clear</button>
+          <label class="ccre-hint"><input type="checkbox" id="ep-clear-secret"> remove the stored credential</label>
+        </div>
+      </form>
+      <div id="ep-table"></div>
     </main>
   </div>
 

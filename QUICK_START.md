@@ -17,6 +17,8 @@ Sign in as **`admin@ccre.local` / `ChangeMe123!`**, click **Password** and chang
 
 Use a private browser window for each person to sign in side by side.
 
+Then, still as admin, scroll to **UAT execution endpoints**: preset *CRMS categorization rule engine*, name `CRMS TEST`, the URL, `x-api-key` and the key → **Save endpoint** → **Test**. Add `CRMS UAT` the same way if you want environment comparison.
+
 ## 3. Walk one onboarding (DE works fully offline)
 
 | # | Who | Where | Do |
@@ -31,8 +33,8 @@ Use a private browser window for each person to sign in side by side.
 | 8 | CCRE team | 5. UAT test case prep | **Generate test cases (AI)** → **Submit test cases** |
 | 9 | CCRE consultant | 6. Review | Reject any with a reason, or **CCRE approves test cases** |
 | 10 | Business | 6. Test case review | Reject with a comment, or **Business approves test cases** |
-| 11 | CCRE team | 7. UAT execution | Choose the sample payload → **Run UAT**. Results move to CCRE review automatically |
-| 12 | CCRE team | 8. Review | Expand *payload & response*; on failure **Analyse failure (AI)** → **Failures found — correct the M2C** (back to step 6), else **CCRE accepts results** |
+| 11 | CCRE team | 7. UAT execution | Upload sample payloads if needed (e.g. your `TCxxx.json`) → choose **Run against** (and optionally **Compare with**) and the sample → **Run UAT**. Results move to CCRE review automatically |
+| 12 | CCRE team | 8. Review | Download the **Request / Response** per test or **Download all (zip)**; on failure **Analyse failure (AI)** → **Failures found — correct the M2C** (back to step 6), else **CCRE accepts results** |
 | 13 | Business | 7. Sign-off | **Business signs off UAT** |
 | 14 | CCRE team | 9. RTP | **Build export bundle** → Support uploads → **Confirm production upload** |
 

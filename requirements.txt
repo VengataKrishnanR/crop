@@ -17,6 +17,7 @@ python-multipart
 # Domain: rule-layer persistence and the M2C workbook parser
 sqlalchemy>=2.0
 openpyxl>=3.1
+cryptography>=42
 
 # Dev / test
 pytest>=8.0

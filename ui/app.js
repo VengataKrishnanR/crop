@@ -192,7 +192,7 @@ function switchView(view) {
   document.querySelectorAll('.ccre-nav__item').forEach((b) =>
     b.classList.toggle('ccre-nav__item--active', b.dataset.view === view));
   if (view === 'kpis') run('KPIs', renderKpis);
-  if (view === 'admin') run('Admin', renderAdmin);
+  if (view === 'admin') run('Admin', async () => { await renderAdmin(); await renderEndpoints(); });
 }
 document.querySelectorAll('.ccre-nav__item').forEach((b) => { b.onclick = () => switchView(b.dataset.view); });
 
@@ -630,88 +630,127 @@ async function renderTestCases(el) {
   });
 }
 
-// ── 7. UAT execution ─────────────────────────────────────────
+// ── 7. UAT execution (results only; evidence is downloaded) ──
+async function download(path, fallbackName) {
+  const headers = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (S.me && S.me.dev) headers['X-CCRE-Role'] = S.devRole;
+  const resp = await fetch(path, { headers });
+  if (!resp.ok) {
+    let msg = `HTTP ${resp.status}`;
+    try { msg = (await resp.json()).detail || msg; } catch { /* not JSON */ }
+    throw new Error(msg);
+  }
+  const blob = await resp.blob();
+  const cd = resp.headers.get('Content-Disposition') || '';
+  const m = cd.match(/filename="([^"]+)"/);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = m ? m[1] : fallbackName;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
 function resultRows(results, analyse) {
-  return results.map((r) => `<tr>
-    <td class="ccre-mono">${esc(r.test_id)}</td>
-    <td><span class="ccre-verdict ccre-verdict--${esc(r.verdict)}">${esc(r.verdict)}</span>
-      <div class="ccre-hint">${esc(r.verdict_source === 'ai' ? 'decided by AI reviewer' : 'decided by code')}</div></td>
-    <td>${esc((r.check && r.check.reasons || []).join(' '))}<div class="ccre-hint">${esc(r.business_explanation || '')}</div>
-      ${r.error ? `<div class="ccre-inline-error">${esc(r.error)}</div>` : ''}
-      ${r.analysis ? `<div class="ccre-card ccre-gap"><strong>Failure analysis</strong> — ${esc(r.analysis.category)} (${esc(r.analysis.confidence)})
-        <p>${esc(r.analysis.likely_cause)}</p><p><strong>Next:</strong> ${esc(r.analysis.recommended_action)}</p>
-        <p class="ccre-hint">Rule change suggested: ${r.analysis.change_rules ? 'yes' : 'no'}</p></div>` : ''}</td>
-    <td><details class="ccre-details"><summary>payload &amp; response</summary>
-      <h4>Changes from the sample</h4>${list((r.changes || []).map((c) => `${c.path} = ${JSON.stringify(c.value)} (${c.reason || ''})`))}
-      <h4>Payload</h4>${pre(r.payload)}<h4>Response (HTTP ${esc(r.response_status ?? '—')}, ${esc(r.latency_ms ?? '—')} ms)</h4>${pre(r.response_body)}
-      <h4>AI review</h4>${list((r.review && r.review.reasons) || [])}</details>
-      ${analyse && r.verdict !== 'PASS' && !r.analysis ? `<button class="dhl-btn dhl-btn--ghost dhl-btn--sm ccre-gap" data-analyse="${esc(r.id)}">Analyse failure (AI)</button>` : ''}</td>
-  </tr>`);
+  return results.map((r) => {
+    const cmp = r.comparison;
+    const compareCell = cmp ? (cmp.error ? `<span class="ccre-diff">${esc(cmp.endpoint)}: error</span>`
+      : cmp.identical ? `<span class="ccre-same">Same as ${esc(cmp.endpoint)}</span>`
+      : `<span class="ccre-diff">${esc(cmp.differences)} difference(s) vs ${esc(cmp.endpoint)}</span>`) : '—';
+    return `<tr>
+      <td class="ccre-mono">${esc(r.test_id)}</td>
+      <td>${esc(r.business_summary || '')}</td>
+      <td><span class="ccre-verdict ccre-verdict--${esc(r.verdict)}">${esc(r.verdict)}</span></td>
+      <td>${esc(isBusiness() ? (r.business_explanation || '') : (r.reason || ''))}
+        ${r.analysis ? `<div class="ccre-card ccre-gap"><strong>Likely cause:</strong> ${esc(r.analysis.likely_cause)}<br>
+          <strong>Next:</strong> ${esc(r.analysis.recommended_action)}</div>` : ''}
+        ${analyse && r.verdict !== 'PASS' && !r.analysis ? `<button class="dhl-btn dhl-btn--ghost dhl-btn--sm ccre-gap" data-analyse="${esc(r.id)}">Analyse failure (AI)</button>` : ''}</td>
+      <td>${compareCell}</td>
+      <td><div class="ccre-dl">
+        <button class="dhl-btn dhl-btn--ghost" data-dl="${esc(r.id)}" data-part="request">Request</button>
+        <button class="dhl-btn dhl-btn--ghost" data-dl="${esc(r.id)}" data-part="response">Response</button>
+        ${cmp ? `<button class="dhl-btn dhl-btn--ghost" data-dl="${esc(r.id)}" data-part="compare">${esc(cmp.endpoint)}</button>` : ''}
+      </div></td></tr>`;
+  });
 }
 
 function runsHtml(runs, analyse) {
   if (!runs.length) return '<p class="ccre-hint">No UAT run yet.</p>';
   return runs.map((r) => `<div class="ccre-card"><div class="ccre-row ccre-space">
-      <strong>Cycle ${r.cycle} · ${esc(r.executor)} executor</strong>
+      <strong>Cycle ${r.cycle} · ${esc(r.executor)}</strong>
       <span><span class="ccre-verdict ccre-verdict--PASS">${r.passed} passed</span> ·
-        <span class="ccre-verdict ccre-verdict--FAIL">${r.failed} failed</span> · ${r.errors} errors</span></div>
-      ${table(['Test', 'Verdict', 'Why', 'Evidence'], resultRows(r.results, analyse))}</div>`).join('');
+        <span class="ccre-verdict ccre-verdict--FAIL">${r.failed} failed</span> · ${r.errors} errors
+        <button class="dhl-btn dhl-btn--primary dhl-btn--sm" data-dlrun="${esc(r.id)}">&#11015; Download all (zip)</button></span></div>
+      ${table(['Test', 'What is tested', 'Result', 'Why', 'Environment comparison', 'Download'], resultRows(r.results, analyse))}</div>`).join('');
 }
 
-function wireAnalyse(el) {
+function wireResults(el) {
   el.querySelectorAll('[data-analyse]').forEach((b) => {
     b.onclick = () => run('Failure analysis', async () => {
       await api('POST', `/api/uat/results/${b.dataset.analyse}/analyse`);
       await renderStage();
     });
   });
+  el.querySelectorAll('[data-dl]').forEach((b) => {
+    b.onclick = () => run('Download', () => download(`/api/uat/results/${b.dataset.dl}/download?part=${b.dataset.part}`,
+      `${b.dataset.part}.json`));
+  });
+  el.querySelectorAll('[data-dlrun]').forEach((b) => {
+    b.onclick = () => run('Download', () => download(`/api/uat/runs/${b.dataset.dlrun}/download`, 'uat_run.zip'));
+  });
 }
 
 async function renderExecution(el) {
   if (isBusiness()) return businessWaiting(el, 'The CCRE team is executing the approved test cases.');
-  const [templates, runs] = await Promise.all([api('GET', '/api/uat/templates'),
-    api('GET', `/api/onboardings/${S.caseId}/uat/runs`)]);
   const canRun = state() === 'UAT_EXECUTION' && hasRole(...CCRE);
+  const [templates, runs, targets] = await Promise.all([api('GET', '/api/uat/templates'),
+    api('GET', `/api/onboardings/${S.caseId}/uat/runs`),
+    hasRole(...CCRE) ? api('GET', '/api/uat/endpoints') : Promise.resolve([])]);
+  const tplOptions = templates.map((t) =>
+    `<option value="${esc(t.id)}" ${t.country === S.overview.country ? 'selected' : ''}>${esc(t.name)}${t.country ? ' · ' + esc(t.country) : ''}</option>`).join('');
+  const epOptions = targets.map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
   el.innerHTML = `<h3>UAT execution</h3>
-    <p class="ccre-hint">For each approved test case the AI adapts the sample payload, the executor calls the endpoint, the response is checked by code and reviewed by AI.</p>
-    <div class="ccre-card"><strong>Sample payloads</strong>
-      <div class="ccre-row ccre-gap"><select id="tpl" class="dhl-input">${templates.map((t) =>
-        `<option value="${esc(t.id)}" ${t.country === S.overview.country ? 'selected' : ''}>${esc(t.name)}${t.country ? ' · ' + esc(t.country) : ''}</option>`).join('')}</select>
-        ${canRun ? '<button id="run-uat" class="dhl-btn dhl-btn--primary">&#9654; Run UAT</button>' : ''}</div>
-      ${hasRole(...CCRE) ? `<details class="ccre-details ccre-gap"><summary>Add your sample payload</summary>
-        <form id="tpl-form"><div class="ccre-row ccre-gap"><input name="name" class="dhl-input" placeholder="Name" required>
-          <input name="country" class="dhl-input ccre-narrow" maxlength="2" placeholder="CC"></div>
-          <textarea name="body" class="dhl-textarea ccre-req ccre-gap" placeholder='{"shipmentId": "...", ...}' required></textarea>
-          <button class="dhl-btn dhl-btn--ghost ccre-gap" type="submit">Save sample payload</button></form></details>` : ''}
-      <details class="ccre-details ccre-gap"><summary>View selected payload</summary><div id="tpl-view"></div></details>
-    </div>
-    <h4>Runs</h4>${runsHtml(runs, hasRole(...CCRE))}`;
-  const showTpl = () => {
-    const t = templates.find((x) => x.id === $('tpl').value);
-    $('tpl-view').innerHTML = t ? pre(t.body) + (t.notes ? `<p class="ccre-hint">${esc(t.notes)}</p>` : '') : '';
-  };
-  if ($('tpl')) { $('tpl').onchange = showTpl; showTpl(); }
+    ${canRun ? `<div class="ccre-card"><div class="ccre-run-bar">
+        <div><label class="ccre-field-label">Run against</label><select id="run-ep" class="dhl-input">
+          ${epOptions}<option value="">Built-in mock (offline demo)</option></select></div>
+        <div><label class="ccre-field-label">Compare with (optional)</label><select id="run-cmp" class="dhl-input">
+          <option value="">— no comparison —</option>${epOptions}</select></div>
+        <div><label class="ccre-field-label">Sample payload</label><select id="tpl" class="dhl-input">${tplOptions}</select></div>
+        <button id="run-uat" class="dhl-btn dhl-btn--primary">&#9654; Run UAT</button>
+      </div>
+      ${targets.length ? '' : '<p class="ccre-hint">No endpoints yet — an admin adds them under Admin → UAT execution endpoints.</p>'}
+      <details class="ccre-details ccre-gap"><summary>Upload sample payload files (JSON)</summary>
+        <div class="ccre-row ccre-gap"><input id="tpl-files" type="file" accept=".json" multiple class="dhl-input">
+          <input id="tpl-country" class="dhl-input ccre-narrow" maxlength="2" placeholder="CC" value="${esc(S.overview.country)}">
+          <button id="tpl-upload" class="dhl-btn dhl-btn--ghost">Upload</button></div></details>
+    </div>` : '<p class="ccre-hint">Execution is available while the onboarding is in “UAT execution”.</p>'}
+    <h4>Results</h4>${runsHtml(runs, false)}`;
   if ($('run-uat')) {
     $('run-uat').onclick = () => run('UAT run', async () => {
       $('run-uat').disabled = true;
       $('run-uat').textContent = 'Running…';
-      const res = await api('POST', `/api/onboardings/${S.caseId}/uat/runs`, { template_id: $('tpl').value });
+      const res = await api('POST', `/api/onboardings/${S.caseId}/uat/runs`, {
+        template_id: $('tpl').value || null, endpoint_id: $('run-ep').value || null,
+        compare_endpoint_id: $('run-cmp').value || null });
       toast(`UAT finished: ${res.run.passed} passed, ${res.run.failed} failed, ${res.run.errors} errors.`);
       await refreshCase();
     });
   }
-  if ($('tpl-form')) {
-    $('tpl-form').onsubmit = (e) => {
-      e.preventDefault();
-      const f = new FormData(e.target);
-      run('Save sample payload', async () => {
-        await api('POST', '/api/uat/templates', { name: f.get('name'), country: f.get('country') || null, body: f.get('body') });
-        toast('Sample payload saved.');
-        await renderStage();
-      });
-    };
+  if ($('tpl-upload')) {
+    $('tpl-upload').onclick = () => run('Upload', async () => {
+      const files = Array.from($('tpl-files').files || []);
+      if (!files.length) throw new Error('Choose one or more JSON files.');
+      for (const f of files) {
+        await api('POST', '/api/uat/templates', { name: f.name.replace(/\.json$/i, ''),
+          country: $('tpl-country').value || null, body: await f.text() });
+      }
+      toast(`${files.length} sample payload(s) uploaded.`);
+      await renderStage();
+    });
   }
-  wireAnalyse(el);
+  wireResults(el);
 }
 
 // ── 8. UAT review + sign-off ─────────────────────────────────
@@ -719,19 +758,17 @@ async function renderResults(el) {
   const runs = await api('GET', `/api/onboardings/${S.caseId}/uat/runs`);
   if (isBusiness()) {
     if (!runs.length) return businessWaiting(el, 'The results will be shared with you after the CCRE team has reviewed them.');
-    const r = runs[0];
     el.innerHTML = `<h3>UAT results for your sign-off</h3>
-      <p>${r.passed} of ${r.results.length} test cases behaved as expected. Sign off with the button above, or reject with a reason.</p>
-      ${table(['Test', 'What was tested', 'Result', 'Explanation'], r.results.map((x) => `<tr><td class="ccre-mono">${esc(x.test_id)}</td>
-        <td>${esc(x.business_summary || '')}</td><td><span class="ccre-verdict ccre-verdict--${esc(x.verdict)}">${esc(x.verdict)}</span></td>
-        <td>${esc(x.business_explanation || '')}</td></tr>`))}`;
+      <p>${runs[0].passed} of ${runs[0].results.length} test cases behaved as expected. Download the requests and responses to review, then sign off with the button above or reject with a reason.</p>
+      ${runsHtml(runs.slice(0, 1), false)}`;
+    wireResults(el);
     return;
   }
   el.innerHTML = `<h3>UAT review and sign-off</h3>
     <p class="ccre-hint">The CCRE team reviews first. Failures → analyse → “Failures found — correct the M2C” restarts the cycle at rule config. All passed → CCRE accepts → business signs off.</p>
     ${runsHtml(runs.slice(0, 1), hasRole(...CCRE))}
     ${runs.length > 1 ? `<details class="ccre-details"><summary>Earlier cycles (${runs.length - 1})</summary>${runsHtml(runs.slice(1), false)}</details>` : ''}`;
-  wireAnalyse(el);
+  wireResults(el);
 }
 
 // ── 9. RTP ───────────────────────────────────────────────────
@@ -825,6 +862,93 @@ $('user-form').onsubmit = (e) => {
     ['u-name', 'u-email', 'u-password', 'u-countries'].forEach((id) => { $(id).value = ''; });
     toast('User added.');
     await renderAdmin();
+  });
+};
+
+// ── Admin: UAT execution endpoints ───────────────────────────
+const EP_FIELDS = { url: 'ep-url', method: 'ep-method', auth_header: 'ep-auth', timeout_seconds: 'ep-timeout',
+  groups_path: 'ep-groups', case_flag_path: 'ep-case', status_path: 'ep-status', status_ok_value: 'ep-ok',
+  compare_path: 'ep-compare' };
+let EP_PRESETS = {};
+let EP_LIST = [];
+
+function fillEndpointForm(e) {
+  $('ep-id').value = e ? e.id : '';
+  $('ep-name').value = e ? e.name : '';
+  Object.entries(EP_FIELDS).forEach(([k, id]) => { $(id).value = e && e[k] !== null && e[k] !== undefined ? e[k] : ''; });
+  if (!e) { $('ep-method').value = 'POST'; $('ep-auth').value = 'x-api-key'; $('ep-timeout').value = 30; }
+  $('ep-headers').value = JSON.stringify((e && e.extra_headers) || { 'Content-Type': 'application/json' });
+  $('ep-active').value = e && !e.active ? 'false' : 'true';
+  $('ep-secret').value = '';
+  $('ep-secret').placeholder = e && e.secret_set ? `stored (${e.secret_hint}) — leave empty to keep` : 'API key';
+  $('ep-clear-secret').checked = false;
+  $('ep-save').textContent = e ? 'Update endpoint' : 'Save endpoint';
+}
+
+async function renderEndpoints() {
+  const [presets, endpoints, templates] = await Promise.all([
+    api('GET', '/api/admin/endpoint-presets'), api('GET', '/api/admin/endpoints'), api('GET', '/api/uat/templates')]);
+  EP_PRESETS = presets;
+  EP_LIST = endpoints;
+  $('ep-preset').innerHTML = '<option value="">— choose to fill the response paths —</option>'
+    + Object.keys(presets).map((n) => `<option>${esc(n)}</option>`).join('');
+  const tplOptions = templates.map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
+  $('ep-table').innerHTML = table(['Name', 'URL', 'Credential', 'Active', 'Test with sample', ''], endpoints.map((e) => `<tr data-ep="${esc(e.id)}">
+    <td><strong>${esc(e.name)}</strong></td><td class="ccre-mono">${esc(e.method)} ${esc(e.url)}</td>
+    <td>${e.secret_set ? `${esc(e.auth_header)}: ${esc(e.secret_hint)}` : '<span class="ccre-hint">none</span>'}</td>
+    <td>${e.active ? 'yes' : 'no'}</td>
+    <td><div class="ccre-row"><select class="dhl-input" data-tpl>${tplOptions}</select>
+      <button class="dhl-btn dhl-btn--ghost dhl-btn--sm" data-test>Test</button></div><div class="ccre-hint" data-test-out></div></td>
+    <td><button class="dhl-btn dhl-btn--ghost dhl-btn--sm" data-edit>Edit</button>
+      <button class="dhl-btn dhl-btn--ghost dhl-btn--sm" data-del>Delete</button></td></tr>`));
+  $('ep-table').querySelectorAll('tr[data-ep]').forEach((tr) => {
+    const id = tr.dataset.ep;
+    tr.querySelector('[data-edit]').onclick = () => { fillEndpointForm(EP_LIST.find((x) => x.id === id)); $('ep-form').scrollIntoView(); };
+    tr.querySelector('[data-del]').onclick = () => run('Delete endpoint', async () => {
+      const v = await dialog('Delete endpoint', '<p>Delete this endpoint and its stored credential?</p>', 'Delete');
+      if (!v) return;
+      await api('DELETE', `/api/admin/endpoints/${id}`);
+      toast('Endpoint deleted.');
+      await renderEndpoints();
+    });
+    tr.querySelector('[data-test]').onclick = () => run('Test endpoint', async () => {
+      const out = tr.querySelector('[data-test-out]');
+      out.textContent = 'Sending…';
+      const r = await api('POST', `/api/admin/endpoints/${id}/test`, { template_id: tr.querySelector('[data-tpl]').value || null });
+      out.textContent = r.reachable
+        ? `HTTP ${r.status} in ${r.latency_ms} ms — response ${r.response_readable ? 'readable' : 'not readable with the paths'}. ${r.check.join(' ')}`
+        : `Not reachable: ${r.error}`;
+    });
+  });
+}
+
+$('ep-preset').onchange = (e) => {
+  const p = EP_PRESETS[e.target.value];
+  if (!p) return;
+  Object.entries(EP_FIELDS).forEach(([k, id]) => { if (p[k] !== undefined) $(id).value = p[k]; });
+  $('ep-headers').value = JSON.stringify(p.extra_headers || {});
+  toast(p.help || 'Preset applied.');
+};
+$('ep-reset').onclick = () => fillEndpointForm(null);
+$('ep-form').onsubmit = (e) => {
+  e.preventDefault();
+  run('Save endpoint', async () => {
+    let headers;
+    try { headers = JSON.parse($('ep-headers').value || '{}'); } catch { throw new Error('Extra headers must be JSON, e.g. {"Content-Type": "application/json"}'); }
+    const body = { name: $('ep-name').value.trim(), extra_headers: headers, active: $('ep-active').value === 'true' };
+    Object.entries(EP_FIELDS).forEach(([k, id]) => { body[k] = $(id).value; });
+    body.timeout_seconds = Number(body.timeout_seconds || 30);
+    if ($('ep-secret').value) body.secret = $('ep-secret').value;
+    const id = $('ep-id').value;
+    if (id) {
+      body.clear_secret = $('ep-clear-secret').checked;
+      await api('PATCH', `/api/admin/endpoints/${id}`, body);
+    } else {
+      await api('POST', '/api/admin/endpoints', body);
+    }
+    toast('Endpoint saved. The credential is stored encrypted.');
+    fillEndpointForm(null);
+    await renderEndpoints();
   });
 };
 

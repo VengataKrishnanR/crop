@@ -61,9 +61,17 @@ $env:APIGEE_API_KEY = "paste-your-key-here"     # or add APIGEE_API_KEY=... to .
 uvicorn server.app:app --port 8000
 ```
 
-### Plug in your API test-execution code
+### Connect UAT to your API (Admin → UAT execution endpoints)
 
-UAT runs against a built-in **mock CCRE** endpoint until you configure the real one. See **`tools/execution/custom/README.md`**: wrap your code in a class with `execute(payload) -> {"status", "body"}` and set `CCRE_UAT_EXECUTOR=tools.execution.custom.<module>:<Class>`. Then upload your **sample payload** on the UAT execution screen.
+The CRMS API test suite (`TestSuite_CRMS`) is onboarded into the app. Instead of the HTML connector plus a Node proxy, the **admin** enters each target once in the UI:
+
+1. Admin → **UAT execution endpoints** → choose a **preset** (*CRMS categorization rule engine* or *CCRE requirement evaluation*), which fills in the response paths.
+2. Enter the **name** (e.g. `CRMS TEST`), **URL**, credential header (`x-api-key`) and **API key**, then click **Save endpoint**. The key is stored encrypted and never shown again; the page shows only `••••last4`.
+3. **Test** the endpoint with a sample payload: the page reports reachability, HTTP status and whether the response can be read.
+
+The CCRE team then only picks **Run against** (and optionally **Compare with**, e.g. TEST vs UAT) and clicks **Run UAT**. Sample payloads (e.g. your `TCxxx.json` files) are uploaded on the UAT execution screen. Requests to `*.dhl.com` bypass the corporate proxy, as the suite's proxy did.
+
+Without any endpoint the run uses a built-in **mock CCRE** (offline demo). Your own execution code can still be plugged in as a class; see `tools/execution/custom/README.md`.
 
 ---
 
@@ -106,12 +114,19 @@ Requested RTP date · earliest start · CCRE team members · DMG changes needed 
 
 For each business-approved test case:
 
-1. The `payload_generator` agent adapts the sample payload.
-2. The executor sends it (mock, `http`, or your own code).
-3. The deterministic checker reads the response using `CCRE_UAT_GROUPS_PATH` and `CCRE_UAT_CASE_CREATED_PATH`.
-4. The `response_reviewer` agent explains the result.
+1. The `payload_generator` agent adapts the sample payload. CRMS `ShpPcdDetailsMsg` requests are mapped field by field: country criterion, Import/Export, destination, services, B2B/B2C class, value, currency, incoterm, weight.
+2. The request is sent to the chosen endpoint.
+3. The deterministic checker reads the response using the endpoint's paths. For CRMS that's the declaration codes at `MvmtMsg.Bd.Mvmt[].PcsInMvmt[].RqrReglDecTy[].TyCd` (`-` = none) and the service status `MvmtMsg.RespStatus[].Sev` = `10`.
+4. Optionally, the same request goes to a **comparison endpoint**, and the responses are diffed with the suite's own `findDifferences` logic, ignoring `Hdr`.
 
-**When the checker can read the response, code decides the verdict.** Only when it cannot does the AI's verdict stand, and the result is marked as decided by AI. The `failure_analyst` agent diagnoses any failed result on request.
+**When the checker can read the response, code decides the verdict.** Otherwise the AI reviewer decides, and the result is marked as decided by AI.
+
+**The screen shows results only:** test, what is tested, PASS/FAIL, why, and the environment comparison. The evidence is **downloaded**:
+
+- **Request** and **Response** buttons per test, plus the comparison file when one ran.
+- **Download all (zip)** per run, containing `summary.xlsx`, `requests/`, `responses/` and `compare/`.
+
+The business team can download too, once the CCRE team has accepted the results. Credentials never appear in any download. The `failure_analyst` agent diagnoses a failed result on request.
 
 ---
 
@@ -151,8 +166,8 @@ tools/ingestion/         M2C workbook + sir-configuration parsers
 tools/validation/        16-check deterministic register
 tools/workflow/          Lifecycle state machine + per-case gate facts + M2C draft
 tools/timeline/          Questionnaire, baseline estimator, plan validation
-tools/execution/         Evaluator, payload builder, mock CCRE, executors, response checker, custom/
-server/                  app.py, auth.py, admin.py, lifecycle.py, uat.py, kpis.py, advisory.py, routes.py, cli.py
+tools/execution/         Evaluator, payload builders (incl. crms.py — onboarded CRMS suite), mock CCRE, executors, checker, custom/
+server/                  app.py, auth.py, admin.py, endpoints.py, lifecycle.py, uat.py, downloads.py, kpis.py, advisory.py, routes.py, cli.py
 ui/                      Single-page app (sign-in, workspace, business view, KPIs, admin)
 config/                  .env.example · .env.apigee · .env.stub
 tests/                   Suite by category; root conftest.py writes test_report.xlsx
@@ -170,8 +185,8 @@ tests/                   Suite by category; root conftest.py writes test_report.
 | `AUTH_MODE` | `users` | `users` = sign-in + RBAC; `none` = development only |
 | `CCRE_ADMIN_EMAIL` / `CCRE_ADMIN_PASSWORD` | `admin@ccre.local` / `ChangeMe123!` | First admin, created when no user exists |
 | `CCRE_SECRET_KEY` | generated in `.ccre_data\secret.key` | Token signing secret |
-| `CCRE_UAT_EXECUTOR` | `mock` | `mock` · `http` · `package.module:Class` |
-| `CCRE_UAT_ENDPOINT`, `CCRE_UAT_AUTH_HEADER`, `CCRE_UAT_TIMEOUT_SECONDS` | — | For `http` |
+| `CCRE_UAT_EXECUTOR` | `mock` | Fallback when no Admin endpoint is chosen: `mock` · `http` · `package.module:Class` |
+| `CCRE_UAT_ENDPOINT`, `CCRE_UAT_AUTH_HEADER`, `CCRE_UAT_TIMEOUT_SECONDS` | — | Fallback `http` mode only; prefer Admin endpoints |
 | `CCRE_UAT_GROUPS_PATH`, `CCRE_UAT_CASE_CREATED_PATH` | `requirements[].group`, `caseCreated` | Where the response says what was raised |
 | `CCRE_DATABASE_URL` | SQLite `.ccre_data\ccre_v2.db` | Any SQLAlchemy URL |
 | `CCRE_REFERENCE_DIR` | `..\Reference` | Workbook and package location |

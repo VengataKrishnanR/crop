@@ -1,6 +1,8 @@
 """Pluggable UAT executors — where the request is actually sent.
 
-Selected by ``CCRE_UAT_EXECUTOR``:
+Normally the CCRE team picks an **endpoint configured by the admin** in the UI
+(:class:`EndpointExecutor` — the onboarded CRMS test-suite sender). Without one,
+the executor is selected by ``CCRE_UAT_EXECUTOR``:
 
 * ``mock`` (default) — the in-process mock CCRE (:mod:`tools.execution.mock_ccre`).
 * ``http`` — POST the payload to ``CCRE_UAT_ENDPOINT`` with optional
@@ -77,6 +79,62 @@ class HttpExecutor(Executor):
                                     f"{type(exc).__name__}: {exc}")
 
 
+#: Test hook: an ``httpx`` transport used instead of the network (tests only).
+_TRANSPORT: Optional[httpx.BaseTransport] = None
+
+
+class EndpointExecutor(Executor):
+    """Calls an Admin-configured endpoint — the onboarded CRMS test-suite sender.
+
+    Port of the suite's ``makeApiRequest``: method + JSON body + configured headers
+    (credential header from the encrypted store, ``Content-Type`` by default), and
+    hosts under ``.dhl.com`` bypass the corporate proxy (``no_proxy='.dhl.com'``).
+    """
+
+    def __init__(self, name: str, url: str, method: str = "POST", headers: Optional[dict[str, str]] = None,
+                 timeout: float = 30.0) -> None:
+        self.name = name
+        self.url = url
+        self.method = (method or "POST").upper()
+        self.headers = {"Content-Type": "application/json", **(headers or {})}
+        self.timeout = timeout
+
+    @classmethod
+    def from_endpoint(cls, endpoint: Any) -> "EndpointExecutor":
+        from tools.core.security import decrypt_secret
+
+        headers = dict(endpoint.extra_headers or {})
+        secret = decrypt_secret(endpoint.secret_enc)
+        if endpoint.secret_enc and secret is None:
+            raise ValueError(f"The credential for endpoint '{endpoint.name}' can no longer be read; "
+                             "an admin must re-enter it.")
+        if endpoint.auth_header and secret:
+            headers[endpoint.auth_header] = secret
+        return cls(endpoint.name, endpoint.url, endpoint.method, headers, endpoint.timeout_seconds or 30.0)
+
+    def _client(self) -> httpx.Client:
+        host = httpx.URL(self.url).host or ""
+        # The suite bypasses the corporate proxy for DHL-internal hosts.
+        trust_env = not host.endswith(".dhl.com")
+        return httpx.Client(timeout=self.timeout, trust_env=trust_env, transport=_TRANSPORT)
+
+    def execute(self, payload: dict[str, Any]) -> ExecutionOutcome:
+        started = time.perf_counter()
+        try:
+            with self._client() as client:
+                send_body = self.method in {"POST", "PUT", "PATCH"}
+                resp = client.request(self.method, self.url, headers=self.headers,
+                                      content=json.dumps(payload) if send_body else None)
+            try:
+                body: Any = resp.json()
+            except (ValueError, json.JSONDecodeError):
+                body = resp.text
+            return ExecutionOutcome(resp.status_code, body, (time.perf_counter() - started) * 1000)
+        except httpx.HTTPError as exc:
+            return ExecutionOutcome(None, None, (time.perf_counter() - started) * 1000,
+                                    f"{type(exc).__name__}: {exc}")
+
+
 class CustomExecutor(Executor):
     """Wraps user-supplied execution code that follows the documented contract."""
 
@@ -106,7 +164,10 @@ def _auth_header() -> dict[str, str]:
     return {name.strip(): value.strip()}
 
 
-def build_executor(session: Session, rule_set_id: str) -> Executor:
+def build_executor(session: Session, rule_set_id: str, endpoint: Any = None) -> Executor:
+    """The Admin-configured ``endpoint`` when given; otherwise ``CCRE_UAT_EXECUTOR`` (default mock)."""
+    if endpoint is not None:
+        return EndpointExecutor.from_endpoint(endpoint)
     mode = os.getenv("CCRE_UAT_EXECUTOR", "mock").strip()
     if mode in ("", "mock"):
         return MockExecutor(session, rule_set_id)

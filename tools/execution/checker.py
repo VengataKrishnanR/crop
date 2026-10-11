@@ -48,22 +48,44 @@ def resolve(body: Any, path: str) -> Any:
 
 
 def check_response(body: Any, status: Optional[int], expected_requirement: Optional[str],
-                   expected_case_created: bool) -> dict[str, Any]:
-    groups_path = os.getenv("CCRE_UAT_GROUPS_PATH", "requirements[].group")
-    case_path = os.getenv("CCRE_UAT_CASE_CREATED_PATH", "caseCreated")
+                   expected_case_created: bool, *, groups_path: Optional[str] = None,
+                   case_path: Optional[str] = None, status_path: Optional[str] = None,
+                   status_ok: Optional[str] = None) -> dict[str, Any]:
+    """Decide PASS/FAIL from the response when it can be read.
+
+    Paths come from the Admin endpoint configuration; without one, from the
+    environment (``CCRE_UAT_GROUPS_PATH`` / ``CCRE_UAT_CASE_CREATED_PATH``). An empty
+    ``case_path`` means "a case is created when anything is raised". ``status_path``
+    + ``status_ok`` check the service's own success indicator first.
+    """
+    groups_path = groups_path or os.getenv("CCRE_UAT_GROUPS_PATH", "requirements[].group")
+    if case_path is None:
+        case_path = os.getenv("CCRE_UAT_CASE_CREATED_PATH", "caseCreated")
 
     if status is None or status >= 400:
         return {"conclusive": True, "passed": False,
                 "reasons": [f"Endpoint returned {'no response' if status is None else f'HTTP {status}'}."]}
 
+    if status_path and status_ok not in (None, ""):
+        found = resolve(body, status_path)
+        values = found if isinstance(found, list) else ([] if found is _MISSING else [found])
+        if not any(str(v) == str(status_ok) for v in values):
+            shown = ", ".join(str(v) for v in values) or "not present"
+            return {"conclusive": True, "passed": False,
+                    "reasons": [f"The service did not report success ({status_path} = {shown}; "
+                                f"expected {status_ok})."]}
+
     groups = resolve(body, groups_path)
-    case_created = resolve(body, case_path)
+    case_created = resolve(body, case_path) if case_path else None
     if groups is _MISSING or case_created is _MISSING:
         missing = [p for p, v in ((groups_path, groups), (case_path, case_created)) if v is _MISSING]
         return {"conclusive": False, "passed": None,
                 "reasons": [f"Could not find {', '.join(missing)} in the response."]}
 
-    raised = sorted({str(g).upper() for g in (groups or []) if g})
+    raised = sorted({str(g).upper() for g in (groups if isinstance(groups, list) else [groups]) or []
+                     if g not in (None, "", "-")})
+    if not case_path:
+        case_created = bool(raised)
     reasons: list[str] = []
     passed = True
     if expected_requirement:

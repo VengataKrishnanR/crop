@@ -17,8 +17,8 @@ from sqlalchemy.orm import Session, selectinload
 
 from tools.core.db import get_session
 from tools.core.models import (
-    AuditEvent, Milestone, OnboardingCase, PayloadTemplate, ProposedChange, Requirement, Rule,
-    Timeline, UatResult, UatRun, UatTestCase,
+    AuditEvent, ExecutionEndpoint, Milestone, OnboardingCase, PayloadTemplate, ProposedChange, Requirement,
+    Rule, Timeline, UatComparison, UatResult, UatRun, UatTestCase,
 )
 from tools.core.security import CCRE_ROLES, UserRole
 from tools.execution import builtin_sample_payload
@@ -144,11 +144,17 @@ def _test_case_out(tc: UatTestCase, business: bool) -> dict[str, Any]:
             "rule_coverage": tc.rule_coverage, "rule_set_id": tc.rule_set_id}
 
 
-def _result_out(r: UatResult, business: bool, test_case: Optional[UatTestCase] = None) -> dict[str, Any]:
+def _result_out(r: UatResult, business: bool, test_case: Optional[UatTestCase] = None,
+                comparison: Optional[UatComparison] = None) -> dict[str, Any]:
     review = r.review or {}
+    reason = r.error or "; ".join((r.check or {}).get("reasons") or review.get("reasons") or [])
     base = {"id": r.id, "test_id": r.test_id, "verdict": r.verdict,
             "business_summary": (test_case.business_summary if test_case else None),
-            "business_explanation": review.get("business_explanation")}
+            "business_explanation": review.get("business_explanation"),
+            "reason": reason,
+            "comparison": ({"endpoint": comparison.endpoint_name, "identical": comparison.identical,
+                            "differences": (comparison.summary or {}).get("totalDifferences"),
+                            "error": comparison.error} if comparison else None)}
     if business:
         return base
     return {**base, "test_case_id": r.test_case_id, "verdict_source": r.verdict_source,
@@ -162,12 +168,14 @@ def _run_out(session: Session, run: UatRun, business: bool) -> dict[str, Any]:
                                    .order_by(UatResult.test_id)).scalars())
     cases = {tc.id: tc for tc in session.execute(
         select(UatTestCase).where(UatTestCase.case_id == run.case_id)).scalars()}
+    comparisons = {c.result_id: c for c in session.execute(
+        select(UatComparison).where(UatComparison.result_id.in_([r.id for r in results]))).scalars()}
     return {
         "id": run.id, "cycle": run.cycle, "status": run.status, "executor": run.executor,
         "passed": run.passed, "failed": run.failed, "errors": run.errors,
         "started_at": run.started_at.isoformat() if run.started_at else None,
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
-        "results": [_result_out(r, business, cases.get(r.test_case_id)) for r in results],
+        "results": [_result_out(r, business, cases.get(r.test_case_id), comparisons.get(r.id)) for r in results],
     }
 
 
@@ -761,7 +769,18 @@ def start_run(case_id: str, body: S.RunRequest, user: CurrentUser = Depends(requ
                     .limit(1)).scalar_one_or_none())
     if template is None:
         raise HTTPException(400, "No sample payload is available — add one first.")
-    run = _advise(execute_run, session, advisory, case, template, user.label)
+    endpoint = compare_endpoint = None
+    if body.endpoint_id:
+        endpoint = session.get(ExecutionEndpoint, body.endpoint_id)
+        if endpoint is None or not endpoint.active:
+            raise HTTPException(400, "That endpoint is not available; ask an admin.")
+    if body.compare_endpoint_id:
+        if endpoint is None:
+            raise HTTPException(400, "Choose the main endpoint before a comparison endpoint.")
+        compare_endpoint = session.get(ExecutionEndpoint, body.compare_endpoint_id)
+        if compare_endpoint is None or not compare_endpoint.active or compare_endpoint.id == endpoint.id:
+            raise HTTPException(400, "Choose a different, active endpoint to compare against.")
+    run = _advise(execute_run, session, advisory, case, template, user.label, endpoint, compare_endpoint)
 
     # Execution complete → hand over to the CCRE team's review automatically.
     if gate_context(session, case).execution_complete:

@@ -549,3 +549,54 @@ class UatResult(Base):
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
 
     run: Mapped["UatRun"] = relationship(back_populates="results")
+
+
+
+# --------------------------------------------------------------------------- #
+# Execution endpoints (Admin) and environment comparisons
+# --------------------------------------------------------------------------- #
+
+class ExecutionEndpoint(Base):
+    """An API the UAT run calls (e.g. CRMS categorization TEST, CCRE UAT).
+
+    The credential is stored encrypted (``secret_enc``) and is never returned to
+    the browser. Response paths tell the checker where the endpoint reports what
+    it raised, so pass/fail is decided by code for any response shape.
+    """
+
+    __tablename__ = "execution_endpoint"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(64), unique=True)
+    url: Mapped[str] = mapped_column(String(1024))
+    method: Mapped[str] = mapped_column(String(8), default="POST")
+    auth_header: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, default="x-api-key")
+    secret_enc: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    secret_hint: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    extra_headers: Mapped[Any] = mapped_column(JSON, default=dict)
+    timeout_seconds: Mapped[float] = mapped_column(Float, default=30.0)
+    groups_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    case_flag_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    status_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    status_ok_value: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    compare_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class UatComparison(Base):
+    """The same request sent to a second environment, and how its response differs."""
+
+    __tablename__ = "uat_comparison"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    result_id: Mapped[str] = mapped_column(String(36), index=True)
+    endpoint_name: Mapped[str] = mapped_column(String(64))
+    response_status: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    response_body: Mapped[Any] = mapped_column(JSON, nullable=True)
+    identical: Mapped[bool] = mapped_column(Boolean, default=False)
+    summary: Mapped[Any] = mapped_column(JSON, default=dict)
+    differences: Mapped[Any] = mapped_column(JSON, default=list)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)

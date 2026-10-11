@@ -117,6 +117,36 @@ def read_token(token: str) -> Optional[dict[str, Any]]:
 
 
 # --------------------------------------------------------------------------- #
+# secrets at rest (endpoint credentials)
+# --------------------------------------------------------------------------- #
+
+def _fernet():
+    from cryptography.fernet import Fernet
+
+    key = base64.urlsafe_b64encode(hashlib.sha256(b"ccre-endpoint-secrets:" + _secret()).digest())
+    return Fernet(key)
+
+
+def encrypt_secret(value: str) -> str:
+    return _fernet().encrypt(value.encode("utf-8")).decode("ascii")
+
+
+def decrypt_secret(token: Optional[str]) -> Optional[str]:
+    if not token:
+        return None
+    from cryptography.fernet import InvalidToken
+
+    try:
+        return _fernet().decrypt(token.encode("ascii")).decode("utf-8")
+    except InvalidToken:
+        return None  # the signing secret changed; the admin must re-enter the credential
+
+
+def secret_hint(value: str) -> str:
+    return "••••" + value[-4:] if len(value) > 4 else "••••"
+
+
+# --------------------------------------------------------------------------- #
 # user management
 # --------------------------------------------------------------------------- #
 

@@ -27,6 +27,7 @@ _MARKERS = [
     ("ingestion",    "M2C workbook and sir-configuration package parsers"),
     ("workflow",     "Onboarding-case state machine and release gates"),
     ("api",          "HTTP API surface tests (FastAPI / auth)"),
+    ("integration",  "UAT execution against configured endpoints (CRMS suite)"),
     ("agents",       "ADK agents, tool boundary and stub-LLM runs"),
     ("e2e_positive", "End-to-end happy-path scenarios through HTTP and the agents"),
     ("e2e_negative", "End-to-end error, refusal and edge-case scenarios"),
@@ -45,6 +46,7 @@ _FILENAME_TO_CATEGORY: dict[str, str] = {
     "test_agents":       "agents",
     "test_e2e_positive": "e2e_positive",
     "test_e2e_negative": "e2e_negative",
+    "test_crms_execution": "integration",
 }
 
 # ---------------------------------------------------------------------------
@@ -178,6 +180,7 @@ _CAT_LABEL = {
     "workflow": "Workflow Tests",
     "api": "API Tests",
     "agents": "Agent Tests",
+    "integration": "Endpoint Execution",
     "e2e_positive": "E2E Positive",
     "e2e_negative": "E2E Negative",
     "other": "Other",
@@ -190,6 +193,7 @@ _SHEET_NAME = {
     "workflow": "Workflow",
     "api": "API",
     "agents": "Agents",
+    "integration": "Endpoint Execution",
     "e2e_positive": "E2E Positive",
     "e2e_negative": "E2E Negative",
     "other": "Other",

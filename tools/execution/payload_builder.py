@@ -52,6 +52,10 @@ def _set(payload: dict[str, Any], key: str, value: Any, changes: list[dict], rea
 def build_payload(sample: dict[str, Any], test_case: dict[str, Any],
                   country: str) -> dict[str, Any]:
     """Return ``{"payload", "changes", "assumptions"}`` for one test case."""
+    from .crms import build_crms_payload, is_crms_payload
+
+    if is_crms_payload(sample):  # a real CRMS ShpPcdDetailsMsg request
+        return build_crms_payload(sample, test_case, country)
     payload = copy.deepcopy(sample)
     changes: list[dict[str, Any]] = []
     assumptions: list[str] = []

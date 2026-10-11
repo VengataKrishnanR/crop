@@ -1,4 +1,9 @@
-# Plugging in your own UAT execution code
+# Custom UAT execution code (advanced)
+
+**Most teams do not need this.** Configure endpoints in the UI instead: Admin → UAT execution endpoints (URL, credential, response paths). The CRMS API test suite is already onboarded that way (`tools/execution/crms.py` + `EndpointExecutor`).
+
+Use a custom class only when a call needs logic the endpoint form cannot express (signed requests, multi-step auth, etc.).
+
 
 Put your existing API test-execution code in this folder and wrap it in a class
 with one method:

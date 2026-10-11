@@ -15,7 +15,10 @@
 | A user gets **403** "needs one of these roles" | Their role does not own that step | Change the role in Admin, or have the right person do it |
 | A business user sees no onboardings | No countries assigned | Admin → set their countries (e.g. `DE`) → Save |
 | An action button is greyed out | A gate is not met | The reason is printed under the button (e.g. validation blockers, no test results) |
-| UAT results are all FAIL against your real endpoint | The response paths differ | Set `CCRE_UAT_GROUPS_PATH` / `CCRE_UAT_CASE_CREATED_PATH` to where your response lists the raised requirements |
+| Endpoint **Test** says “Not reachable” | No route to the host | Connect to the DHL VPN; for `*.dhl.com` the corporate proxy is bypassed automatically |
+| Endpoint **Test** returns HTTP 401/403 | Wrong or expired key | Admin → Edit → enter the key again → Update endpoint |
+| Run fails with “credential … can no longer be read” | `.ccre_data\secret.key` or `CCRE_SECRET_KEY` changed | Admin → Edit the endpoint and re-enter the key |
+| UAT results are all FAIL against your real endpoint | The response paths differ | Admin → Edit the endpoint → *Response mapping*: set where the response lists what was raised (or apply a preset) |
 | UAT results show "decided by AI reviewer" | The checker could not read the response | Same fix as above, so code can decide |
 | "Address already in use :8000" | Another server is running | Stop it, or use `--port 8001` |
 | UI "Test Report" says no report | `pytest` has not run yet | Run `pytest`; it writes `test_report.xlsx` |

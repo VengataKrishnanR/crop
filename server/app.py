@@ -67,6 +67,8 @@ from .admin import router as admin_router
 from .advisory import AdvisoryService, AdvisoryUnavailable
 from .auth import CurrentUser, current_user, require_internal
 from .config import load_settings
+from .downloads import router as download_router
+from .endpoints import router as endpoint_router
 from .kpis import router as kpi_router
 from .lifecycle import ensure_builtin_template
 from .lifecycle import router as lifecycle_router
@@ -119,6 +121,8 @@ def health(session: Session = Depends(get_session)) -> dict[str, Any]:
 app.include_router(admin_router, prefix="/api")
 app.include_router(lifecycle_router, prefix="/api")
 app.include_router(kpi_router, prefix="/api")
+app.include_router(endpoint_router, prefix="/api")
+app.include_router(download_router, prefix="/api")
 app.include_router(domain_router, prefix="/api", dependencies=[Depends(require_internal)])
 
 

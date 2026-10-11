@@ -164,3 +164,13 @@
   .ccre-nav { margin-left: 6px; }
   .dhl-header__sub { display: none; }
 }
+
+/* Execution endpoints and results-only UAT */
+.ccre-section-gap { margin-top: 26px; }
+.ccre-ep-form { margin-top: 10px; }
+.ccre-dl { display: flex; gap: 4px; flex-wrap: wrap; }
+.ccre-dl .dhl-btn { padding: 3px 8px; font-size: 11px; }
+.ccre-run-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.ccre-run-bar > div { display: flex; flex-direction: column; min-width: 200px; }
+.ccre-same { color: var(--green); font-weight: 600; }
+.ccre-diff { color: var(--red); font-weight: 600; }

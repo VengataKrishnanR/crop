@@ -10,12 +10,16 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy.orm import Session
 
-from tools.core.models import AuditEvent, OnboardingCase, PayloadTemplate, UatResult, UatRun
+from tools.core.models import (
+    AuditEvent, ExecutionEndpoint, OnboardingCase, PayloadTemplate, UatComparison, UatResult, UatRun,
+)
 from tools.execution import build_executor, check_response
+from tools.execution.crms import compare_responses
+from tools.execution.executor import EndpointExecutor
 from tools.workflow.case_facts import case_rule_set, correction_cycle, executable_test_cases
 
 from .agent_invoker import AgentInvocationError
@@ -29,8 +33,16 @@ def _rules_for(session: Session, rule_set_id: str, country: str) -> list[dict[st
     return [r for r in _rule_rows(session, rule_set_id) if r["country"] == country]
 
 
+def _check_paths(endpoint: Optional[ExecutionEndpoint]) -> dict[str, Any]:
+    if endpoint is None:
+        return {}
+    return {"groups_path": endpoint.groups_path or None, "case_path": endpoint.case_flag_path or "",
+            "status_path": endpoint.status_path or None, "status_ok": endpoint.status_ok_value}
+
+
 def execute_run(session: Session, advisory: Any, case: OnboardingCase, template: PayloadTemplate,
-                actor: str) -> UatRun:
+                actor: str, endpoint: Optional[ExecutionEndpoint] = None,
+                compare_endpoint: Optional[ExecutionEndpoint] = None) -> UatRun:
     rule_set = case_rule_set(session, case)
     if rule_set is None:
         raise ValueError("The case has no M2C draft to test.")
@@ -38,10 +50,15 @@ def execute_run(session: Session, advisory: Any, case: OnboardingCase, template:
     if not test_cases:
         raise ValueError("No business-approved test cases to execute.")
 
-    executor = build_executor(session, rule_set.id)
+    executor = build_executor(session, rule_set.id, endpoint)
+    comparer = EndpointExecutor.from_endpoint(compare_endpoint) if compare_endpoint is not None else None
+    compare_path = (endpoint.compare_path if endpoint is not None else None) or (
+        compare_endpoint.compare_path if compare_endpoint is not None else None)
+    paths = _check_paths(endpoint)
+    label = executor.name + (f" vs {comparer.name}" if comparer else "")
     rules = _rules_for(session, rule_set.id, case.ctry_cd)
     run = UatRun(case_id=case.id, rule_set_id=rule_set.id, cycle=correction_cycle(session, case.id),
-                 template_id=template.id, executor=executor.name, status="RUNNING", started_by=actor)
+                 template_id=template.id, executor=label[:64], status="RUNNING", started_by=actor)
     session.add(run)
     session.flush()
 
@@ -73,7 +90,7 @@ def execute_run(session: Session, advisory: Any, case: OnboardingCase, template:
             check = {"conclusive": True, "passed": False, "reasons": [f"Execution error: {outcome.error}"]}
         else:
             check = check_response(outcome.body, outcome.status, tc.expected_requirement,
-                                   tc.expected_case_created)
+                                   tc.expected_case_created, **paths)
         result.check = check
 
         try:
@@ -99,11 +116,24 @@ def execute_run(session: Session, advisory: Any, case: OnboardingCase, template:
         else:
             run.failed += 1
         session.add(result)
+        session.flush()
+
+        if comparer is not None:
+            other = comparer.execute(generated["payload"])
+            diff = (compare_responses(outcome.body, other.body, compare_path)
+                    if not (outcome.error or other.error) else
+                    {"identical": False, "summary": {}, "differences": []})
+            session.add(UatComparison(
+                result_id=result.id, endpoint_name=comparer.name, response_status=other.status,
+                response_body=other.body, identical=bool(diff.get("identical")),
+                summary=diff.get("summary", {}), differences=diff.get("differences", []),
+                error=other.error or outcome.error))
 
     run.status = "COMPLETED"
     run.finished_at = dt.datetime.now(dt.timezone.utc)
     session.add(AuditEvent(case_id=case.id, actor=actor, action="uat:run_completed",
                            detail={"run_id": run.id, "cycle": run.cycle, "executor": run.executor,
+                                   "endpoint": endpoint.url if endpoint is not None else None,
                                    "passed": run.passed, "failed": run.failed, "errors": run.errors}))
     session.flush()
     return run

@@ -309,3 +309,42 @@ class TemplateCreate(BaseModel):
 
 class RunRequest(BaseModel):
     template_id: Optional[str] = None
+    endpoint_id: Optional[str] = Field(default=None, description="Admin-configured endpoint; mock when omitted")
+    compare_endpoint_id: Optional[str] = Field(default=None, description="Optional second environment to compare")
+
+
+class EndpointIn(BaseModel):
+    name: str = Field(min_length=1, max_length=64)
+    url: str = Field(min_length=8)
+    method: str = "POST"
+    auth_header: Optional[str] = "x-api-key"
+    secret: Optional[str] = Field(default=None, description="Credential value; write-only")
+    extra_headers: dict[str, str] = Field(default_factory=lambda: {"Content-Type": "application/json"})
+    timeout_seconds: float = 30.0
+    groups_path: Optional[str] = None
+    case_flag_path: Optional[str] = None
+    status_path: Optional[str] = None
+    status_ok_value: Optional[str] = None
+    compare_path: Optional[str] = None
+    active: bool = True
+
+
+class EndpointPatch(BaseModel):
+    name: Optional[str] = None
+    url: Optional[str] = None
+    method: Optional[str] = None
+    auth_header: Optional[str] = None
+    secret: Optional[str] = Field(default=None, description="New credential; omit to keep the current one")
+    clear_secret: bool = False
+    extra_headers: Optional[dict[str, str]] = None
+    timeout_seconds: Optional[float] = None
+    groups_path: Optional[str] = None
+    case_flag_path: Optional[str] = None
+    status_path: Optional[str] = None
+    status_ok_value: Optional[str] = None
+    compare_path: Optional[str] = None
+    active: Optional[bool] = None
+
+
+class EndpointTest(BaseModel):
+    template_id: Optional[str] = Field(default=None, description="Sample payload to send once")
