@@ -1,0 +1,328 @@
+﻿# DHL GenAI Gateway — Testing/Sandbox Model Registry
+# Source: https://dpdhl.sharepoint.com/sites/genAIgateway/SitePages/Supported-Models.aspx
+#
+# Loaded when APIGEE_ENVIRONMENT=testing
+#
+# Fields:
+#   deployment_id     : exact ID used in the Apigee proxy path
+#   provider          : vertex_ai | azure_openai
+#   model_type        : chat | embedding
+#   supports_streaming: (optional, default: true) whether SSE streaming is supported
+#   supports_tools    : (optional, default: false) whether function/tool calling is supported
+#   supports_vision   : (optional, default: false) whether image/vision input is supported
+#   context_window    : (optional) maximum context window in tokens
+
+models:
+
+  # ---------------------------------------------------------------------------
+  # Vertex AI — Chat
+  # ---------------------------------------------------------------------------
+  - deployment_id: gemini-2.0-flash-lite-001
+    provider: vertex_ai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: false
+    context_window: 1048576
+
+  - deployment_id: gemini-2.5-flash
+    provider: vertex_ai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 1048576
+
+  - deployment_id: gemini-2.5-flash-lite
+    provider: vertex_ai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 1048576
+
+  - deployment_id: gemini-2.5-flash-pro
+    provider: vertex_ai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 1048576
+
+  - deployment_id: gemini-2.5-pro
+    provider: vertex_ai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 1048576
+
+  - deployment_id: gemini-3-pro-preview
+    provider: vertex_ai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 1048576
+
+  - deployment_id: gemini-3-pro-image-preview
+    provider: vertex_ai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 1048576
+
+  - deployment_id: gemini-3-flash-preview
+    provider: vertex_ai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 1048576
+
+  - deployment_id: gemini-3.1-pro-preview
+    provider: vertex_ai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 1048576
+
+  - deployment_id: gemini-3.1-flash-lite-preview
+    provider: vertex_ai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 1048576
+
+  # ---------------------------------------------------------------------------
+  # Azure OpenAI — Chat
+  # ---------------------------------------------------------------------------
+  - deployment_id: gpt-4o-mini-2024-07-18-eudz
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 128000
+
+  - deployment_id: gpt-4o-mini-2024-07-18-global
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 128000
+
+  - deployment_id: gpt-4o-2024-08-06-eudz
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 128000
+
+  - deployment_id: gpt-4o-2024-08-06-global
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 128000
+
+  - deployment_id: gpt-4o-2024-11-20-eudz
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 128000
+
+  - deployment_id: gpt-4.1-2025-04-14-eudz
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 1000000
+
+  - deployment_id: gpt-4.1-2025-04-14-global
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 1000000
+
+  - deployment_id: gpt-4.1-nano-2025-04-14-eudz
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: false
+    context_window: 1000000
+
+  - deployment_id: gpt-4.1-mini-2025-04-14-global
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 1000000
+
+  - deployment_id: gpt-4.1-mini-2025-04-14-eudz
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 1000000
+
+  - deployment_id: gpt-5-2025-08-07-eudz
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 200000
+
+  - deployment_id: gpt-5-mini-2025-08-07-eudz
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 200000
+
+  - deployment_id: gpt-5-mini-2025-08-07-global
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 200000
+
+  - deployment_id: gpt-5-nano-2025-08-07-eudz
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: false
+    context_window: 200000
+
+  - deployment_id: gpt-5.1-2025-11-13-eudz
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: true
+    context_window: 200000
+
+  - deployment_id: gpt-5.1-codex-mini-2025-11-13-global
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: false
+    context_window: 200000
+
+  - deployment_id: gpt-5.1-codex-max-2025-12-04-global
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: false
+    context_window: 200000
+
+  - deployment_id: gpt-5.2-codex-2026-01-14-global
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: true
+    supports_tools: true
+    supports_vision: false
+    context_window: 200000
+
+  - deployment_id: o3-mini-2025-01-31-eudz
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: false
+    supports_tools: true
+    supports_vision: false
+    context_window: 200000
+
+  - deployment_id: o4-mini-2025-04-16-eudz
+    provider: azure_openai
+    model_type: chat
+    supports_streaming: false
+    supports_tools: true
+    supports_vision: false
+    context_window: 200000
+
+  # ---------------------------------------------------------------------------
+  # Azure OpenAI — Embedding
+  # ---------------------------------------------------------------------------
+  - deployment_id: text-embedding-ada-002-2
+    provider: azure_openai
+    model_type: embedding
+    supports_streaming: false
+    supports_tools: false
+    supports_vision: false
+    context_window: 8191
+
+  - deployment_id: text-embedding-ada-002-2-eudz
+    provider: azure_openai
+    model_type: embedding
+    supports_streaming: false
+    supports_tools: false
+    supports_vision: false
+    context_window: 8191
+
+  - deployment_id: text-embedding-ada-002-2-global
+    provider: azure_openai
+    model_type: embedding
+    supports_streaming: false
+    supports_tools: false
+    supports_vision: false
+    context_window: 8191
+
+  - deployment_id: text-embedding-3-large-1
+    provider: azure_openai
+    model_type: embedding
+    supports_streaming: false
+    supports_tools: false
+    supports_vision: false
+    context_window: 8191
+
+  - deployment_id: text-embedding-3-large-1-eudz
+    provider: azure_openai
+    model_type: embedding
+    supports_streaming: false
+    supports_tools: false
+    supports_vision: false
+    context_window: 8191
+
+  - deployment_id: text-embedding-3-large-1-global
+    provider: azure_openai
+    model_type: embedding
+    supports_streaming: false
+    supports_tools: false
+    supports_vision: false
+    context_window: 8191
+
+  - deployment_id: text-embedding-3-small-1-eudz
+    provider: azure_openai
+    model_type: embedding
+    supports_streaming: false
+    supports_tools: false
+    supports_vision: false
+    context_window: 8191
+
+  - deployment_id: text-embedding-3-small-1-global
+    provider: azure_openai
+    model_type: embedding
+    supports_streaming: false
+    supports_tools: false
+    supports_vision: false
+    context_window: 8191

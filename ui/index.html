@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CCRE Rules Intelligence — Country Onboarding</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/ccre.css" />
+</head>
+<body>
+
+  <!-- ── Header ── -->
+  <header class="dhl-header">
+    <div class="dhl-header__brand">
+      <span class="dhl-logo">DHL</span>
+      <span class="dhl-header__title">CCRE Rules Intelligence</span>
+      <span class="dhl-header__sub">Country onboarding · deterministic validation · ADK agents</span>
+    </div>
+    <div class="dhl-header__right">
+      <a class="dhl-btn dhl-btn--ghost dhl-btn--sm" href="/docs" target="_blank" rel="noopener">API docs</a>
+      <button id="btn-test-report" class="dhl-btn dhl-btn--ghost dhl-btn--sm"
+              title="Download XLSX test report (run: pytest first)">Test Report</button>
+      <div id="status-badge" class="dhl-badge dhl-badge--loading">
+        <span id="status-dot" class="dhl-badge__dot"></span>
+        <span id="status-label">Connecting…</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="dhl-main">
+
+    <!-- ══════════════ LEFT SIDEBAR — inputs + flow ══════════════ -->
+    <aside class="dhl-sidebar">
+
+      <div class="dhl-source-card">
+        <div class="dhl-tabs">
+          <button class="dhl-tab dhl-tab--active" data-tab="requirement">Requirement</button>
+          <button class="dhl-tab" data-tab="ruleset">Rule set</button>
+          <button class="dhl-tab" data-tab="failure">Failure</button>
+        </div>
+
+        <!-- Requirement → interpret / draft -->
+        <div id="tab-requirement" class="dhl-tab-panel dhl-tab-panel--active">
+          <label class="ccre-field-label" for="case-select">Onboarding case</label>
+          <div class="ccre-row">
+            <select id="case-select" class="dhl-input ccre-select"></select>
+            <button id="btn-new-case" class="dhl-btn dhl-btn--ghost dhl-btn--sm" title="Create a case">+ New</button>
+          </div>
+          <div id="new-case-form" class="ccre-new-case" hidden>
+            <input id="nc-code" class="dhl-input" placeholder="Case code, e.g. ONB-2026-BG-014" />
+            <div class="ccre-row">
+              <input id="nc-country" class="dhl-input ccre-narrow" maxlength="2" placeholder="BG" />
+              <input id="nc-title" class="dhl-input" placeholder="Title" />
+            </div>
+            <button id="btn-create-case" class="dhl-btn dhl-btn--primary dhl-btn--sm">Create case</button>
+          </div>
+          <label class="ccre-field-label" for="req-text">Requirement (paste the email or ask)</label>
+          <textarea id="req-text" class="dhl-textarea ccre-req"
+            placeholder="e.g. BG B2C shipments need the IOSS requirement raised when SDT is present and the service code is not DD."></textarea>
+          <div class="dhl-meta"><span id="char-count">0 chars</span></div>
+          <div class="dhl-actions">
+            <button id="btn-interpret" class="dhl-btn dhl-btn--primary" disabled>&#128269; Interpret</button>
+            <button id="btn-draft" class="dhl-btn dhl-btn--ghost" disabled>&#9998; Draft rules</button>
+          </div>
+        </div>
+
+        <!-- Rule set → validate / tests / export -->
+        <div id="tab-ruleset" class="dhl-tab-panel">
+          <label class="ccre-field-label" for="ruleset-select">Rule set</label>
+          <select id="ruleset-select" class="dhl-input ccre-select"></select>
+          <label class="ccre-field-label" for="rs-country">Country (optional)</label>
+          <input id="rs-country" class="dhl-input ccre-narrow" maxlength="2" placeholder="BG" />
+          <div class="dhl-actions ccre-wrap">
+            <button id="btn-validate" class="dhl-btn dhl-btn--primary" disabled>&#9989; Validate</button>
+            <button id="btn-tests" class="dhl-btn dhl-btn--ghost" disabled>&#129514; Design tests</button>
+            <button id="btn-export" class="dhl-btn dhl-btn--ghost" disabled>&#128230; Export</button>
+          </div>
+          <p class="ccre-hint">No rule sets yet? Run <code>ccre bootstrap</code> to load the workbook and package from <code>..\Reference</code>.</p>
+        </div>
+
+        <!-- Failure → RCA -->
+        <div id="tab-failure" class="dhl-tab-panel">
+          <input id="f-test" class="dhl-input" placeholder="Test id, e.g. BG-IOSS-01" />
+          <input id="f-expected" class="dhl-input ccre-gap" placeholder="Expected, e.g. IOSS raised" />
+          <input id="f-actual" class="dhl-input ccre-gap" placeholder="Actual, e.g. no case created" />
+          <textarea id="f-details" class="dhl-textarea ccre-gap ccre-small" placeholder="Payload excerpt, logs…"></textarea>
+          <div class="dhl-actions">
+            <button id="btn-analyse" class="dhl-btn dhl-btn--primary" disabled>&#128270; Analyse failure</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Flow -->
+      <div class="dhl-pipeline-card">
+        <div class="dhl-pipeline__title">Onboarding flow</div>
+        <div id="pl-ingest" class="dhl-step">&#128229; Package + workbook loaded</div>
+        <div id="pl-interpret" class="dhl-step dhl-step--expandable">
+          <span class="dhl-step__label">&#128269; Interpret requirement</span>
+          <ul class="dhl-step__agents"><li>requirement_interpreter</li></ul>
+        </div>
+        <div id="pl-gateA" class="dhl-step dhl-step--gate">Gate — PM approves reading</div>
+        <div id="pl-draft" class="dhl-step dhl-step--expandable">
+          <span class="dhl-step__label">&#9998; Draft rules</span>
+          <ul class="dhl-step__agents"><li>rule_drafter</li></ul>
+        </div>
+        <div id="pl-gateB" class="dhl-step dhl-step--gate">Gate — human accepts proposal</div>
+        <div id="pl-validate" class="dhl-step">&#9989; Deterministic validation</div>
+        <div id="pl-tests" class="dhl-step dhl-step--expandable">
+          <span class="dhl-step__label">&#129514; Design tests</span>
+          <ul class="dhl-step__agents"><li>test_case_designer</li></ul>
+        </div>
+        <div id="pl-rca" class="dhl-step dhl-step--expandable">
+          <span class="dhl-step__label">&#128270; Failure analysis</span>
+          <ul class="dhl-step__agents"><li>failure_analyst</li></ul>
+        </div>
+        <div id="pl-export" class="dhl-step">&#128230; Export → Support uploads</div>
+      </div>
+    </aside>
+
+    <!-- ══════════════ RIGHT — output ══════════════ -->
+    <section class="dhl-output-panel">
+      <div class="dhl-output-panel__head">
+        <span id="output-title" class="dhl-panel__title">Output</span>
+        <div class="dhl-panel__head-actions">
+          <span id="busy" class="dhl-meta"></span>
+          <button id="btn-chat-toggle" class="dhl-btn dhl-btn--ghost dhl-btn--sm">&#128172; Ask Expert</button>
+        </div>
+      </div>
+
+      <div class="dhl-output-panel__body">
+        <!-- Validation metrics -->
+        <div id="analysis-metrics" class="dhl-analysis-metrics">
+          <div class="dhl-analysis-metrics__head">
+            <span class="dhl-analysis-metrics__title">&#128202; Validation summary</span>
+          </div>
+          <div id="metrics-body" class="dhl-metrics-body"></div>
+        </div>
+
+        <!-- Proposal review gate -->
+        <div id="gate-panel" class="dhl-gate">
+          <div class="dhl-gate__head">
+            <span id="gate-title" class="dhl-gate__title">Proposal awaiting a human decision</span>
+            <span class="dhl-val-chip dhl-val-chip--warn">PROPOSED</span>
+          </div>
+          <div class="dhl-gate__notice">
+            Nothing is applied until you accept. Accepting writes the rules into the selected rule set and runs the validator immediately.
+          </div>
+          <div class="ccre-row">
+            <label class="ccre-field-label" for="gate-ruleset">Accept into rule set</label>
+            <select id="gate-ruleset" class="dhl-input ccre-select"></select>
+          </div>
+          <input id="gate-actor" class="dhl-input" placeholder="Your name (recorded on the audit trail)" />
+          <div class="dhl-gate__actions">
+            <button id="btn-accept" class="dhl-btn dhl-btn--primary">&#10003; Accept proposal</button>
+            <button id="btn-reject" class="dhl-btn dhl-btn--ghost">&#10006; Reject</button>
+          </div>
+        </div>
+
+        <!-- Result view -->
+        <div id="result" class="ccre-result" hidden></div>
+
+        <!-- Empty state -->
+        <div id="output-empty" class="dhl-output-empty">
+          <div class="dhl-output-empty__icon">&#9881;</div>
+          <p>Pick or create a case, paste a requirement and click <strong>Interpret</strong>.</p>
+          <p class="ccre-hint">Or open <strong>Rule set</strong> to validate what is loaded, and use <strong>Ask Expert</strong> for questions.</p>
+        </div>
+
+        <div id="error-box" class="dhl-error-box"><span id="error-msg"></span></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ══════════════ FLOATING CHAT POPUP ══════════════ -->
+  <div id="chat-popup" class="dhl-chat-popup" role="dialog" aria-label="CCRE Expert">
+    <div class="dhl-chat-popup__header">
+      <div class="dhl-chat-popup__title"><span>&#128172;</span> CCRE Expert</div>
+      <button id="btn-chat-close" class="dhl-chat-popup__close" title="Close">&#10005;</button>
+    </div>
+    <div class="dhl-chat-popup__suggestions">
+      <button class="dhl-suggestion" data-query="Package status for BG">Package status</button>
+      <button class="dhl-suggestion" data-query="List the requirement groups configured for AT">Groups</button>
+      <button class="dhl-suggestion" data-query='Check: matchCiMask("shortCode,==,SDT")'>Check expression</button>
+      <button class="dhl-suggestion" data-query="Show me the rule sets and cases">Rule sets</button>
+      <button class="dhl-suggestion" data-query="BG B2C needs IOSS when SDT is present and the service code is not DD">Interpret</button>
+    </div>
+    <div id="chat-popup-msgs" class="dhl-chat-msgs dhl-chat-popup__msgs">
+      <div class="dhl-chat-welcome">
+        <div class="dhl-chat-welcome__icon">&#128172;</div>
+        <p>Ask about the catalogue, a country's package status, an expression, or what blocks a rule set.</p>
+        <p class="ccre-hint">The expert recommends. The validator decides. Humans approve.</p>
+      </div>
+    </div>
+    <div class="dhl-chat-popup__compose">
+      <textarea id="chat-input" class="dhl-chat-input" placeholder="Ask the CCRE expert…"></textarea>
+      <div class="dhl-chat-compose__row">
+        <button id="btn-chat-send" class="dhl-btn dhl-btn--primary" disabled>Send</button>
+        <button id="btn-chat-clear-history" class="dhl-btn dhl-btn--ghost">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

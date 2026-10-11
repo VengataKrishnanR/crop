@@ -1,0 +1,22 @@
+# Core dependencies
+loguru
+httpx
+pydantic>=2.9
+pyyaml
+python-dotenv
+
+# Google GenAI SDK
+google-genai
+google-adk>=2.1.0
+
+# Server layer (FastAPI HTTP shell + UI)
+fastapi>=0.115
+uvicorn[standard]
+python-multipart
+
+# Domain: rule-layer persistence and the M2C workbook parser
+sqlalchemy>=2.0
+openpyxl>=3.1
+
+# Dev / test
+pytest>=8.0
