@@ -9,6 +9,7 @@ without a network call.
 from __future__ import annotations
 
 import inspect
+import json
 
 import pytest
 from sqlalchemy.orm import Session
@@ -178,7 +179,8 @@ def test_stage_proposal_writes_only_the_staging_table(session: Session) -> None:
 
 def test_agent_specs_declare_a_gate_each() -> None:
     assert set(agents.AGENT_SPECS) == {
-        "requirement_interpreter", "rule_drafter", "test_case_designer", "failure_analyst",
+        "intake_assistant", "requirement_interpreter", "timeline_planner", "rule_drafter",
+        "test_case_designer", "payload_generator", "response_reviewer", "failure_analyst",
     }
     for name, spec in agents.AGENT_SPECS.items():
         assert spec["gate"], f"{name} declares no human gate"
@@ -220,7 +222,9 @@ def test_root_agent_wires_every_sub_agent_and_no_write_tool() -> None:
     import agent as entry
 
     names = _tool_names(entry.root_agent)
-    assert set(entry.SUB_AGENTS) <= names
+    assert set(entry.ROOT_DELEGATES) <= names
+    # Lifecycle-only agents are invoked by the server, not by the chat orchestrator.
+    assert not {"intake_assistant", "payload_generator", "response_reviewer"} & names
     assert "validate_rule_set" in names and "check_expression" in names
     assert "stage_change_set" not in names
 
@@ -271,3 +275,44 @@ def test_root_agent_calls_a_database_tool() -> None:
     reply = run_text(entry.root_agent, 'Check: matchCiMask("shortCode,==,SDT")', session_id="t_expr")
     assert "check_expression" in reply
     assert "pipe" in reply.lower() or "|" in reply
+
+
+def test_all_eight_agents_are_built_with_the_house_rules() -> None:
+    import agent as entry
+
+    assert len(entry.SUB_AGENTS) == 8
+    for name, built in entry.SUB_AGENTS.items():
+        assert built.name == name
+        assert f"You are **{name}**" in built.instruction
+        assert "Humans approve" in built.instruction
+        assert "stage_change_set" not in _tool_names(built)
+
+
+def test_timeline_planner_returns_the_seven_milestones() -> None:
+    import agent as entry
+    from server.agent_invoker import invoke_agent
+    from tools.timeline import estimate, normalise_answers
+
+    answers = normalise_answers({"requested_rtp": "2027-01-29", "earliest_start": "2026-11-02"})
+    baseline = estimate({"group_count": 1, "condition_count": 1, "country_in_package": True}, answers)
+    prompt = "Baseline estimate:\n```json\n" + json.dumps(baseline) + "\n```"
+    plan = invoke_agent(entry.timeline_planner, prompt, session_id="t_tl")
+    assert [m["stage"] for m in plan["milestones"]][-1] == "RTP"
+    assert len(plan["milestones"]) == 7
+
+
+def test_payload_generator_and_reviewer_round_trip() -> None:
+    from server.advisory import AdvisoryService
+    from tools.execution import builtin_sample_payload, check_response
+
+    service = AdvisoryService()
+    case = {"test_id": "DE-POA-01P", "input_conditions": [{"field": "incoterm", "operator": "equals",
+                                                            "value": "DDP"}],
+            "expected_requirement": "POA", "expected_case_created": True}
+    generated = service.generate_payload(builtin_sample_payload(), case, [], "DE")
+    assert generated["payload"]["incoterm"] == "DDP"
+    assert generated["payload"]["destinationCountry"] == "DE"
+    body = {"caseCreated": True, "requirements": [{"group": "POA"}]}
+    check = check_response(body, 200, "POA", True)
+    review = service.review_response(case, generated["payload"], 200, body, check)
+    assert review["verdict"] == "PASS" and review["business_explanation"]

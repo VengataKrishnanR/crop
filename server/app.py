@@ -1,18 +1,21 @@
-"""FastAPI application — HTTP shell over the CCRE rule layer and its agents.
+"""FastAPI application — HTTP shell over the CCRE onboarding lifecycle and its agents.
 
 Surface (all under ``/api``):
-  - Domain routes (:mod:`server.routes`): ingestion, catalogue, cases & workflow,
+  - Auth + admin (:mod:`server.admin`): sign-in, users and roles (RBAC).
+  - Lifecycle (:mod:`server.lifecycle`): one onboarding from intake to RTP —
+    intake chat/form, timeline, M2C draft, sanity check, UAT prep/review/run/review.
+  - KPIs (:mod:`server.kpis`).
+  - Domain routes (:mod:`server.routes`, internal roles): ingestion, catalogue,
     rules, deterministic validation, proposals, export.
-  - Advisory routes (this module): run the four specialist agents, each output
-    validated against its schema and recorded on the audit trail.
-  - UI facade: ``/api/session`` + ``/api/run`` (chat with the root orchestrator),
-    ``/api/test-report/xlsx``, and the single-page UI from ``ui/``.
+  - UI facade: ``/api/run`` (internal "Ask Expert" chat), ``/api/test-report/xlsx``,
+    and the single-page UI from ``ui/``.
 
 Notice what is absent: there is no endpoint that writes to CCRE, and no endpoint
 that advances a case past a gate without the validator agreeing.
 """
 from __future__ import annotations
 
+import logging
 import re as _re
 import uuid
 from pathlib import Path
@@ -49,28 +52,38 @@ except ImportError:
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from tools.agents import AGENT_SPECS, agents_available
-from tools.core.db import get_session, init_db
-from tools.core.models import OnboardingCase, RuleSet
+from tools.core.config import SETTINGS
+from tools.core.db import SessionLocal, get_session, init_db
+from tools.core.models import ConfigPackage
+from tools.core.security import ensure_default_admin
+from tools.validation import available_checks
 
 from . import api_schemas as S
+from .admin import router as admin_router
 from .advisory import AdvisoryService, AdvisoryUnavailable
-from .agent_invoker import AgentInvocationError
+from .auth import CurrentUser, current_user, require_internal
 from .config import load_settings
+from .kpis import router as kpi_router
+from .lifecycle import ensure_builtin_template
+from .lifecycle import router as lifecycle_router
 from .routes import router as domain_router
 
+log = logging.getLogger("ccre.server")
 settings = load_settings()
 advisory = AdvisoryService()
 
 app = FastAPI(
     title="CCRE Rules Intelligence & Onboarding Platform",
-    version="1.0.0",
+    version="2.0.0",
     description=(
-        "Rule authoring, deterministic validation, gated approval and export for CCRE country "
-        "onboarding, with an ADK advisory layer that recommends and never decides. The "
-        "platform holds no credential for CCRE: releases leave as an export that Support uploads."
+        "Country onboarding for CCRE from business requirement to RTP: intake (chat or form), "
+        "AI timeline approved by the PM, M2C drafting with deterministic validation, UAT test "
+        "design, payload generation, execution and review, with role-based access. Agents "
+        "recommend; code validates; humans approve. The platform never uploads to CCRE."
     ),
 )
 
@@ -78,119 +91,55 @@ app = FastAPI(
 @app.on_event("startup")
 def _startup() -> None:
     init_db()
+    with SessionLocal() as session:
+        created = ensure_default_admin(session)
+        session.commit()
+        ensure_builtin_template(session)
+    if created:
+        log.warning("Created the first admin user %s — sign in and change its password "
+                    "(set CCRE_ADMIN_EMAIL / CCRE_ADMIN_PASSWORD to choose them).", created)
 
 
-# ---------------------------------------------------------------------------
-# Authentication — optional shared-secret gate on the API surface.
-#   AUTH_MODE=none   (default) — open, for local dev.
-#   AUTH_MODE=apikey           — every /api/* call (except /api/health) must
-#                                present CCRE_API_KEY via `Authorization: Bearer <k>`
-#                                or `X-API-Key: <k>`. Static UI assets stay open.
-# ---------------------------------------------------------------------------
-_OPEN_PATHS = {"/api/health"}
+@app.get("/api/health", tags=["meta"])
+def health(session: Session = Depends(get_session)) -> dict[str, Any]:
+    packages = list(session.execute(select(ConfigPackage)).scalars())
+    return {
+        "status": "ok",
+        "version": app.version,
+        "auth_mode": settings.auth_mode,
+        "database": SETTINGS.database_url.split("://", 1)[0],
+        "packages": [
+            {"version": p.version, "sirg": p.sirg_count, "sir": p.sir_count, "mappings": p.mapping_count}
+            for p in packages
+        ],
+        "checks": len(available_checks()),
+    }
 
 
-@app.middleware("http")
-async def _auth_guard(request, call_next):
-    if settings.auth_mode == "apikey":
-        path = request.url.path
-        if path.startswith("/api/") and path not in _OPEN_PATHS:
-            presented = request.headers.get("x-api-key", "")
-            authz = request.headers.get("authorization", "")
-            if authz.lower().startswith("bearer "):
-                presented = presented or authz[7:].strip()
-            if not settings.api_key or presented != settings.api_key:
-                return JSONResponse({"detail": "Unauthorized"}, status_code=401)
-    return await call_next(request)
-
-
-app.include_router(domain_router, prefix="/api")
-
-
-# ---------------------------------------------------------------------------
-# Advisory (agent) endpoints
-# ---------------------------------------------------------------------------
-
-def _advise(fn, *args, **kwargs) -> dict[str, Any]:
-    """Run an advisory call, mapping failures to clean HTTP errors."""
-    try:
-        return fn(*args, **kwargs)
-    except AdvisoryUnavailable as exc:
-        raise HTTPException(503, str(exc)) from exc
-    except AgentInvocationError as exc:
-        raise HTTPException(502, f"Agent failed: {exc}") from exc
-    except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc
-
-
-def _case(session: Session, case_id: str) -> OnboardingCase:
-    case = session.get(OnboardingCase, case_id)
-    if case is None:
-        raise HTTPException(404, f"no such case: {case_id}")
-    return case
+app.include_router(admin_router, prefix="/api")
+app.include_router(lifecycle_router, prefix="/api")
+app.include_router(kpi_router, prefix="/api")
+app.include_router(domain_router, prefix="/api", dependencies=[Depends(require_internal)])
 
 
 @app.get("/api/agents", tags=["advisory"])
-def list_agents() -> dict[str, Any]:
+def list_agents(_: CurrentUser = Depends(current_user)) -> dict[str, Any]:
     """The advisory layer: what each agent does, what it emits, and which human gate follows."""
     available, reason = agents_available()
     return {"llm_mode": settings.llm_mode, "available": available, "reason": reason,
             "agents": AGENT_SPECS}
 
 
-@app.post("/api/cases/{case_id}/interpret", tags=["advisory"])
-def interpret_requirement(case_id: str, body: S.InterpretRequest,
-                          session: Session = Depends(get_session)) -> dict[str, Any]:
-    """Requirement interpreter → RequirementInterpretation (recorded on the audit trail)."""
-    case = _case(session, case_id)
-    return _advise(advisory.interpret, session, case, body.requirement_text, body.actor)
-
-
-@app.post("/api/cases/{case_id}/draft-rules", tags=["advisory"])
-def draft_rules(case_id: str, body: S.DraftRulesRequest,
-                session: Session = Depends(get_session)) -> dict[str, Any]:
-    """Rule drafter → ChangeSet, staged as a PROPOSED proposal. Nothing is applied."""
-    case = _case(session, case_id)
-    return _advise(advisory.draft_rules, session, case, body.requirement_text,
-                   body.interpretation, body.actor)
-
-
-@app.post("/api/rule-sets/{rule_set_id}/test-suite", tags=["advisory"])
-def design_test_suite(rule_set_id: str, body: S.DesignTestsRequest,
-                      session: Session = Depends(get_session)) -> dict[str, Any]:
-    """Test case designer → TestCaseSuite for the rules in scope."""
-    rule_set = session.get(RuleSet, rule_set_id)
-    if rule_set is None:
-        raise HTTPException(404, f"no such rule set: {rule_set_id}")
-    return _advise(advisory.design_tests, session, rule_set, body.country, body.notes, body.actor)
-
-
-@app.post("/api/failures/analyse", tags=["advisory"])
-def analyse_failure(body: S.AnalyseFailureRequest,
-                    session: Session = Depends(get_session)) -> dict[str, Any]:
-    """Failure analyst → FailureAnalysis. Recommends the next check; never edits."""
-    if body.case_id:
-        _case(session, body.case_id)
-    return _advise(advisory.analyse_failure, session, body.test_id, body.expected, body.actual,
-                   body.details, body.case_id, body.actor)
-
-
 # ===========================================================================
-# UI facade — conversational endpoints for the single-page UI (ui/)
+# UI facade
 # ===========================================================================
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _UI_DIR = _PROJECT_ROOT / "ui"
 
 
-@app.post("/api/session", tags=["ui"])
-def ui_session() -> dict[str, str]:
-    """The UI tracks a session id; for the stateless facade any id works."""
-    return {"session_id": uuid.uuid4().hex}
-
-
 @app.post("/api/run", tags=["ui"])
-def ui_run(body: S.ChatRequest) -> JSONResponse:
-    """Send one message to the root orchestrator and return its reply."""
+def ui_run(body: S.ChatRequest, _: CurrentUser = Depends(require_internal)) -> JSONResponse:
+    """Send one message to the internal "Ask Expert" orchestrator and return its reply."""
     message = body.message.strip()
     if not message:
         raise HTTPException(400, "Empty message")
@@ -203,7 +152,12 @@ def ui_run(body: S.ChatRequest) -> JSONResponse:
     return JSONResponse({"session_id": body.session_id or uuid.uuid4().hex, "response": response})
 
 
-@app.api_route("/api/test-report/xlsx", methods=["GET", "HEAD"], tags=["ui"])
+@app.head("/api/test-report/xlsx", include_in_schema=False)
+def test_report_exists() -> FileResponse:
+    return download_test_report()
+
+
+@app.get("/api/test-report/xlsx", tags=["ui"])
 def download_test_report() -> FileResponse:
     """Download the latest XLSX test report generated by ``pytest``."""
     if not settings.test_report_path.exists():

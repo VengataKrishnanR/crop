@@ -1,6 +1,6 @@
 """Agent factories for the CCRE advisory layer.
 
-Four narrow agents, each with one job, a typed output contract
+Eight narrow agents, each with one job, a typed output contract
 (:mod:`tools.agents.schemas`) and the smallest tool set that job needs. There is
 deliberately no "do everything" agent, and no agent holds workflow state — the
 state machine does.
@@ -14,47 +14,87 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from .schemas import (
+    BusinessRequirement,
     ChangeSet,
     Condition,
     FailureAnalysis,
+    GeneratedPayload,
+    IntakeTurn,
     ProposedRule,
     RequirementInterpretation,
+    ResponseReview,
     TestCase,
     TestCaseSuite,
+    TimelinePlan,
 )
 
 __all__ = [
     "ChangeSet", "Condition", "FailureAnalysis", "ProposedRule",
-    "RequirementInterpretation", "TestCase", "TestCaseSuite",
+    "RequirementInterpretation", "TestCase", "TestCaseSuite", "BusinessRequirement",
+    "IntakeTurn", "TimelinePlan", "GeneratedPayload", "ResponseReview",
     "AGENT_SPECS", "agents_available",
-    "build_requirement_interpreter_agent", "build_rule_drafter_agent",
-    "build_test_case_designer_agent", "build_failure_analyst_agent",
+    "build_intake_assistant_agent", "build_requirement_interpreter_agent",
+    "build_timeline_planner_agent", "build_rule_drafter_agent",
+    "build_test_case_designer_agent", "build_payload_generator_agent",
+    "build_response_reviewer_agent", "build_failure_analyst_agent",
 ]
 
 AGENT_SPECS: dict[str, dict[str, Any]] = {
+    "intake_assistant": {
+        "stage": "Requirement intake",
+        "purpose": "Interview the business team (chat) until the requirement is complete.",
+        "output": "IntakeTurn → BusinessRequirement",
+        "gate": "CCRE consultant approves the requirement.",
+    },
     "requirement_interpreter": {
-        "purpose": "Turn a natural-language country requirement into a structured reading.",
+        "stage": "Requirement intake",
+        "purpose": "Turn a form + free-text requirement into a structured reading (NLP).",
         "output": "RequirementInterpretation",
-        "gate": "PM approves the interpretation before rules are drafted.",
+        "gate": "CCRE consultant approves the requirement.",
+    },
+    "timeline_planner": {
+        "stage": "Timeline",
+        "purpose": "Plan the seven delivery milestones from the PM questionnaire.",
+        "output": "TimelinePlan",
+        "gate": "PM approves; the approved plan is published to the business team.",
     },
     "rule_drafter": {
-        "purpose": "Propose candidate rule rows for an approved requirement, reusing what exists.",
+        "stage": "Rule config + DMG",
+        "purpose": "Convert the approved business requirement into M2C rule rows.",
         "output": "ChangeSet (staged, never applied)",
-        "gate": "Validator must pass, then Support signs off.",
+        "gate": "A named CCRE user accepts it; the validator then runs.",
     },
     "test_case_designer": {
-        "purpose": "Draft a covering test suite for a validated rule set.",
+        "stage": "UAT test case prep",
+        "purpose": "Draft the UAT suite from the M2C draft, with business-readable summaries.",
         "output": "TestCaseSuite",
-        "gate": "Reviewer approves the suite; approved cases become evidence.",
+        "gate": "CCRE team reviews, then the business team.",
+    },
+    "payload_generator": {
+        "stage": "UAT execution",
+        "purpose": "Adapt the sample payload to each approved test case.",
+        "output": "GeneratedPayload",
+        "gate": "Every change is recorded with the result.",
+    },
+    "response_reviewer": {
+        "stage": "UAT execution",
+        "purpose": "Review each endpoint response against the expectation and explain it.",
+        "output": "ResponseReview",
+        "gate": "Deterministic check is authoritative when conclusive; CCRE team reviews results.",
     },
     "failure_analyst": {
-        "purpose": "Explain a failed execution and recommend the next check.",
+        "stage": "UAT review",
+        "purpose": "Explain a failed UAT result and recommend the next check.",
         "output": "FailureAnalysis",
-        "gate": "Recommendation only; a human decides whether to change anything.",
+        "gate": "Recommendation only; the CCRE team decides whether to correct the M2C.",
     },
 }
 
 _BUILDERS = {
+    "build_intake_assistant_agent": "intake_assistant",
+    "build_timeline_planner_agent": "timeline_planner",
+    "build_payload_generator_agent": "payload_generator",
+    "build_response_reviewer_agent": "response_reviewer",
     "build_requirement_interpreter_agent": "requirement_interpreter",
     "build_rule_drafter_agent": "rule_drafter",
     "build_test_case_designer_agent": "test_case_designer",

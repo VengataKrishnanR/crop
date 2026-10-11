@@ -1,0 +1,18 @@
+{
+  "shipmentId": "UAT-0001",
+  "shipDate": "2026-11-16",
+  "originCountry": "CN",
+  "destinationCountry": "AT",
+  "shipmentType": "B2C",
+  "declaredValue": 120.0,
+  "currency": "EUR",
+  "weightKg": 1.2,
+  "incoterm": "DAP",
+  "serviceCodes": ["WY"],
+  "destinationServiceArea": "VIE",
+  "networkProductCode": "P",
+  "shortCodes": [
+    {"shortCode": "SDT", "value": "IM1234567890"}
+  ],
+  "hsCodes": {"inboundHsCode": "851712"}
+}

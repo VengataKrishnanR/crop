@@ -1,81 +1,50 @@
-# CCRE Onboarding — Quick Start (5 Minutes)
+# CCRE Onboarding v2 — Quick Start
 
-## Option A — one click (Windows)
+## 1. Start
 
-Double-click **`START.bat`**. It will:
+Double-click **`START.bat`** and open **http://localhost:8000**. To start by hand instead, see README → How to run.
 
-1. create `.venv` (first run only),
-2. copy `config\.env.stub` to `.env` if you have no `.env` (offline mode, no key needed),
-3. install the dependencies and patch ADK,
-4. load the workbook and package from `..\Reference` (`ccre bootstrap`),
-5. start the server.
+Sign in as **`admin@ccre.local` / `ChangeMe123!`**, click **Password** and change it.
 
-Then open **http://localhost:8000**.
+## 2. Add users (Admin)
 
----
+| Add | Role | Countries |
+|---|---|---|
+| Your PM | PM | — |
+| A CCRE consultant | CCRE_CONSULTANT | — |
+| A CCRE team member | CCRE_TEAM | — |
+| A country business user | BUSINESS | e.g. `DE` |
 
-## Option B — step by step (PowerShell)
+Use a private browser window for each person to sign in side by side.
 
-### 1. Create the virtual environment
-```powershell
-cd ccre-onboarding-agent
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
-If PowerShell blocks the script: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, once.
+## 3. Walk one onboarding (DE works fully offline)
 
-### 2. Install
-```powershell
-pip install -r requirements.txt
-pip install -e .
-python patch_adk.py
-```
+| # | Who | Where | Do |
+|---|---|---|---|
+| 1 | Business | Onboardings → **+ New** | Country `DE`, title *POA for DDP shipments* |
+| 2 | Business | 1. Requirement → **Form + NLP** (or **Chat**) | *DE consumer shipments must provide a Power of Attorney when the incoterm is DDP*, codes `POA` → **Convert with NLP** → **Submit requirement for review** |
+| 3 | CCRE consultant | Action bar | **Approve requirement** |
+| 4 | PM | 2. Timeline | Answer the questionnaire → **Generate timeline** → **Submit timeline** → **Approve and publish timeline** |
+| 5 | Business | 2. Timeline | Sees the approved plan |
+| 6 | CCRE team | 3. Rule config + DMG | **Start M2C draft** (copies DE's workbook row) → optionally **Convert requirement to M2C (AI)** and accept or reject the proposal → **Send M2C draft to sanity check** |
+| 7 | CCRE team | 4. Sanity check | **Run validation** → **Sanity check passed** |
+| 8 | CCRE team | 5. UAT test case prep | **Generate test cases (AI)** → **Submit test cases** |
+| 9 | CCRE consultant | 6. Review | Reject any with a reason, or **CCRE approves test cases** |
+| 10 | Business | 6. Test case review | Reject with a comment, or **Business approves test cases** |
+| 11 | CCRE team | 7. UAT execution | Choose the sample payload → **Run UAT**. Results move to CCRE review automatically |
+| 12 | CCRE team | 8. Review | Expand *payload & response*; on failure **Analyse failure (AI)** → **Failures found — correct the M2C** (back to step 6), else **CCRE accepts results** |
+| 13 | Business | 7. Sign-off | **Business signs off UAT** |
+| 14 | CCRE team | 9. RTP | **Build export bundle** → Support uploads → **Confirm production upload** |
 
-### 3. Choose the LLM mode
-```powershell
-copy config\.env.stub .env       # offline: scripted agents, no key, no VPN
-# — or —
-copy config\.env.apigee .env     # DHL GenAI Gateway (needs DHL network/VPN)
-$env:APIGEE_API_KEY = "your-key-from-the-AI-champion"
-```
+Then open **KPIs**.
 
-### 4. Load the reference artifacts
-```powershell
-ccre bootstrap
-```
-Expected: package 2.10.4-beta.2 and workbook 2.10.9-beta.2 load, and the validator reports **3 blockers** with the gate **LOCKED**.
-
-### 5. Start
-```powershell
-uvicorn server.app:app --port 8000
-```
-- UI: **http://127.0.0.1:8000**
-- API docs: **http://127.0.0.1:8000/docs**
-- ADK dev UI (optional): `adk web . --port 8002` (pick `agent` in the list)
-
----
-
-## Walkthrough in the UI
-
-1. **Requirement** tab: click **+ New** and create a case (e.g. `ONB-2026-BG-014`, `BG`, *BG IOSS trigger*).
-2. Paste: *BG B2C shipments need IOSS when SDT is present and the service code is not DD.* Click **Interpret**.
-3. Review the reading, especially the ambiguities. Click **Draft rules**.
-4. In the yellow gate panel, choose the rule set, enter your name, and click **Accept proposal**. The rules are written and the validator runs at once.
-5. **Rule set** tab: **Validate**, **Design tests**, **Export**.
-6. **Failure** tab: enter a failed test id and what happened, then **Analyse failure**.
-7. **Ask Expert** (top right): free-form questions, such as *Package status for BG* or *Check: matchCiMask("shortCode,==,SDT")*.
-
----
+> BG is a good negative demo: its IOSS/POAB definitions and country mapping are missing from config package 2.10.4-beta.2, so step 7 stays blocked until Support rebuilds the package.
 
 ## Essential commands
 
-| Task | Command |
+| Task | Command (venv active) |
 |---|---|
-| Activate venv | `.\.venv\Scripts\Activate.ps1` |
-| Load reference data | `ccre bootstrap` |
-| Validate a rule set | `ccre validate <rule_set_id>` |
-| Check one expression | `ccre expr "!serviceCodeList.contains(\"DD\")"` |
-| List the checks | `ccre checks` |
-| Start server | `uvicorn server.app:app --port 8000` |
-| Run tests (+ XLSX report) | `pytest` |
-| Health | `curl http://127.0.0.1:8000/api/health` |
+| Start | `uvicorn server.app:app --port 8000` |
+| Reload the reference data | stop the server, delete `.ccre_data\ccre_v2.db`, run `ccre bootstrap` |
+| Run tests + XLSX report | `pytest` |
+| Check an expression | `ccre expr "!serviceCodeList.contains(\"DD\")"` |

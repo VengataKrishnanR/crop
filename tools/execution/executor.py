@@ -1,0 +1,118 @@
+"""Pluggable UAT executors — where the request is actually sent.
+
+Selected by ``CCRE_UAT_EXECUTOR``:
+
+* ``mock`` (default) — the in-process mock CCRE (:mod:`tools.execution.mock_ccre`).
+* ``http`` — POST the payload to ``CCRE_UAT_ENDPOINT`` with optional
+  ``CCRE_UAT_AUTH_HEADER`` ("Header-Name: value") and ``CCRE_UAT_TIMEOUT_SECONDS``.
+* ``package.module:ClassName`` — your own execution code. The class is built
+  with no arguments and must provide ``execute(payload: dict) -> dict`` returning
+  ``{"status": int, "body": <json or text>}``. See ``tools/execution/custom/``.
+"""
+from __future__ import annotations
+
+import importlib
+import json
+import os
+import time
+from dataclasses import dataclass
+from typing import Any, Optional
+
+import httpx
+from sqlalchemy.orm import Session
+
+from .mock_ccre import evaluate_shipment
+
+
+@dataclass
+class ExecutionOutcome:
+    status: Optional[int]
+    body: Any
+    latency_ms: float
+    error: Optional[str] = None
+
+
+class Executor:
+    name = "base"
+
+    def execute(self, payload: dict[str, Any]) -> ExecutionOutcome:  # pragma: no cover - interface
+        raise NotImplementedError
+
+
+class MockExecutor(Executor):
+    name = "mock"
+
+    def __init__(self, session: Session, rule_set_id: str) -> None:
+        self.session = session
+        self.rule_set_id = rule_set_id
+
+    def execute(self, payload: dict[str, Any]) -> ExecutionOutcome:
+        started = time.perf_counter()
+        try:
+            body = evaluate_shipment(self.session, payload, self.rule_set_id)
+            return ExecutionOutcome(200, body, (time.perf_counter() - started) * 1000)
+        except Exception as exc:  # noqa: BLE001 — recorded as an ERROR result
+            return ExecutionOutcome(None, None, (time.perf_counter() - started) * 1000, str(exc))
+
+
+class HttpExecutor(Executor):
+    name = "http"
+
+    def __init__(self, url: str, headers: Optional[dict[str, str]] = None, timeout: float = 30.0) -> None:
+        self.url = url
+        self.headers = {"Content-Type": "application/json", **(headers or {})}
+        self.timeout = timeout
+
+    def execute(self, payload: dict[str, Any]) -> ExecutionOutcome:
+        started = time.perf_counter()
+        try:
+            resp = httpx.post(self.url, json=payload, headers=self.headers, timeout=self.timeout)
+            try:
+                body: Any = resp.json()
+            except (ValueError, json.JSONDecodeError):
+                body = resp.text
+            return ExecutionOutcome(resp.status_code, body, (time.perf_counter() - started) * 1000)
+        except httpx.HTTPError as exc:
+            return ExecutionOutcome(None, None, (time.perf_counter() - started) * 1000,
+                                    f"{type(exc).__name__}: {exc}")
+
+
+class CustomExecutor(Executor):
+    """Wraps user-supplied execution code that follows the documented contract."""
+
+    def __init__(self, target: str) -> None:
+        module_name, _, class_name = target.partition(":")
+        if not class_name:
+            raise ValueError("CCRE_UAT_EXECUTOR must look like 'package.module:ClassName'.")
+        self.impl = getattr(importlib.import_module(module_name), class_name)()
+        self.name = target
+
+    def execute(self, payload: dict[str, Any]) -> ExecutionOutcome:
+        started = time.perf_counter()
+        try:
+            out = self.impl.execute(payload)
+            return ExecutionOutcome(out.get("status"), out.get("body"),
+                                    (time.perf_counter() - started) * 1000, out.get("error"))
+        except Exception as exc:  # noqa: BLE001 — recorded as an ERROR result
+            return ExecutionOutcome(None, None, (time.perf_counter() - started) * 1000,
+                                    f"{type(exc).__name__}: {exc}")
+
+
+def _auth_header() -> dict[str, str]:
+    raw = os.getenv("CCRE_UAT_AUTH_HEADER", "")
+    if ":" not in raw:
+        return {}
+    name, value = raw.split(":", 1)
+    return {name.strip(): value.strip()}
+
+
+def build_executor(session: Session, rule_set_id: str) -> Executor:
+    mode = os.getenv("CCRE_UAT_EXECUTOR", "mock").strip()
+    if mode in ("", "mock"):
+        return MockExecutor(session, rule_set_id)
+    if mode == "http":
+        url = os.getenv("CCRE_UAT_ENDPOINT", "")
+        if not url:
+            raise ValueError("CCRE_UAT_EXECUTOR=http needs CCRE_UAT_ENDPOINT.")
+        return HttpExecutor(url, _auth_header(), float(os.getenv("CCRE_UAT_TIMEOUT_SECONDS", "30")))
+    return CustomExecutor(mode)

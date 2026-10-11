@@ -31,7 +31,7 @@ def _env(name: str, default: str) -> str:
 def _default_database_url() -> str:
     data_dir = Path(_env("CCRE_DATA_DIR", str(REPO_ROOT / ".ccre_data")))
     data_dir.mkdir(parents=True, exist_ok=True)
-    return f"sqlite:///{(data_dir / 'ccre.db').as_posix()}"
+    return f"sqlite:///{(data_dir / 'ccre_v2.db').as_posix()}"
 
 
 @dataclass(frozen=True)

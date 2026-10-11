@@ -1,7 +1,6 @@
-"""API tests, driving the BG case end to end through HTTP.
+"""Domain API tests: ingestion, catalogue, rule edits, validation and export.
 
-This is the walkthrough a reviewer can run: ingest both artifacts, see the
-blockers, fix the expression, request the package rebuild, sign off, export.
+The full onboarding walkthrough (intake to RTP) is in test_e2e_positive.py.
 """
 from __future__ import annotations
 
@@ -32,7 +31,7 @@ def loaded(client: TestClient, real_package_path: Path, real_workbook_path: Path
 
 def test_health_and_check_register(client: TestClient) -> None:
     health = client.get("/api/health").json()
-    assert health["status"] == "ok"
+    assert health["status"] == "ok" and health["version"] == "2.0.0"
     assert health["checks"] >= 16
     register = client.get("/api/checks").json()
     assert "CHK001" in register
@@ -102,74 +101,6 @@ def test_permitted_values_exclude_bgn(client: TestClient, loaded: dict) -> None:
 # --------------------------------------------------------------------------- #
 # the BG walkthrough
 # --------------------------------------------------------------------------- #
-
-def test_bg_case_is_gated_then_released(client: TestClient, loaded: dict) -> None:
-    rule_set_id = loaded["workbook"]["rule_set_id"]
-
-    case = client.post("/api/cases", json={
-        "code": "ONB-2026-BG-014",
-        "ctry_cd": "BG",
-        "title": "BG B2C automated contact trigger",
-        "gccp_ref": "Wave 25 ph 1",
-        "requested_rtp": "2026-11-01",
-    })
-    assert case.status_code == 201, case.text
-    case_id = case.json()["id"]
-
-    # The PM-approved date is recorded separately from the requested one.
-    approved = client.put(
-        f"/api/cases/{case_id}/approved-rtp",
-        json={"approved_rtp": "2026-11-14", "actor": "priyanka"},
-    )
-    assert approved.status_code == 200
-    assert client.get(f"/api/cases/{case_id}").json()["approved_rtp"] == "2026-11-14"
-
-    # Validation finds real blockers.
-    report = client.post(
-        f"/api/rule-sets/{rule_set_id}/validate", params={"case_id": case_id}
-    ).json()
-    assert report["clean"] is False
-    assert report["blocker_count"] > 0
-    codes = {f["code"].split("/")[0] for f in report["findings"]}
-    assert "CHK015" in codes
-
-    # The gate is reported as shut, with reasons, before any button is offered.
-    client.post(f"/api/cases/{case_id}/transition", json={
-        "name": "submit", "actor": "hristina", "role": "COUNTRY",
-    })
-    client.post(f"/api/cases/{case_id}/transition", json={
-        "name": "approve_requirement", "actor": "priyanka", "role": "PM",
-    })
-    client.post(f"/api/cases/{case_id}/transition", json={
-        "name": "compile_rules", "actor": "platform", "role": "SYSTEM",
-    })
-    options = client.get(
-        f"/api/cases/{case_id}/transitions", params={"rule_set_id": rule_set_id}
-    ).json()
-    review = next(o for o in options if o["name"] == "submit_for_support_review")
-    assert review["blocked_by"], "support review should be blocked"
-
-    # Firing it anyway is refused with the reasons attached.
-    refused = client.post(f"/api/cases/{case_id}/transition", json={
-        "name": "submit_for_support_review", "actor": "platform", "role": "SYSTEM",
-        "rule_set_id": rule_set_id,
-    })
-    assert refused.status_code == 409
-    assert refused.json()["detail"]["reasons"]
-
-    # Support can still record that they have been asked to rebuild the package.
-    pending = client.post(f"/api/cases/{case_id}/transition", json={
-        "name": "request_package_update", "actor": "jon", "role": "SUPPORT",
-        "comment": "BG and the IOSS group are missing",
-    })
-    assert pending.status_code == 200
-    assert pending.json()["state"] == "PACKAGE_PENDING"
-
-    # Every decision is on the record.
-    audit = client.get(f"/api/cases/{case_id}/audit").json()
-    assert any(a["decision"] == "REQUESTED" for a in audit["approvals"])
-    assert any(e["action"] == "case:approved_rtp" for e in audit["events"])
-
 
 def test_editing_the_bg_expression_is_audited(client: TestClient, loaded: dict) -> None:
     rule_set_id = loaded["workbook"]["rule_set_id"]
@@ -284,10 +215,6 @@ def test_export_evidence_includes_validation_and_signoffs(
     }).json()
     client.post(f"/api/rule-sets/{rule_set_id}/validate", params={"case_id": case["id"]})
 
-    # Attach the rule set to the case so the evidence pack can find it.
-    client.post(f"/api/cases/{case['id']}/transition", json={
-        "name": "submit", "actor": "hristina", "role": "COUNTRY",
-    })
     export = client.get(f"/api/rule-sets/{rule_set_id}/export").json()
     assert "change_summary" in export["evidence"]
     assert export["evidence"]["rule_set"]["version"] == "v0.1"

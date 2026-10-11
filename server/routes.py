@@ -1,5 +1,8 @@
 """Domain HTTP routes — mounted under ``/api`` by :mod:`server.app`.
 
+Mounted for internal roles only (PM, CCRE consultant, CCRE team, admin); every
+write additionally needs a CCRE role. Business users use the lifecycle routes.
+
 The interface the platform's own UI talks to. Notice what is absent: there is no
 endpoint that writes to CCRE, and no endpoint that advances a case past a gate
 without the validator agreeing.
@@ -24,6 +27,7 @@ from tools.core.models import (
 )
 from tools.validation import available_checks, load_snapshot, run_checks, validate_rule_set
 from . import api_schemas as S
+from .auth import require_ccre
 
 router = APIRouter()
 
@@ -108,20 +112,6 @@ def _package_complete(session: Session, rule_set_id: str) -> bool:
 # meta
 # --------------------------------------------------------------------------- #
 
-@router.get("/health", tags=["meta"])
-def health(session: Session = Depends(get_session)) -> dict[str, Any]:
-    packages = list(session.execute(select(ConfigPackage)).scalars())
-    return {
-        "status": "ok",
-        "database": SETTINGS.database_url.split("://", 1)[0],
-        "packages": [
-            {"version": p.version, "sirg": p.sirg_count, "sir": p.sir_count, "mappings": p.mapping_count}
-            for p in packages
-        ],
-        "checks": len(available_checks()),
-    }
-
-
 @router.get("/checks", tags=["meta"])
 def checks() -> dict[str, str]:
     """The deterministic check register. This is the platform's authority, enumerated."""
@@ -132,7 +122,7 @@ def checks() -> dict[str, str]:
 # ingestion
 # --------------------------------------------------------------------------- #
 
-@router.post("/ingest/package", tags=["ingest"])
+@router.post("/ingest/package", tags=["ingest"], dependencies=[Depends(require_ccre)])
 def ingest_package_endpoint(
     body: S.IngestRequest, session: Session = Depends(get_session)
 ) -> dict[str, Any]:
@@ -150,7 +140,7 @@ def ingest_package_endpoint(
     }
 
 
-@router.post("/ingest/workbook", tags=["ingest"])
+@router.post("/ingest/workbook", tags=["ingest"], dependencies=[Depends(require_ccre)])
 def ingest_workbook_endpoint(
     body: S.IngestRequest, session: Session = Depends(get_session)
 ) -> dict[str, Any]:
@@ -265,7 +255,7 @@ def create_case(body: S.CaseCreate, session: Session = Depends(get_session)) -> 
     ).scalar_one_or_none()
     if existing is not None:
         raise HTTPException(409, f"case {body.code} already exists")
-    case = OnboardingCase(**body.model_dump(), state=str(workflow.State.DRAFT))
+    case = OnboardingCase(**body.model_dump(), state=str(workflow.State.INTAKE))
     session.add(case)
     session.add(AuditEvent(case_id=case.id, actor="api", action="case:created", detail={"code": body.code}))
     session.commit()
@@ -290,7 +280,7 @@ def get_case(case_id: str, session: Session = Depends(get_session)) -> Onboardin
     return _get_case(session, case_id)
 
 
-@router.put("/cases/{case_id}/approved-rtp", tags=["cases"])
+@router.put("/cases/{case_id}/approved-rtp", tags=["cases"], dependencies=[Depends(require_ccre)])
 def set_approved_rtp(
     case_id: str, body: S.ApprovedRtp, session: Session = Depends(get_session)
 ) -> dict[str, Any]:
@@ -308,65 +298,6 @@ def set_approved_rtp(
     ))
     session.commit()
     return {"case_id": case.id, "approved_rtp": case.approved_rtp}
-
-
-@router.get("/cases/{case_id}/transitions", response_model=list[S.AvailableTransition], tags=["workflow"])
-def available_transitions(
-    case_id: str, rule_set_id: Optional[str] = None, session: Session = Depends(get_session)
-) -> list[S.AvailableTransition]:
-    """What could happen next, and what is blocking each option.
-
-    The UI drives its gate chips and its disabled sign-off button from this.
-    """
-    case = _get_case(session, case_id)
-    ctx = workflow.GateContext()
-    if rule_set_id:
-        report, _ = validate_rule_set(session, rule_set_id, case_id=case_id, persist=False)
-        ctx = workflow.GateContext(
-            report=report, package_complete=_package_complete(session, rule_set_id)
-        )
-    out: list[S.AvailableTransition] = []
-    for transition in workflow.transitions_from(workflow.State(case.state)):
-        out.append(S.AvailableTransition(
-            name=transition.name,
-            target=str(transition.target),
-            actor=str(transition.actor),
-            blocked_by=workflow.gate_reasons(transition, ctx),
-        ))
-    return out
-
-
-@router.post("/cases/{case_id}/transition", response_model=S.TransitionOut, tags=["workflow"])
-def fire_transition(
-    case_id: str, body: S.TransitionRequest, session: Session = Depends(get_session)
-) -> S.TransitionOut:
-    case = _get_case(session, case_id)
-    try:
-        role = workflow.Role(body.role.upper())
-    except ValueError as exc:
-        raise HTTPException(400, f"unknown role: {body.role}") from exc
-
-    ctx = workflow.GateContext(
-        tests_total=body.tests_total, tests_passed=body.tests_passed, tests_failed=body.tests_failed,
-    )
-    version: Optional[str] = None
-    if body.rule_set_id:
-        report, _ = validate_rule_set(session, body.rule_set_id, case_id=case_id, persist=True)
-        ctx.report = report
-        ctx.package_complete = _package_complete(session, body.rule_set_id)
-        rule_set = session.get(RuleSet, body.rule_set_id)
-        version = rule_set.version if rule_set else None
-
-    try:
-        workflow.fire(
-            session, case, body.name, actor=body.actor, actor_role=role, ctx=ctx,
-            comment=body.comment, rule_set_version=version,
-        )
-    except workflow.TransitionError as exc:
-        raise HTTPException(409, detail={"message": exc.message, "reasons": exc.reasons}) from exc
-
-    session.commit()
-    return S.TransitionOut(case_id=case.id, state=case.state, fired=body.name)
 
 
 @router.get("/cases/{case_id}/audit", tags=["workflow"])
@@ -431,7 +362,7 @@ def list_rules(
     return [_rule_out(r) for r in session.execute(stmt).scalars()]
 
 
-@router.patch("/rules/{rule_id}", response_model=S.RuleOut, tags=["rules"])
+@router.patch("/rules/{rule_id}", response_model=S.RuleOut, tags=["rules"], dependencies=[Depends(require_ccre)])
 def update_rule(
     rule_id: str, body: S.RuleUpdate, session: Session = Depends(get_session)
 ) -> S.RuleOut:
@@ -459,7 +390,7 @@ def update_rule(
     return _rule_out(rule)
 
 
-@router.patch("/bindings/{binding_id}", tags=["rules"])
+@router.patch("/bindings/{binding_id}", tags=["rules"], dependencies=[Depends(require_ccre)])
 def update_binding(
     binding_id: str, body: S.BindingUpdate, session: Session = Depends(get_session)
 ) -> dict[str, Any]:
@@ -546,7 +477,7 @@ def list_proposals(case_id: str, session: Session = Depends(get_session)) -> lis
     ).scalars())
 
 
-@router.post("/proposals/{proposal_id}/decide", tags=["advisory"])
+@router.post("/proposals/{proposal_id}/decide", tags=["advisory"], dependencies=[Depends(require_ccre)])
 def decide_proposal(
     proposal_id: str, body: S.ProposalDecision, session: Session = Depends(get_session)
 ) -> dict[str, Any]:
@@ -673,7 +604,7 @@ def export_rule_set(rule_set_id: str, session: Session = Depends(get_session)) -
     }
 
 
-@router.post("/rule-sets/{rule_set_id}/seal", tags=["export"])
+@router.post("/rule-sets/{rule_set_id}/seal", tags=["export"], dependencies=[Depends(require_ccre)])
 def seal_rule_set(
     rule_set_id: str, actor: str = Query(...), session: Session = Depends(get_session)
 ) -> dict[str, Any]:
@@ -689,7 +620,7 @@ def seal_rule_set(
     return {"rule_set_id": rule_set_id, "version": rule_set.version, "sealed": True}
 
 
-@router.post("/rule-sets/{rule_set_id}/fork", tags=["export"])
+@router.post("/rule-sets/{rule_set_id}/fork", tags=["export"], dependencies=[Depends(require_ccre)])
 def fork_rule_set(
     rule_set_id: str, version: str = Query(...), actor: str = Query(...),
     session: Session = Depends(get_session),

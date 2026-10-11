@@ -29,13 +29,18 @@ pip install -r requirements.txt --quiet --disable-pip-version-check
 pip install -e . --quiet --disable-pip-version-check
 python patch_adk.py
 
-echo [3/4] Loading reference artifacts from ..\Reference ...
-ccre bootstrap
+if not exist ".ccre_data\ccre_v2.db" (
+    echo [3/4] First start: loading reference artifacts from ..\Reference ...
+    ccre bootstrap
+) else (
+    echo [3/4] Database already loaded - skipping bootstrap ^(delete .ccre_data\ccre_v2.db to reload^)
+)
 
 echo [4/4] Starting server...
 echo.
 echo  Open your browser at: http://localhost:8000
 echo  API docs:             http://localhost:8000/docs
+echo  First sign-in:        admin@ccre.local / ChangeMe123!  (change it, then add users in Admin)
 echo  Press Ctrl+C to stop the server.
 echo.
 

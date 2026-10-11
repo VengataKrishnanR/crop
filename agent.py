@@ -5,6 +5,9 @@ The root agent orchestrates via two layers of tools:
   - Read-only FunctionTools: catalogue lookups, expression checking, deterministic
     validation, and rule-set discovery
 
+Eight agents are built in total (``SUB_AGENTS``); the server invokes each one at
+its lifecycle step (intake chat, timeline, M2C draft, UAT prep/execution/review).
+
 No tool can approve, transition a case, seal a rule set, or reach CCRE. Staging a
 drafted ChangeSet is done by the server after validation, never by an agent.
 
@@ -23,9 +26,13 @@ from components.logging import configure_logging
 from components.tracing import apply_tracing_patch
 from tools.agents import (
     build_failure_analyst_agent,
+    build_intake_assistant_agent,
+    build_payload_generator_agent,
     build_requirement_interpreter_agent,
+    build_response_reviewer_agent,
     build_rule_drafter_agent,
     build_test_case_designer_agent,
+    build_timeline_planner_agent,
 )
 from tools.core.db import init_db
 from tools.functions import (
@@ -51,17 +58,30 @@ model = build_model_for_env()
 # Sub-agents
 # ---------------------------------------------------------------------------
 
+# Lifecycle order: intake → timeline → M2C → UAT prep → UAT execution → UAT review.
+intake_assistant = build_intake_assistant_agent(model)
 requirement_interpreter = build_requirement_interpreter_agent(model)
+timeline_planner = build_timeline_planner_agent(model)
 rule_drafter = build_rule_drafter_agent(model)
 test_case_designer = build_test_case_designer_agent(model)
+payload_generator = build_payload_generator_agent(model)
+response_reviewer = build_response_reviewer_agent(model)
 failure_analyst = build_failure_analyst_agent(model)
 
+# Every agent the server can invoke for a lifecycle step.
 SUB_AGENTS = {
+    "intake_assistant": intake_assistant,
     "requirement_interpreter": requirement_interpreter,
+    "timeline_planner": timeline_planner,
     "rule_drafter": rule_drafter,
     "test_case_designer": test_case_designer,
+    "payload_generator": payload_generator,
+    "response_reviewer": response_reviewer,
     "failure_analyst": failure_analyst,
 }
+
+# The subset the internal "Ask Expert" orchestrator may delegate to.
+ROOT_DELEGATES = ("requirement_interpreter", "rule_drafter", "test_case_designer", "failure_analyst")
 
 # ---------------------------------------------------------------------------
 # Root orchestrator
@@ -78,10 +98,7 @@ root_agent = Agent(
     instruction=_PROMPT.read_text(encoding="utf-8").replace("{", "｛").replace("}", "｝"),
     tools=[
         # ── Specialist sub-agents ────────────────────────────────────────────
-        AgentTool(requirement_interpreter),
-        AgentTool(rule_drafter),
-        AgentTool(test_case_designer),
-        AgentTool(failure_analyst),
+        *(AgentTool(SUB_AGENTS[name]) for name in ROOT_DELEGATES),
 
         # ── Read-only catalogue and validation tools ─────────────────────────
         FunctionTool(list_requirement_groups),

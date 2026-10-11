@@ -18,10 +18,7 @@ class ServerSettings:
     """Immutable snapshot of server configuration."""
 
     auth_mode: str
-    """``none`` (dev) | ``apikey`` (shared-secret on every /api/* call except health)."""
-
-    api_key: str
-    """Shared secret required on /api/* when ``auth_mode == "apikey"``."""
+    """``users`` (default — sign-in and RBAC) | ``none`` (local development only)."""
 
     llm_mode: str
     """Active ``CCRE_LLM_MODE`` (stub | openai | google-ai | apigee) — reported by /api/agents."""
@@ -34,9 +31,11 @@ class ServerSettings:
 
 
 def load_settings() -> ServerSettings:
+    mode = os.getenv("AUTH_MODE", "users").strip().lower()
+    if mode not in {"users", "none"}:
+        mode = "users"
     return ServerSettings(
-        auth_mode=os.getenv("AUTH_MODE", "none").strip().lower(),
-        api_key=os.getenv("CCRE_API_KEY", ""),
+        auth_mode=mode,
         llm_mode=os.getenv("CCRE_LLM_MODE", "apigee").strip().lower(),
         agent_timeout_seconds=float(os.getenv("CCRE_AGENT_TIMEOUT_SECONDS", "120")),
         test_report_path=_PROJECT_ROOT / "test_report.xlsx",

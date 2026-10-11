@@ -37,7 +37,7 @@ def test_domain_core_importable() -> None:
 def test_workflow_state_machine_importable() -> None:
     from tools.workflow import TRANSITIONS, State
 
-    assert State.DRAFT.value == "DRAFT"
+    assert State.INTAKE.value == "INTAKE"
     assert len(TRANSITIONS) > 10
 
 

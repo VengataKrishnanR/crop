@@ -1,10 +1,11 @@
-"""AdvisoryService — runs the CCRE sub-agents for the HTTP API.
+"""AdvisoryService — the one place the server invokes agents.
 
-Each method builds the agent prompt from database facts, invokes the agent with
-schema validation and one repair retry (:func:`server.agent_invoker.invoke_agent`),
-and writes the result to the audit trail. The rule drafter's ChangeSet is staged
-as a ``ProposedChange`` here — by code, after validation — so no agent ever holds
-a write tool and nothing reaches the rule tables until a human accepts it.
+Each method builds the agent prompt from facts it is given, invokes the agent
+with schema validation and one repair retry (:func:`server.agent_invoker.invoke_agent`)
+and returns plain JSON-safe dicts. Persistence, audit and state transitions are
+the callers' job (:mod:`server.lifecycle`), except :meth:`draft_rules`, which
+stages its ChangeSet as a ``ProposedChange`` — by code, after validation — so no
+agent ever holds a write tool.
 
 No web dependency: unit-testable without FastAPI.
 """
@@ -15,12 +16,19 @@ import uuid
 from functools import lru_cache
 from typing import Any, Optional
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from tools.agents.schemas import ChangeSet
-from tools.core.models import AuditEvent, OnboardingCase, Rule, RuleSet
+from tools.agents.schemas import (
+    BusinessRequirement,
+    ChangeSet,
+    GeneratedPayload,
+    IntakeTurn,
+    ResponseReview,
+    TimelinePlan,
+)
+from tools.core.models import AuditEvent, OnboardingCase
 from tools.functions import stage_proposal
+from tools.timeline import validate_plan
 
 from .agent_invoker import AgentInvocationError, invoke_agent, run_text
 from .artifact_schemas import (
@@ -29,8 +37,6 @@ from .artifact_schemas import (
     validate_interpretation,
     validate_test_suite,
 )
-
-_MAX_RULES_IN_PROMPT = 40
 
 
 class AdvisoryUnavailable(RuntimeError):
@@ -65,8 +71,12 @@ def root_agent() -> Any:
     return _agent_module().root_agent
 
 
-def _session_id(prefix: str) -> str:
+def _sid(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex[:12]}"
+
+
+def _block(label: str, obj: Any) -> str:
+    return f"{label}:\n```json\n{json.dumps(obj, indent=2, default=str)}\n```\n"
 
 
 def _case_header(case: OnboardingCase) -> str:
@@ -76,32 +86,72 @@ def _case_header(case: OnboardingCase) -> str:
     )
 
 
-def _audit(session: Session, case_id: Optional[str], agent: str, action: str, detail: dict) -> None:
-    session.add(AuditEvent(case_id=case_id, actor=f"agent:{agent}", action=action, detail=detail))
+def _validated(model: Any) -> Any:
+    def _check(d: Any) -> dict:
+        if not isinstance(d, dict):
+            raise TypeError(f"{model.__name__} must be a JSON object, got {type(d).__name__}")
+        return model.model_validate(d).model_dump(mode="json")
+    return _check
 
 
 class AdvisoryService:
-    """Interpret → draft → design tests → analyse failures."""
+    """Agent calls for every lifecycle step."""
 
-    # -- 1. requirement interpreter -----------------------------------------
-    def interpret(self, session: Session, case: OnboardingCase, requirement_text: str,
-                  actor: str) -> dict[str, Any]:
+    # -- intake: chatbot ------------------------------------------------------
+    def intake_turn(self, case: OnboardingCase, transcript: list[tuple[str, str]]) -> dict[str, Any]:
+        lines = "\n".join(f"{role.upper()}: {' '.join(text.split())}" for role, text in transcript)
         prompt = (
             f"{_case_header(case)}\n\n"
-            f"Interpret this country requirement:\n\n{requirement_text.strip()}"
+            f"Conversation so far:\n{lines}\n\n"
+            "Reply to the latest USER message as the intake assistant."
         )
-        data = invoke_agent(_sub_agent("requirement_interpreter"), prompt,
-                            session_id=_session_id("interpret"), validate=validate_interpretation)
-        if not case.requirement_text:
-            case.requirement_text = requirement_text
-        _audit(session, case.id, "requirement_interpreter", "advisory:interpretation",
-               {"requested_by": actor, "interpretation": data})
-        session.commit()
-        needs = bool(data["ambiguities"] or data["missing_information"]) or data["confidence"] == "low"
-        return {"case_id": case.id, "interpretation": data, "needs_clarification": needs,
-                "gate": "A PM must approve this reading before rules are drafted."}
+        return invoke_agent(_sub_agent("intake_assistant"), prompt, session_id=_sid("intake"),
+                            validate=_validated(IntakeTurn))
 
-    # -- 2. rule drafter ------------------------------------------------------
+    # -- intake: form + NLP -----------------------------------------------------
+    def interpret_form(self, case: OnboardingCase, form: dict[str, Any], free_text: str) -> dict[str, Any]:
+        prompt = (
+            f"{_case_header(case)}\n\n"
+            + _block("Structured fields the business team filled in (authoritative)", form)
+            + f"\nInterpret this country requirement:\n\n{free_text.strip()}"
+        )
+        reading = invoke_agent(_sub_agent("requirement_interpreter"), prompt,
+                               session_id=_sid("interpret"), validate=validate_interpretation)
+        # The form fields the user typed win over the model's reading of the text.
+        merged = {**reading}
+        for key in ("country_code", "shipment_type", "direction"):
+            if form.get(key):
+                merged[key] = form[key]
+        if form.get("requirement_groups"):
+            merged["requirement_groups"] = sorted({*form["requirement_groups"], *reading.get("requirement_groups", [])})
+        for key in ("requested_rtp", "value_threshold", "currency", "business_owner"):
+            if form.get(key) not in (None, ""):
+                merged[key] = form[key]
+        merged["summary"] = form.get("summary") or reading.get("expected_behaviour")
+        merged.setdefault("sample_scenarios", [])
+        return BusinessRequirement.model_validate(merged).model_dump(mode="json")
+
+    # -- timeline -----------------------------------------------------------------
+    def plan_timeline(self, case: OnboardingCase, requirement: dict[str, Any], facts: dict[str, Any],
+                      answers: dict[str, Any], baseline: dict[str, Any]) -> dict[str, Any]:
+        prompt = (
+            f"{_case_header(case)}\n\n"
+            + _block("Approved business requirement", requirement)
+            + _block("Complexity facts", facts)
+            + _block("PM questionnaire answers", answers)
+            + _block("Baseline estimate", baseline)
+            + "\nProduce the TimelinePlan."
+        )
+
+        def _check(d: Any) -> dict:
+            plan = _validated(TimelinePlan)(d)
+            plan["risk"] = validate_plan(plan["milestones"], answers)
+            return plan
+
+        return invoke_agent(_sub_agent("timeline_planner"), prompt, session_id=_sid("timeline"),
+                            validate=_check)
+
+    # -- M2C draft (rule config) --------------------------------------------------
     def draft_rules(self, session: Session, case: OnboardingCase, requirement_text: str,
                     interpretation: Optional[dict], actor: str) -> dict[str, Any]:
         text = requirement_text.strip() or (case.requirement_text or "")
@@ -111,70 +161,67 @@ class AdvisoryService:
         if text:
             prompt += f"Requirement:\n{text}\n\n"
         if interpretation:
-            prompt += f"Approved interpretation:\n```json\n{json.dumps(interpretation, indent=2)}\n```\n\n"
-        prompt += "Draft the candidate rules as a ChangeSet."
+            prompt += _block("Approved interpretation", interpretation) + "\n"
+        prompt += "Convert the business requirement into M2C rule rows as a ChangeSet."
 
         data = invoke_agent(_sub_agent("rule_drafter"), prompt,
-                            session_id=_session_id("draft"), validate=validate_change_set)
+                            session_id=_sid("draft"), validate=validate_change_set)
         data["case_id"] = case.id
         staged = stage_proposal(session, case.id, ChangeSet.model_validate(data), origin="rule_drafter")
-        _audit(session, case.id, "rule_drafter", "advisory:change_set_staged",
-               {"requested_by": actor, "proposal_id": staged["proposal_id"],
-                "rules_proposed": staged["rules_proposed"]})
+        session.add(AuditEvent(case_id=case.id, actor="agent:rule_drafter", action="advisory:change_set_staged",
+                               detail={"requested_by": actor, "proposal_id": staged["proposal_id"],
+                                       "rules_proposed": staged["rules_proposed"]}))
         session.commit()
         return {"case_id": case.id, "change_set": data, **staged}
 
-    # -- 3. test case designer -----------------------------------------------
-    def design_tests(self, session: Session, rule_set: RuleSet, country: Optional[str],
-                     notes: str, actor: str) -> dict[str, Any]:
-        stmt = select(Rule).where(Rule.rule_set_id == rule_set.id).order_by(Rule.ctry_cd, Rule.row_no)
-        if country:
-            stmt = stmt.where(Rule.ctry_cd == country.upper())
-        rules = list(session.execute(stmt.limit(_MAX_RULES_IN_PROMPT)).scalars())
-        if not rules:
-            raise ValueError("No rules in scope — pick a rule set (and country) that has rules.")
-        rows = [
-            {
-                "id": r.id, "country": r.ctry_cd, "requirement_group": r.sirg_cd,
-                "shipment_type": r.shipment_type, "currency": r.currency,
-                "min_value": r.min_value, "max_value": r.max_value, "other_logic": r.other_logic,
-            }
-            for r in rules
-        ]
+    # -- UAT test case design -------------------------------------------------------
+    def design_tests(self, rule_set_version: str, rows: list[dict[str, Any]], notes: str = "") -> dict[str, Any]:
         prompt = (
-            f"Rule set {rule_set.version} (id {rule_set.id}). Design the test suite for these rules:\n"
-            f"```json\n{json.dumps(rows, indent=2)}\n```\n"
+            f"M2C draft {rule_set_version}. "
+            + _block("Design the test suite for these rules", rows)
             + (f"\nReviewer notes: {notes}\n" if notes else "")
         )
-        data = invoke_agent(_sub_agent("test_case_designer"), prompt,
-                            session_id=_session_id("tests"), validate=validate_test_suite)
-        _audit(session, rule_set.case_id, "test_case_designer", "advisory:test_suite",
-               {"requested_by": actor, "rule_set_id": rule_set.id, "cases": len(data["cases"]),
-                "suite": data})
-        session.commit()
-        return {"rule_set_id": rule_set.id, "rules_in_scope": len(rules), "suite": data,
-                "gate": "A reviewer approves the suite; approved cases become evidence."}
+        return invoke_agent(_sub_agent("test_case_designer"), prompt, session_id=_sid("tests"),
+                            validate=validate_test_suite)
 
-    # -- 4. failure analyst ----------------------------------------------------
-    def analyse_failure(self, session: Session, test_id: str, expected: str, actual: str,
-                        details: str, case_id: Optional[str], actor: str) -> dict[str, Any]:
+    # -- UAT execution ---------------------------------------------------------------
+    def generate_payload(self, sample: dict[str, Any], test_case: dict[str, Any],
+                         rules: list[dict[str, Any]], country: str) -> dict[str, Any]:
         prompt = (
-            f"Test {test_id} failed.\n"
-            f"Expected: {expected or '(not given)'}\n"
-            f"Actual: {actual or '(not given)'}\n"
-            f"Details:\n{details or '(none)'}"
+            _block("Sample payload", sample)
+            + _block("Test case", test_case)
+            + _block("Rules under test", rules)
+            + f"\nCountry under test: {country}\n\nProduce the GeneratedPayload."
         )
-        data = invoke_agent(_sub_agent("failure_analyst"), prompt,
-                            session_id=_session_id("rca"), validate=validate_failure_analysis)
-        _audit(session, case_id, "failure_analyst", "advisory:failure_analysis",
-               {"requested_by": actor, "analysis": data})
-        session.commit()
-        return {"analysis": data,
-                "gate": "Recommendation only; a human decides whether to change anything."}
+        return invoke_agent(_sub_agent("payload_generator"), prompt, session_id=_sid("payload"),
+                            validate=_validated(GeneratedPayload))
 
-    # -- conversational facade -------------------------------------------------
+    def review_response(self, test_case: dict[str, Any], payload: dict[str, Any], status: Optional[int],
+                        body: Any, check: dict[str, Any]) -> dict[str, Any]:
+        prompt = (
+            _block("Test case", test_case)
+            + _block("Payload sent", payload)
+            + f"\nHTTP status: {status}\n\n"
+            + _block("Response body", body)
+            + _block("Deterministic check", check)
+            + "\nProduce the ResponseReview."
+        )
+        return invoke_agent(_sub_agent("response_reviewer"), prompt, session_id=_sid("review"),
+                            validate=_validated(ResponseReview))
+
+    # -- UAT review --------------------------------------------------------------------
+    def analyse_failure(self, evidence: dict[str, Any]) -> dict[str, Any]:
+        prompt = (
+            f"Test {evidence.get('test_id')} did not pass.\n\n"
+            + _block("Execution evidence", evidence)
+            + "\nProduce the FailureAnalysis."
+        )
+        return invoke_agent(_sub_agent("failure_analyst"), prompt, session_id=_sid("rca"),
+                            validate=validate_failure_analysis)
+
+    # -- conversational facade -----------------------------------------------------------
     def chat(self, message: str) -> str:
-        return run_text(root_agent(), message, session_id=_session_id("chat"))
+        return run_text(root_agent(), message, session_id=_sid("chat"))
 
 
 __all__ = ["AdvisoryService", "AdvisoryUnavailable", "AgentInvocationError"]

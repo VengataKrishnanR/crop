@@ -6,7 +6,7 @@ which is what keeps "AI recommends" true in code rather than in a policy doc.
 from __future__ import annotations
 
 import datetime as dt
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -96,6 +96,9 @@ class ChangeSet(BaseModel):
 class TestCase(BaseModel):
     test_id: str
     scenario: str
+    business_summary: Optional[str] = Field(
+        default=None, description="One plain-language sentence the business team can review"
+    )
     kind: Literal["positive", "negative", "boundary", "missing_data", "regression"]
     preconditions: list[str] = Field(default_factory=list)
     input_conditions: list[Condition] = Field(default_factory=list)
@@ -131,3 +134,61 @@ class FailureAnalysis(BaseModel):
         description="True only if the rule itself is wrong. Prefer checking test data first.",
     )
     confidence: Literal["high", "medium", "low"] = "medium"
+
+
+# --------------------------------------------------------------------------- #
+# v2: intake, timeline, UAT payloads and response review
+# --------------------------------------------------------------------------- #
+
+class BusinessRequirement(RequirementInterpretation):
+    """The captured business requirement: the interpretation plus business facts."""
+
+    summary: Optional[str] = Field(default=None, description="Two or three plain sentences")
+    requested_rtp: Optional[dt.date] = Field(default=None, description="Requested go-live date")
+    value_threshold: Optional[float] = None
+    currency: Optional[str] = None
+    business_owner: Optional[str] = None
+    sample_scenarios: list[str] = Field(default_factory=list)
+
+
+class IntakeTurn(BaseModel):
+    """One reply of the intake chatbot."""
+
+    reply: str = Field(description="What to show the user: a question, or the summary to confirm")
+    complete: bool = Field(default=False, description="True only when every essential fact is known")
+    requirement: Optional[BusinessRequirement] = None
+
+
+class PlannedMilestone(BaseModel):
+    stage: str
+    start: dt.date
+    end: dt.date
+    notes: Optional[str] = None
+
+
+class TimelinePlan(BaseModel):
+    milestones: list[PlannedMilestone]
+    assumptions: list[str] = Field(default_factory=list)
+    risks: list[str] = Field(default_factory=list)
+    open_questions: list[str] = Field(default_factory=list)
+
+
+class PayloadChange(BaseModel):
+    path: str
+    value: Any = None
+    reason: Optional[str] = None
+
+
+class GeneratedPayload(BaseModel):
+    payload: dict[str, Any]
+    changes: list[PayloadChange] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+
+
+class ResponseReview(BaseModel):
+    verdict: Literal["PASS", "FAIL", "INCONCLUSIVE"]
+    reasons: list[str] = Field(default_factory=list)
+    observed_requirements: list[str] = Field(default_factory=list)
+    business_explanation: Optional[str] = Field(
+        default=None, description="One sentence a business reviewer can understand"
+    )

@@ -128,6 +128,15 @@ def load_snapshot(
         snap.mirror_sirg = list(session.execute(
             select(MirrorSirg).where(MirrorSirg.source_version == workbook_version)
         ).scalars())
+        # An onboarding case's M2C draft is judged on its own countries: another
+        # country's catalogue gaps in the shared workbook must not block it.
+        if snap.rule_set is not None and snap.rule_set.case_id:
+            countries = {r.ctry_cd for r in snap.rules}
+            if not countries and snap.rule_set.case is not None:
+                countries = {snap.rule_set.case.ctry_cd}
+            snap.mirror_sirg = [m for m in snap.mirror_sirg if m.ctry_cd in countries]
+            scoped_sir = {m.sir_id for m in snap.mirror_sirg if m.sir_id}
+            snap.mirror_sir = [m for m in snap.mirror_sir if m.sir_id in scoped_sir]
         for row in session.execute(
             select(PermittedValue).where(PermittedValue.source_version == workbook_version)
         ).scalars():

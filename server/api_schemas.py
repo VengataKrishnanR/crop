@@ -209,3 +209,103 @@ class AnalyseFailureRequest(BaseModel):
 class ChatRequest(BaseModel):
     message: str = ""
     session_id: Optional[str] = None
+
+
+# --------------------------------------------------------------------------- #
+# v2: auth, admin, lifecycle
+# --------------------------------------------------------------------------- #
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class UserCreate(BaseModel):
+    email: str = Field(min_length=3)
+    name: str = Field(min_length=1)
+    role: str
+    password: str = Field(min_length=8)
+    countries: list[str] = Field(default_factory=list)
+
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    role: Optional[str] = None
+    active: Optional[bool] = None
+    countries: Optional[list[str]] = None
+
+
+class PasswordReset(BaseModel):
+    new_password: str = Field(min_length=8)
+
+
+class OnboardingCreate(BaseModel):
+    ctry_cd: str = Field(min_length=2, max_length=2)
+    title: str = Field(min_length=1)
+    code: Optional[str] = Field(default=None, description="Generated when omitted")
+    gccp_ref: Optional[str] = None
+    priority: Optional[str] = None
+
+
+class LifecycleTransition(BaseModel):
+    name: str
+    comment: Optional[str] = None
+
+
+class IntakeChat(BaseModel):
+    message: str = Field(min_length=1)
+
+
+class IntakeForm(BaseModel):
+    description: str = Field(min_length=1, description="The requirement in the business team's own words")
+    shipment_type: Optional[str] = None
+    direction: Optional[str] = None
+    requirement_groups: list[str] = Field(default_factory=list)
+    requested_rtp: Optional[dt.date] = None
+    value_threshold: Optional[float] = None
+    currency: Optional[str] = None
+    business_owner: Optional[str] = None
+
+
+class TimelineAnswers(BaseModel):
+    answers: dict[str, Any]
+
+
+class MilestoneEdit(BaseModel):
+    stage: str
+    start: dt.date
+    end: dt.date
+    notes: Optional[str] = None
+
+
+class MilestoneEdits(BaseModel):
+    milestones: list[MilestoneEdit]
+
+
+class M2CDraftRequest(BaseModel):
+    notes: str = ""
+
+
+class TestCaseReview(BaseModel):
+    status: str = Field(description="REJECTED to exclude the case, DRAFT to restore it")
+    comment: Optional[str] = None
+
+
+class GenerateTestCases(BaseModel):
+    notes: str = ""
+
+
+class TemplateCreate(BaseModel):
+    name: str = Field(min_length=1)
+    country: Optional[str] = None
+    body: Any = Field(description="The sample payload: a JSON object, or a JSON string")
+    notes: Optional[str] = None
+
+
+class RunRequest(BaseModel):
+    template_id: Optional[str] = None

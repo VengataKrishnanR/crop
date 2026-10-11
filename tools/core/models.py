@@ -301,7 +301,7 @@ class OnboardingCase(Base):
     requested_rtp: Mapped[Optional[dt.date]] = mapped_column(Date, nullable=True)
     approved_rtp: Mapped[Optional[dt.date]] = mapped_column(Date, nullable=True)
     actual_rtp: Mapped[Optional[dt.date]] = mapped_column(Date, nullable=True)
-    state: Mapped[str] = mapped_column(String(32), default="DRAFT", index=True)
+    state: Mapped[str] = mapped_column(String(32), default="INTAKE", index=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
 
     rule_sets: Mapped[list["RuleSet"]] = relationship(back_populates="case")
@@ -365,3 +365,187 @@ class ProposedChange(Base):
     status: Mapped[str] = mapped_column(String(16), default="PROPOSED")  # PROPOSED|ACCEPTED|REJECTED
     validation_run_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
+
+
+# --------------------------------------------------------------------------- #
+# Users and access control
+# --------------------------------------------------------------------------- #
+
+class User(Base):
+    """A platform user. ``role`` drives RBAC; ``countries`` scopes business users."""
+
+    __tablename__ = "app_user"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(128))
+    role: Mapped[str] = mapped_column(String(32), index=True)
+    password_hash: Mapped[str] = mapped_column(String(256))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    countries: Mapped[Any] = mapped_column(JSON, default=list)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
+    last_login_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
+
+
+# --------------------------------------------------------------------------- #
+# Intake — the business requirement, captured by chat or by form + NLP
+# --------------------------------------------------------------------------- #
+
+class Requirement(Base):
+    """One captured version of a case's business requirement."""
+
+    __tablename__ = "requirement"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    case_id: Mapped[str] = mapped_column(String(36), ForeignKey("onboarding_case.id"), index=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    mode: Mapped[str] = mapped_column(String(8))  # CHAT | FORM
+    text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    structured: Mapped[Any] = mapped_column(JSON, default=dict)
+    created_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
+
+
+class IntakeMessage(Base):
+    """One turn of the intake chatbot conversation."""
+
+    __tablename__ = "intake_message"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    case_id: Mapped[str] = mapped_column(String(36), index=True)
+    role: Mapped[str] = mapped_column(String(16))  # user | assistant
+    author: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    text: Mapped[str] = mapped_column(Text)
+    at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
+
+
+# --------------------------------------------------------------------------- #
+# Timeline — AI-proposed from the PM questionnaire, approved by the PM
+# --------------------------------------------------------------------------- #
+
+class Timeline(Base):
+    __tablename__ = "timeline"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    case_id: Mapped[str] = mapped_column(String(36), ForeignKey("onboarding_case.id"), index=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    status: Mapped[str] = mapped_column(String(16), default="DRAFT")  # DRAFT|APPROVED|SUPERSEDED
+    answers: Mapped[Any] = mapped_column(JSON, default=dict)
+    facts: Mapped[Any] = mapped_column(JSON, default=dict)
+    assumptions: Mapped[Any] = mapped_column(JSON, default=list)
+    risks: Mapped[Any] = mapped_column(JSON, default=list)
+    open_questions: Mapped[Any] = mapped_column(JSON, default=list)
+    at_risk: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
+    approved_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    approved_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
+
+    milestones: Mapped[list["Milestone"]] = relationship(
+        back_populates="timeline", cascade="all, delete-orphan", order_by="Milestone.seq"
+    )
+
+
+class Milestone(Base):
+    __tablename__ = "milestone"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    timeline_id: Mapped[str] = mapped_column(String(36), ForeignKey("timeline.id"), index=True)
+    seq: Mapped[int] = mapped_column(Integer)
+    stage: Mapped[str] = mapped_column(String(32))
+    name: Mapped[str] = mapped_column(String(128))
+    owner: Mapped[str] = mapped_column(String(64))
+    planned_start: Mapped[dt.date] = mapped_column(Date)
+    planned_end: Mapped[dt.date] = mapped_column(Date)
+    actual_start: Mapped[Optional[dt.date]] = mapped_column(Date, nullable=True)
+    actual_end: Mapped[Optional[dt.date]] = mapped_column(Date, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    timeline: Mapped["Timeline"] = relationship(back_populates="milestones")
+
+
+# --------------------------------------------------------------------------- #
+# UAT — test cases, sample payloads, runs and results
+# --------------------------------------------------------------------------- #
+
+class UatTestCase(Base):
+    """A UAT test case derived from the case's M2C draft."""
+
+    __tablename__ = "uat_test_case"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    case_id: Mapped[str] = mapped_column(String(36), index=True)
+    rule_set_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    test_id: Mapped[str] = mapped_column(String(64))
+    scenario: Mapped[str] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(String(16))
+    business_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    preconditions: Mapped[Any] = mapped_column(JSON, default=list)
+    input_conditions: Mapped[Any] = mapped_column(JSON, default=list)
+    expected_requirement: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    expected_case_created: Mapped[bool] = mapped_column(Boolean, default=True)
+    validation_criteria: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    rule_coverage: Mapped[Any] = mapped_column(JSON, default=list)
+    priority: Mapped[str] = mapped_column(String(8), default="medium")
+    # DRAFT -> CCRE_APPROVED -> BUSINESS_APPROVED; REJECTED is excluded from execution
+    status: Mapped[str] = mapped_column(String(20), default="DRAFT", index=True)
+    review_comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
+
+
+class PayloadTemplate(Base):
+    """A sample request payload the generator adapts for each test case."""
+
+    __tablename__ = "payload_template"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(128))
+    country: Mapped[Optional[str]] = mapped_column(String(4), nullable=True)
+    body: Mapped[Any] = mapped_column(JSON)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
+
+
+class UatRun(Base):
+    __tablename__ = "uat_run"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    case_id: Mapped[str] = mapped_column(String(36), index=True)
+    rule_set_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    cycle: Mapped[int] = mapped_column(Integer, default=1)
+    template_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    executor: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(16), default="RUNNING")
+    passed: Mapped[int] = mapped_column(Integer, default=0)
+    failed: Mapped[int] = mapped_column(Integer, default=0)
+    errors: Mapped[int] = mapped_column(Integer, default=0)
+    started_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    started_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
+    finished_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
+
+    results: Mapped[list["UatResult"]] = relationship(back_populates="run", cascade="all, delete-orphan")
+
+
+class UatResult(Base):
+    __tablename__ = "uat_result"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    run_id: Mapped[str] = mapped_column(String(36), ForeignKey("uat_run.id"), index=True)
+    test_case_id: Mapped[str] = mapped_column(String(36), index=True)
+    test_id: Mapped[str] = mapped_column(String(64))
+    payload: Mapped[Any] = mapped_column(JSON, default=dict)
+    changes: Mapped[Any] = mapped_column(JSON, default=list)
+    response_status: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    response_body: Mapped[Any] = mapped_column(JSON, nullable=True)
+    latency_ms: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    verdict: Mapped[str] = mapped_column(String(16))  # PASS | FAIL | ERROR | INCONCLUSIVE
+    verdict_source: Mapped[str] = mapped_column(String(16))  # deterministic | ai
+    check: Mapped[Any] = mapped_column(JSON, default=dict)
+    review: Mapped[Any] = mapped_column(JSON, default=dict)
+    analysis: Mapped[Any] = mapped_column(JSON, nullable=True)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
+
+    run: Mapped["UatRun"] = relationship(back_populates="results")
