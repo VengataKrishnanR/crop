@@ -1,4 +1,4 @@
-# CCRE Rules Intelligence & Onboarding Platform — v2
+# CCRE Rules Intelligence & Onboarding Platform — v3
 
 A Google ADK application that takes a country's customs requirement from the **business team's first message** to **RTP (ready to production)** in CCRE:
 
@@ -75,6 +75,20 @@ Without any endpoint the run uses a built-in **mock CCRE** (offline demo). Your 
 
 ---
 
+## What is new in v3
+
+| # | Change | Where |
+|---|---|---|
+| 1 | **Approve / Reject at every stage.** A reject always asks for the reason, which goes on the record and to the other side. People who are **not** the approver see a banner saying **who the onboarding is waiting for**, plus a **Send reminder email** button. The reminder goes To the approvers with **every user involved in CC** (business users only for their own countries), at most once every 10 minutes. | Action bar and banner on every onboarding |
+| 2 | **Sanity check explained.** It is the last gate before UAT preparation. It confirms the M2C rows are valid and that CCRE can actually evaluate them, as a checklist that runs automatically: M2C rows exist · no blocking validation finding · config package covers the country and groups · DMG email task completed. Each item shows ✓/✕ and why. | 4. Sanity check |
+| 3 | **DMG email task.** The CCRE team owns the **template and recipients** (Rule config → *DMG email template and recipients*). Per onboarding: **Prepare** fills the template from the onboarding (requirement, M2C rows, requirement definitions and DMG message positions, planned RTP) → edit → **Submit for CCRE review** → a **second** CCRE member **approves and sends** (or rejects with a reason) → the task shows **completed**. A CCRE consultant can mark it **not required** with a reason. Rule config cannot be submitted until the task is completed. | 3. Rule config + DMG |
+| 4 | **UAT test cases row by row.** AI-generated rows plus **+ Add scenario**: anyone in CCRE (or the business during their review) describes a scenario in plain words, and it is converted into a test case (NLP). **Every row** gets its own **Approve / Reject** (reason required): first the CCRE team, then the business team. Only rows approved by both are executed. Regenerating AI rows never removes approved rows or scenarios people added. | 5–6. UAT test cases |
+| 5 | **Horizontal flow, full width.** The left sidebar is gone. Pick the onboarding from the bar on top, and the flow shows every stage as **Completed / In progress / Not yet started**. | Onboardings |
+
+**Email:** Admin → *Email* sets the SMTP host, port, security, user and password (stored encrypted) and the from-address. **Without an SMTP host, every email is written to `.ccre_data\outbox\` and listed under *Sent emails***, so reminders and DMG emails can be tested and reviewed before SMTP is connected.
+
+---
+
 ## Roles (Admin panel)
 
 | Role | Does |
@@ -92,12 +106,12 @@ Without any endpoint the run uses a built-in **mock CCRE** (offline demo). Your 
 ## The lifecycle
 
 ```
-1  Requirement intake      Business / CCRE: chatbot or form + NLP     → CCRE consultant approves
-2  Timeline                AI plans from PM questionnaire              → PM approves → published to business
-3  Rule config + DMG       CCRE team: M2C draft (seeded from workbook) + AI conversion, validated
-4  Sanity check            Validator clean + package complete (gate cannot be waived)
-5  UAT test case prep      AI writes cases from the M2C (may start during step 3)
-6  UAT test case review    CCRE team first → then business team
+1  Requirement intake      Business / CCRE: chatbot or form + NLP     → CCRE consultant approves / rejects
+2  Timeline                AI plans from PM questionnaire              → PM approves (published) / rejects
+3  Rule config + DMG       CCRE team: M2C draft + AI conversion; DMG email prepared → reviewed → sent
+4  Sanity check            Checklist: M2C valid · package complete · DMG done → CCRE approves / rejects
+5  UAT test case prep      AI rows + "+ scenario" (NLP); may start during step 3
+6  UAT test case review    Each row approved/rejected: CCRE team first → then business team
 7  UAT execution           AI payload per case → executor → code check → AI review
 8  UAT review + sign-off   CCRE team first; failures → "correct the M2C" → back to step 3 (cycle +1)
                            all pass → business signs off

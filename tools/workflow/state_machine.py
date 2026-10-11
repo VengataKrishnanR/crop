@@ -72,6 +72,11 @@ class Transition:
     requires_test_cases: bool = False
     requires_execution_complete: bool = False
     requires_tests_passed: bool = False
+    requires_dmg_complete: bool = False
+    requires_ccre_review_done: bool = False
+    requires_business_review_done: bool = False
+    #: submit | approve | reject | system — drives the uniform Approve / Reject UI
+    kind: str = "submit"
 
     @property
     def actor_names(self) -> list[str]:
@@ -83,64 +88,71 @@ def _t(source: State, target: State, actors, name: str, label: str, **gates) -> 
 
 
 TRANSITIONS: tuple[Transition, ...] = (
-    # ── 1. Intake and requirement approval (CCRE consultant) ────────────────
+    # ── 1. Requirement — CCRE consultant approves ───────────────────────────
     _t(State.INTAKE, State.REQUIREMENT_REVIEW, {Role.BUSINESS, Role.CCRE_TEAM, Role.CCRE_CONSULTANT},
-       "submit_requirement", "Submit requirement for review", requires_requirement=True),
+       "submit_requirement", "Submit requirement for approval", requires_requirement=True),
     _t(State.REQUIREMENT_REVIEW, State.TIMELINE_PLANNING, {Role.CCRE_CONSULTANT},
-       "approve_requirement", "Approve requirement", requires_requirement=True),
+       "approve_requirement", "Approve requirement", requires_requirement=True, kind="approve"),
     _t(State.REQUIREMENT_REVIEW, State.INTAKE, {Role.CCRE_CONSULTANT},
-       "return_requirement", "Return requirement for changes"),
+       "return_requirement", "Reject requirement", kind="reject"),
 
-    # ── 2. Timeline: AI from PM answers → PM approves → published ───────────
+    # ── 2. Timeline — AI from PM answers, PM approves, published ───────────
     _t(State.TIMELINE_PLANNING, State.TIMELINE_REVIEW, {Role.PM, Role.CCRE_TEAM},
-       "submit_timeline", "Submit timeline for PM approval", requires_timeline=True),
+       "submit_timeline", "Submit timeline for approval", requires_timeline=True),
     _t(State.TIMELINE_REVIEW, State.RULE_CONFIG, {Role.PM},
-       "approve_timeline", "Approve and publish timeline", requires_timeline=True),
+       "approve_timeline", "Approve timeline (publish)", requires_timeline=True, kind="approve"),
     _t(State.TIMELINE_REVIEW, State.TIMELINE_PLANNING, {Role.PM},
-       "return_timeline", "Return timeline for changes"),
+       "return_timeline", "Reject timeline", kind="reject"),
 
-    # ── 3. Rule config + DMG changes (M2C draft) → sanity check ─────────────
+    # ── 3/4. Rule config + DMG → sanity check (CCRE approves) ───────────────
     _t(State.RULE_CONFIG, State.SANITY_CHECK, {Role.CCRE_TEAM},
-       "request_sanity_check", "Send M2C draft to sanity check", requires_rule_set=True),
+       "request_sanity_check", "Submit rule config + DMG for sanity check",
+       requires_rule_set=True, requires_dmg_complete=True),
     _t(State.SANITY_CHECK, State.UAT_TC_PREP, _CCRE,
-       "sanity_passed", "Sanity check passed",
-       requires_rule_set=True, requires_clean_validation=True, requires_package_complete=True),
+       "sanity_passed", "Approve sanity check",
+       requires_rule_set=True, requires_clean_validation=True, requires_package_complete=True,
+       requires_dmg_complete=True, kind="approve"),
     _t(State.SANITY_CHECK, State.RULE_CONFIG, _CCRE,
-       "sanity_failed", "Sanity check failed — back to rule config"),
+       "sanity_failed", "Reject sanity check (back to rule config)", kind="reject"),
 
-    # ── 4. UAT test case preparation and review (CCRE team, then business) ──
+    # ── 5/6. UAT test cases — CCRE reviews each row, then business ─────────
     _t(State.UAT_TC_PREP, State.UAT_TC_REVIEW_CCRE, {Role.CCRE_TEAM},
-       "submit_test_cases", "Submit test cases for CCRE review", requires_test_cases=True),
+       "submit_test_cases", "Submit test cases for CCRE approval", requires_test_cases=True),
     _t(State.UAT_TC_REVIEW_CCRE, State.UAT_TC_REVIEW_BUSINESS, _CCRE,
-       "ccre_approve_test_cases", "CCRE approves test cases", requires_test_cases=True),
+       "ccre_approve_test_cases", "Approve test cases (send to business)",
+       requires_test_cases=True, requires_ccre_review_done=True, kind="approve"),
     _t(State.UAT_TC_REVIEW_CCRE, State.UAT_TC_PREP, _CCRE,
-       "ccre_return_test_cases", "CCRE returns test cases"),
+       "ccre_return_test_cases", "Reject test cases", kind="reject"),
     _t(State.UAT_TC_REVIEW_BUSINESS, State.UAT_EXECUTION, {Role.BUSINESS},
-       "business_approve_test_cases", "Business approves test cases", requires_test_cases=True),
+       "business_approve_test_cases", "Approve test cases (start UAT)",
+       requires_test_cases=True, requires_business_review_done=True, kind="approve"),
     _t(State.UAT_TC_REVIEW_BUSINESS, State.UAT_TC_PREP, {Role.BUSINESS},
-       "business_return_test_cases", "Business returns test cases"),
+       "business_return_test_cases", "Reject test cases", kind="reject"),
 
-    # ── 5. UAT execution → CCRE result review (with correction loop) ────────
+    # ── 7/8. UAT execution → CCRE review (failures loop back) ───────────────
     _t(State.UAT_EXECUTION, State.UAT_RESULT_REVIEW, {Role.CCRE_TEAM, Role.SYSTEM},
-       "complete_execution", "Execution complete — to CCRE review", requires_execution_complete=True),
+       "complete_execution", "Execution complete — to CCRE review", requires_execution_complete=True,
+       kind="system"),
     _t(State.UAT_RESULT_REVIEW, State.RULE_CONFIG, _CCRE,
-       "request_correction", "Failures found — correct the M2C and restart the cycle"),
+       "request_correction", "Reject results (correct the M2C, restart the cycle)", kind="reject"),
     _t(State.UAT_RESULT_REVIEW, State.UAT_SIGNOFF, _CCRE,
-       "ccre_accept_results", "CCRE accepts results — to business sign-off",
-       requires_execution_complete=True, requires_tests_passed=True),
+       "ccre_accept_results", "Approve results (send to business sign-off)",
+       requires_execution_complete=True, requires_tests_passed=True, kind="approve"),
 
-    # ── 6. Business sign-off → RTP → completed ───────────────────────────────
+    # ── 8/9. Business sign-off → RTP → completed ─────────────────────────────
     _t(State.UAT_SIGNOFF, State.RTP, {Role.BUSINESS},
-       "business_signoff", "Business signs off UAT", requires_tests_passed=True),
+       "business_signoff", "Approve UAT (sign-off)", requires_tests_passed=True, kind="approve"),
     _t(State.UAT_SIGNOFF, State.UAT_RESULT_REVIEW, {Role.BUSINESS},
-       "business_reject_results", "Business rejects results"),
+       "business_reject_results", "Reject UAT results", kind="reject"),
     _t(State.RTP, State.COMPLETED, {Role.CCRE_TEAM},
-       "confirm_production", "Confirm production upload (RTP done)"),
+       "confirm_production", "Approve go-live (production upload confirmed)", kind="approve"),
 
     # ── withdrawal before configuration starts ───────────────────────────────
-    _t(State.INTAKE, State.WITHDRAWN, {Role.PM, Role.CCRE_CONSULTANT}, "withdraw", "Withdraw onboarding"),
-    _t(State.REQUIREMENT_REVIEW, State.WITHDRAWN, {Role.PM, Role.CCRE_CONSULTANT}, "withdraw", "Withdraw onboarding"),
-    _t(State.TIMELINE_PLANNING, State.WITHDRAWN, {Role.PM}, "withdraw", "Withdraw onboarding"),
+    _t(State.INTAKE, State.WITHDRAWN, {Role.PM, Role.CCRE_CONSULTANT}, "withdraw", "Withdraw onboarding",
+       kind="reject"),
+    _t(State.REQUIREMENT_REVIEW, State.WITHDRAWN, {Role.PM, Role.CCRE_CONSULTANT}, "withdraw",
+       "Withdraw onboarding", kind="reject"),
+    _t(State.TIMELINE_PLANNING, State.WITHDRAWN, {Role.PM}, "withdraw", "Withdraw onboarding", kind="reject"),
 )
 
 # States a human approval moves a case into. The system may never move a case
@@ -231,6 +243,10 @@ class GateContext:
     tests_total: int = 0
     tests_passed: int = 0
     tests_failed: int = 0
+    dmg_complete: bool = False
+    tc_pending_ccre: int = 0       # rows still waiting for a CCRE decision
+    tc_ccre_approved: int = 0      # approved by CCRE, waiting for the business decision
+    tc_business_approved: int = 0  # approved by both — these are executed
 
     @property
     def validation_clean(self) -> bool:
@@ -278,6 +294,20 @@ def gate_reasons(transition: Transition, ctx: GateContext) -> list[str]:
             reasons.append("No test results have been recorded.")
         else:
             reasons.append(f"{ctx.tests_failed} of {ctx.tests_total} tests did not pass.")
+    if transition.requires_dmg_complete and not ctx.dmg_complete:
+        reasons.append("The DMG email task is not completed (approved and sent, or marked not required).")
+    if transition.requires_ccre_review_done:
+        if ctx.tc_pending_ccre:
+            reasons.append(f"{ctx.tc_pending_ccre} test case(s) still need a CCRE approve / reject decision.")
+        elif ctx.tc_ccre_approved + ctx.tc_business_approved == 0:
+            reasons.append("No test case has been approved by the CCRE team.")
+    if transition.requires_business_review_done:
+        if ctx.tc_pending_ccre:
+            reasons.append(f"{ctx.tc_pending_ccre} new test case(s) still need a CCRE decision.")
+        if ctx.tc_ccre_approved:
+            reasons.append(f"{ctx.tc_ccre_approved} test case(s) still need a business approve / reject decision.")
+        elif ctx.tc_business_approved == 0:
+            reasons.append("No test case has been approved by the business team.")
     return reasons
 
 
@@ -287,6 +317,15 @@ def can_fire(transition: Transition, actor_role: Role, ctx: GateContext) -> list
         reasons.append(f"Only {', '.join(transition.actor_names)} may perform '{transition.label}'.")
     reasons.extend(gate_reasons(transition, ctx))
     return reasons
+
+
+def waiting_roles(state: State) -> list[str]:
+    """Roles whose action the onboarding is waiting for in ``state`` (system excluded)."""
+    roles: set[str] = set()
+    for t in transitions_from(state):
+        if t.kind in ("submit", "approve", "system") and t.name != "withdraw":
+            roles |= {str(r) for r in t.actors if r != Role.SYSTEM}
+    return sorted(roles)
 
 
 def _decision(name: str) -> str:
@@ -317,6 +356,10 @@ def fire(
         raise TransitionError(
             f"'{name}' is not available from {state}.", [f"Available here: {allowed}."]
         )
+
+    # A rejection always carries its reason — it is what the other side acts on.
+    if transition.kind == "reject" and not (comment or "").strip():
+        raise TransitionError(f"'{transition.label}' needs a reason.", ["Enter why it is rejected."])
 
     # Structural guarantee, not a convention: the system cannot approve.
     if actor_role == Role.SYSTEM and transition.target in APPROVED_STATES:

@@ -119,7 +119,8 @@ def test_sanity_needs_clean_validation_and_complete_package() -> None:
     assert any("blocking finding" in r for r in blocked)
     no_pkg = workflow.gate_reasons(t, GateContext(has_rule_set=True, report=_clean(), package_complete=False))
     assert any("package" in r for r in no_pkg)
-    assert workflow.gate_reasons(t, GateContext(has_rule_set=True, report=_clean(), package_complete=True)) == []
+    assert workflow.gate_reasons(t, GateContext(has_rule_set=True, report=_clean(), package_complete=True,
+                                                dmg_complete=True)) == []
 
 
 def test_results_need_complete_execution_and_passing_tests() -> None:
@@ -185,3 +186,35 @@ def test_correction_loop_restarts_at_rule_config(session: Session) -> None:
     workflow.fire(session, case, "request_correction", actor="t", actor_role=Role.CCRE_TEAM,
                   comment="BG-IOSS-01 failed")
     assert case.state == State.RULE_CONFIG
+
+
+def test_reject_needs_a_reason(session: Session) -> None:
+    case = _case(session, State.REQUIREMENT_REVIEW)
+    with pytest.raises(workflow.TransitionError, match="needs a reason"):
+        workflow.fire(session, case, "return_requirement", actor="c", actor_role=Role.CCRE_CONSULTANT)
+
+
+def test_every_stage_has_an_approve_and_a_reject() -> None:
+    for state in (State.REQUIREMENT_REVIEW, State.TIMELINE_REVIEW, State.SANITY_CHECK, State.UAT_TC_REVIEW_CCRE,
+                  State.UAT_TC_REVIEW_BUSINESS, State.UAT_RESULT_REVIEW, State.UAT_SIGNOFF):
+        kinds = {t.kind for t in workflow.transitions_from(state)}
+        assert {"approve", "reject"} <= kinds, state
+
+
+def test_waiting_roles_name_who_must_act() -> None:
+    assert workflow.waiting_roles(State.REQUIREMENT_REVIEW) == ["CCRE_CONSULTANT"]
+    assert workflow.waiting_roles(State.TIMELINE_REVIEW) == ["PM"]
+    assert workflow.waiting_roles(State.UAT_SIGNOFF) == ["BUSINESS"]
+    assert workflow.waiting_roles(State.UAT_EXECUTION) == ["CCRE_TEAM"]
+
+
+def test_dmg_and_row_reviews_gate_the_stages() -> None:
+    submit = workflow.find_transition(State.RULE_CONFIG, "request_sanity_check")
+    assert any("DMG" in r for r in workflow.gate_reasons(submit, GateContext(has_rule_set=True)))
+    ccre = workflow.find_transition(State.UAT_TC_REVIEW_CCRE, "ccre_approve_test_cases")
+    pending = GateContext(test_cases_ready=3, tc_pending_ccre=1, tc_ccre_approved=2)
+    assert any("still need a CCRE" in r for r in workflow.gate_reasons(ccre, pending))
+    biz = workflow.find_transition(State.UAT_TC_REVIEW_BUSINESS, "business_approve_test_cases")
+    waiting = GateContext(test_cases_ready=2, tc_ccre_approved=1, tc_business_approved=1)
+    assert any("business approve" in r for r in workflow.gate_reasons(biz, waiting))
+    assert workflow.gate_reasons(biz, GateContext(test_cases_ready=2, tc_business_approved=2)) == []

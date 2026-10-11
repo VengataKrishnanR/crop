@@ -136,7 +136,8 @@ def _test_case_out(tc: UatTestCase, business: bool) -> dict[str, Any]:
     base = {"id": tc.id, "test_id": tc.test_id, "business_summary": tc.business_summary or tc.scenario,
             "kind": tc.kind, "expected_requirement": tc.expected_requirement,
             "expected_case_created": tc.expected_case_created, "status": tc.status,
-            "review_comment": tc.review_comment, "priority": tc.priority}
+            "review_comment": tc.review_comment, "priority": tc.priority,
+            "source": "AI" if (tc.created_by or "").startswith("agent:") else "Scenario"}
     if business:
         return base
     return {**base, "scenario": tc.scenario, "preconditions": tc.preconditions,
@@ -229,6 +230,12 @@ def lifecycle_meta(_: CurrentUser = Depends(current_user)) -> dict[str, Any]:
 # onboardings
 # --------------------------------------------------------------------------- #
 
+def _waiting(session: Session, case: OnboardingCase, user: CurrentUser) -> Optional[dict[str, Any]]:
+    from .collab import waiting_info
+
+    return waiting_info(session, case, user)
+
+
 def _summary(session: Session, case: OnboardingCase) -> dict[str, Any]:
     state = State(case.state)
     stage = stage_of(state)
@@ -283,8 +290,11 @@ def onboarding_overview(case_id: str, user: CurrentUser = Depends(current_user),
         if business and Role.BUSINESS not in t.actors:
             continue
         blocked = can_fire(t, role, ctx)
-        actions.append({"name": t.name, "label": t.label, "target": str(t.target),
-                        "actors": t.actor_names, "allowed": not blocked, "blocked_by": blocked})
+        if t.kind == "system":
+            continue
+        actions.append({"name": t.name, "label": t.label, "target": str(t.target), "kind": t.kind,
+                        "actors": t.actor_names, "allowed": not blocked, "blocked_by": blocked,
+                        "mine": role in t.actors})
 
     tl = current_timeline(session, case.id)
     if business and (tl is None or tl.status != "APPROVED"):
@@ -303,6 +313,7 @@ def onboarding_overview(case_id: str, user: CurrentUser = Depends(current_user),
         "latest_run": ({"id": run.id, "cycle": run.cycle, "passed": run.passed, "failed": run.failed,
                         "errors": run.errors} if show_run else None),
         "actions": actions,
+        "waiting": _waiting(session, case, user),
         "gates": {"validation_clean": ctx.validation_clean, "package_complete": ctx.package_complete,
                   "tests_total": ctx.tests_total, "tests_passed": ctx.tests_passed,
                   "execution_complete": ctx.execution_complete} if not business else None,
@@ -316,6 +327,10 @@ def onboarding_overview(case_id: str, user: CurrentUser = Depends(current_user),
         if ctx.report is not None:
             out["validation"] = {"clean": ctx.report.is_clean, "blockers": len(ctx.report.blockers),
                                  "cautions": len(ctx.report.cautions)}
+        from tools.workflow.case_facts import latest_dmg_task
+
+        dmg = latest_dmg_task(session, case.id)
+        out["dmg"] = {"status": dmg.status if dmg else None, "completed": ctx.dmg_complete}
     return out
 
 
@@ -358,18 +373,6 @@ def _after_transition(session: Session, case: OnboardingCase, name: str, user: C
                 case.approved_rtp = tl.milestones[-1].planned_end
             _audit(session, case.id, user.label, "timeline:published",
                    {"version": tl.version, "rtp": case.approved_rtp.isoformat() if case.approved_rtp else None})
-    elif name == "ccre_approve_test_cases":
-        for tc in session.execute(select(UatTestCase).where(UatTestCase.case_id == case.id,
-                                                            UatTestCase.status == "DRAFT")).scalars():
-            tc.status = "CCRE_APPROVED"
-    elif name == "business_approve_test_cases":
-        for tc in session.execute(select(UatTestCase).where(UatTestCase.case_id == case.id,
-                                                            UatTestCase.status == "CCRE_APPROVED")).scalars():
-            tc.status = "BUSINESS_APPROVED"
-    elif name == "business_return_test_cases":
-        for tc in session.execute(select(UatTestCase).where(UatTestCase.case_id == case.id,
-                                                            UatTestCase.status == "CCRE_APPROVED")).scalars():
-            tc.status = "DRAFT"
     elif name == "confirm_production":
         case.actual_rtp = _today()
     _record_milestone_actuals(session, case, State(case.state))
@@ -652,12 +655,17 @@ def generate_test_cases(case_id: str, body: S.GenerateTestCases, user: CurrentUs
     if not rows:
         raise HTTPException(400, "The M2C draft has no rules for this country yet.")
     suite = _advise(advisory.design_tests, rs.version, rows, body.notes)
+    # Regenerating replaces only AI rows nobody has approved; decided rows and
+    # scenarios people added stay.
     for old in session.execute(select(UatTestCase).where(
-            UatTestCase.case_id == case.id,
-            UatTestCase.status.in_(["DRAFT", "REJECTED", "CCRE_APPROVED"]))).scalars():
+            UatTestCase.case_id == case.id, UatTestCase.status.in_(["DRAFT", "REJECTED"]),
+            UatTestCase.created_by.like("agent:%"))).scalars():
         session.delete(old)
+    taken = set(session.execute(select(UatTestCase.test_id).where(UatTestCase.case_id == case.id)).scalars())
     created = []
     for c in suite["cases"]:
+        if c["test_id"] in taken:
+            continue
         tc = UatTestCase(case_id=case.id, rule_set_id=rs.id, test_id=c["test_id"], scenario=c["scenario"],
                          kind=c["kind"], business_summary=c.get("business_summary"),
                          preconditions=c.get("preconditions", []), input_conditions=c.get("input_conditions", []),
@@ -683,32 +691,6 @@ def list_test_cases(case_id: str, user: CurrentUser = Depends(current_user),
     cases = session.execute(select(UatTestCase).where(UatTestCase.case_id == case.id)
                             .order_by(UatTestCase.test_id)).scalars()
     return [_test_case_out(tc, business=user.is_business) for tc in cases]
-
-
-@router.patch("/uat/test-cases/{test_case_id}", tags=["uat"])
-def review_test_case(test_case_id: str, body: S.TestCaseReview, user: CurrentUser = Depends(current_user),
-                     session: Session = Depends(get_session)) -> dict[str, Any]:
-    tc = session.get(UatTestCase, test_case_id)
-    if tc is None:
-        raise HTTPException(404, "No such test case.")
-    case = _case(session, tc.case_id, user)
-    status = body.status.upper()
-    if status not in {"REJECTED", "DRAFT"}:
-        raise HTTPException(400, "status must be REJECTED or DRAFT.")
-    if user.is_business:
-        _require_state(case, State.UAT_TC_REVIEW_BUSINESS)
-        if status != "REJECTED" or not (body.comment or "").strip():
-            raise HTTPException(400, "The business team can reject a test case with a comment.")
-    elif user.role in CCRE_ROLES:
-        _require_state(case, State.UAT_TC_PREP, State.UAT_TC_REVIEW_CCRE)
-    else:
-        raise HTTPException(403, "Only the CCRE team or the business team review test cases.")
-    tc.status = status
-    tc.review_comment = body.comment
-    _audit(session, case.id, user.label, "uat:test_case_reviewed",
-           {"test_id": tc.test_id, "status": status, "comment": body.comment})
-    session.commit()
-    return _test_case_out(tc, business=user.is_business)
 
 
 # --------------------------------------------------------------------------- #

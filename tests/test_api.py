@@ -31,7 +31,7 @@ def loaded(client: TestClient, real_package_path: Path, real_workbook_path: Path
 
 def test_health_and_check_register(client: TestClient) -> None:
     health = client.get("/api/health").json()
-    assert health["status"] == "ok" and health["version"] == "2.0.0"
+    assert health["status"] == "ok" and health["version"] == "3.0.0"
     assert health["checks"] >= 16
     register = client.get("/api/checks").json()
     assert "CHK001" in register

@@ -89,7 +89,17 @@ def test_bg_is_blocked_at_sanity_by_its_package_gap(client: TestClient, real_pac
     for name in ("submit_timeline", "approve_timeline"):
         client.post(f"/api/onboardings/{case_id}/transition", json={"name": name}, headers=PM)
     client.post(f"/api/onboardings/{case_id}/m2c/start", headers=TEAM)
+    # Without the DMG task, rule config cannot even be submitted.
+    early = client.post(f"/api/onboardings/{case_id}/transition", json={"name": "request_sanity_check"},
+                        headers=TEAM)
+    assert early.status_code == 409 and "DMG" in " ".join(early.json()["detail"]["reasons"])
+    assert client.post(f"/api/onboardings/{case_id}/dmg/not-required", headers=CONSULTANT,
+                       json={"comment": "No DMG change for IOSS"}).status_code == 200
     client.post(f"/api/onboardings/{case_id}/transition", json={"name": "request_sanity_check"}, headers=TEAM)
+    checklist = client.get(f"/api/onboardings/{case_id}/sanity", headers=TEAM).json()
+    status = {i["key"]: i["ok"] for i in checklist["items"]}
+    assert status == {"m2c": True, "validation": False, "package": False, "dmg": True}
+    assert checklist["ready"] is False
     resp = client.post(f"/api/onboardings/{case_id}/transition", json={"name": "sanity_passed"}, headers=TEAM)
     assert resp.status_code == 409
     reasons = " ".join(resp.json()["detail"]["reasons"])
@@ -107,7 +117,7 @@ def test_actions_need_the_right_stage(client: TestClient) -> None:
                        headers=TEAM).status_code == 409
 
 
-def test_business_reject_needs_a_comment(client: TestClient) -> None:
+def test_rejecting_rows_needs_a_reason_and_stage(client: TestClient) -> None:
     from server.app import app
     from tools.core.db import get_session
     from tools.core.models import OnboardingCase, UatTestCase
@@ -119,11 +129,25 @@ def test_business_reject_needs_a_comment(client: TestClient) -> None:
     tc = UatTestCase(case_id=case.id, test_id="T1", scenario="s", kind="positive", status="CCRE_APPROVED")
     session.add(tc)
     session.commit()
-    assert client.patch(f"/api/uat/test-cases/{tc.id}", json={"status": "REJECTED"},
-                        headers=BUSINESS).status_code == 400
-    ok = client.patch(f"/api/uat/test-cases/{tc.id}", json={"status": "REJECTED", "comment": "wrong value"},
-                      headers=BUSINESS)
+    url = f"/api/onboardings/{case.id}/uat/test-cases/decide"
+    assert client.post(url, json={"ids": [tc.id], "approve": False}, headers=BUSINESS).status_code == 400
+    ok = client.post(url, json={"ids": [tc.id], "approve": False, "comment": "wrong value"}, headers=BUSINESS)
     assert ok.status_code == 200 and ok.json()["status"] == "REJECTED"
+    # Nothing left for the business to decide → 409; the PM may not decide rows at all.
+    assert client.post(url, json={"all_pending": True, "approve": True}, headers=BUSINESS).status_code == 409
+    assert client.post(url, json={"all_pending": True, "approve": True}, headers=PM).status_code == 403
+
+
+def test_stage_reject_needs_a_reason(client: TestClient) -> None:
+    case_id = _new(client)
+    _form(client, case_id)
+    client.post(f"/api/onboardings/{case_id}/transition", json={"name": "submit_requirement"}, headers=BUSINESS)
+    no_reason = client.post(f"/api/onboardings/{case_id}/transition", json={"name": "return_requirement"},
+                            headers=CONSULTANT)
+    assert no_reason.status_code == 409 and "needs a reason" in no_reason.json()["detail"]["message"]
+    ok = client.post(f"/api/onboardings/{case_id}/transition", headers=CONSULTANT,
+                     json={"name": "return_requirement", "comment": "Which shipment type?"})
+    assert ok.status_code == 200 and ok.json()["state"] == "INTAKE"
 
 
 def test_sample_payload_must_be_a_json_object(client: TestClient) -> None:

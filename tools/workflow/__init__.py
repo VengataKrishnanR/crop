@@ -23,10 +23,11 @@ from .state_machine import (
     gate_reasons,
     stage_of,
     transitions_from,
+    waiting_roles,
 )
 
 __all__ = [
     "APPROVED_STATES", "STAGES", "STATE_LABELS", "TERMINAL_STATES", "TRANSITIONS",
     "GateContext", "Role", "Stage", "State", "Transition", "TransitionError",
-    "can_fire", "find_transition", "fire", "gate_reasons", "stage_of", "transitions_from",
+    "can_fire", "find_transition", "fire", "gate_reasons", "stage_of", "transitions_from", "waiting_roles",
 ]

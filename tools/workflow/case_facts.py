@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from tools.core.models import (
-    AuditEvent, OnboardingCase, Requirement, Rule, RuleBinding, RuleSet, Timeline, UatResult,
+    AuditEvent, DmgTask, OnboardingCase, Requirement, Rule, RuleBinding, RuleSet, Timeline, UatResult,
     UatRun, UatTestCase,
 )
 from tools.validation import load_snapshot, run_checks, validate_rule_set
@@ -114,6 +114,12 @@ def current_timeline(session: Session, case_id: str) -> Optional[Timeline]:
     ).scalar_one_or_none()
 
 
+def latest_dmg_task(session: Session, case_id: str) -> Optional[DmgTask]:
+    return session.execute(
+        select(DmgTask).where(DmgTask.case_id == case_id).order_by(DmgTask.updated_at.desc()).limit(1)
+    ).scalar_one_or_none()
+
+
 def correction_cycle(session: Session, case_id: str) -> int:
     """1 for the first UAT cycle; +1 for every correction sent back to rule config."""
     loops = session.execute(
@@ -150,10 +156,16 @@ def gate_context(session: Session, case: OnboardingCase) -> GateContext:
         snapshot = load_snapshot(session, rule_set_id=rule_set.id)
         ctx.package_complete = run_checks(snapshot, only=_PACKAGE_CHECKS).is_clean
 
-    ctx.test_cases_ready = session.execute(
-        select(func.count()).select_from(UatTestCase)
-        .where(UatTestCase.case_id == case.id, UatTestCase.status != "REJECTED")
-    ).scalar_one()
+    counts = dict(session.execute(
+        select(UatTestCase.status, func.count()).where(UatTestCase.case_id == case.id)
+        .group_by(UatTestCase.status)).all())
+    ctx.test_cases_ready = sum(n for s, n in counts.items() if s != "REJECTED")
+    ctx.tc_pending_ccre = counts.get("DRAFT", 0)
+    ctx.tc_ccre_approved = counts.get("CCRE_APPROVED", 0)
+    ctx.tc_business_approved = counts.get("BUSINESS_APPROVED", 0)
+
+    dmg = latest_dmg_task(session, case.id)
+    ctx.dmg_complete = dmg is not None and dmg.status in ("SENT", "NOT_REQUIRED")
 
     run = latest_run(session, case.id, correction_cycle(session, case.id))
     if run is not None:

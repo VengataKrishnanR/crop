@@ -90,7 +90,10 @@ def _onboard_to_uat_execution(client: TestClient) -> str:
     early = client.post(f"/api/onboardings/{case_id}/uat/test-cases/generate", json={}, headers=TEAM)
     assert early.status_code == 200, early.text
 
+    complete_dmg(client, case_id)
     _go(client, case_id, "request_sanity_check", TEAM)
+    sanity = client.get(f"/api/onboardings/{case_id}/sanity", headers=TEAM).json()
+    assert sanity["ready"], sanity
     _go(client, case_id, "sanity_passed", TEAM)
 
     # 4. UAT test cases: generate, CCRE review, business review
@@ -102,11 +105,30 @@ def _onboard_to_uat_execution(client: TestClient) -> str:
     # Business cannot see test cases before their review step
     assert client.get(f"/api/onboardings/{case_id}/uat/test-cases", headers=BUSINESS).json() == []
     _go(client, case_id, "submit_test_cases", TEAM)
+    approve_rows(client, case_id, CONSULTANT)
     _go(client, case_id, "ccre_approve_test_cases", CONSULTANT)
     business_view = client.get(f"/api/onboardings/{case_id}/uat/test-cases", headers=BUSINESS).json()
     assert business_view and "input_conditions" not in business_view[0]  # business fields only
+    approve_rows(client, case_id, BUSINESS)
     _go(client, case_id, "business_approve_test_cases", BUSINESS)
     return case_id
+
+
+def complete_dmg(client: TestClient, case_id: str) -> None:
+    """CCRE team: template recipients, prepare, submit; a reviewer approves → sent."""
+    tpl = client.get("/api/dmg/template", headers=TEAM).json()
+    client.put("/api/dmg/template", headers=TEAM, json={
+        "subject": tpl["subject"], "body": tpl["body"], "to": ["dmg-team@dhl.test"], "cc": ["ccre@dhl.test"]})
+    assert client.post(f"/api/onboardings/{case_id}/dmg/prepare", headers=TEAM).status_code == 200
+    assert client.post(f"/api/onboardings/{case_id}/dmg/submit", headers=TEAM).status_code == 200
+    sent = client.post(f"/api/onboardings/{case_id}/dmg/decide", headers=CONSULTANT, json={"approve": True})
+    assert sent.status_code == 200 and sent.json()["status"] == "SENT", sent.text
+
+
+def approve_rows(client: TestClient, case_id: str, who: dict) -> None:
+    resp = client.post(f"/api/onboardings/{case_id}/uat/test-cases/decide", headers=who,
+                       json={"all_pending": True, "approve": True})
+    assert resp.status_code == 200, resp.text
 
 
 def test_full_onboarding_from_intake_to_rtp(client: TestClient, loaded: None) -> None:
@@ -179,7 +201,7 @@ def test_failed_uat_loops_back_to_rule_config(client: TestClient, loaded: None) 
     _go(client, case_id, "sanity_passed", TEAM)
     _go(client, case_id, "submit_test_cases", TEAM)
     _go(client, case_id, "ccre_approve_test_cases", CONSULTANT)
-    _go(client, case_id, "business_approve_test_cases", BUSINESS)
+    _go(client, case_id, "business_approve_test_cases", BUSINESS)  # rows stay approved from cycle 1
     second = client.post(f"/api/onboardings/{case_id}/uat/runs", json={}, headers=TEAM).json()
     assert second["run"]["cycle"] == 2
     assert all(r["verdict"] == "PASS" for r in second["run"]["results"])

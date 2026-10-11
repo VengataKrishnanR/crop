@@ -114,8 +114,11 @@ def _stub_interpretation(user_text: str) -> str:
     groups = _groups(user_text)  # never invent a group the text does not name
     shipment = "B2C" if "B2C" in user_text else ("B2B" if "B2B" in user_text else None)
     conditions: list[dict[str, Any]] = []
-    if "DD" in user_text or "DDP" in user_text:
+    if re.search(r"\bDD\b", user_text):  # the DD service code — not the DDP incoterm
         conditions.append({"field": "service_code", "operator": "not_contains", "value": "DD"})
+    for incoterm in ("DDP", "DAP", "EXW"):
+        if re.search(rf"\b{incoterm}\b", user_text):
+            conditions.append({"field": "incoterm", "operator": "equals", "value": incoterm})
     if "SDT" in user_text:
         conditions.append({"field": "SDT", "operator": "present", "value": None})
     return _fenced({
@@ -124,7 +127,8 @@ def _stub_interpretation(user_text: str) -> str:
         "direction": "Export" if "export" in user_text.lower() else "Import",
         "requirement_groups": groups,
         "conditions": conditions,
-        "expected_behaviour": f"Raise {', '.join(groups)} for {country or 'the country'} when the conditions hold.",
+        "expected_behaviour": f"Raise {', '.join(groups) or 'the requirement'} for {country or 'the country'} "
+                              "when the conditions hold.",
         "ambiguities": [] if conditions else ["No explicit trigger condition was stated."],
         "missing_information": ([] if country else ["Country code not stated."])
         + ([] if groups else ["No requirement group code is named in the text."]),
@@ -328,8 +332,48 @@ def _base_inputs(rule: dict[str, Any]) -> list[dict[str, Any]]:
     return inputs
 
 
+def _stub_scenario(rules: list[dict[str, Any]], scenario: str) -> str:
+    """Turn one plain-words scenario into a single test case (deterministic)."""
+    upper = scenario.upper()
+    rule = rules[0] if rules else {}
+    country = rule.get("country") or _country(scenario) or "BG"
+    groups = [g for g in _groups(scenario) if g not in {"WHEN", "SHIP"}] or [rule.get("requirement_group") or "IOSS"]
+    negative = any(w in scenario.lower() for w in ("should not", "must not", "no request", "not be asked", "not ask"))
+    conds: list[dict[str, Any]] = []
+    if "B2C" in upper or "CONSUMER" in upper:
+        conds.append({"field": "shipment_type", "operator": "equals", "value": "B2C"})
+    elif "B2B" in upper:
+        conds.append({"field": "shipment_type", "operator": "equals", "value": "B2B"})
+    for inc in ("DDP", "DAP", "EXW", "DDU"):
+        if inc in upper:
+            conds.append({"field": "incoterm", "operator": "equals", "value": inc})
+    if re.search(r"\bDD\b", upper):
+        conds.append({"field": "service_code", "operator": "contains", "value": "DD"})
+    m = re.search(r"(\d+(?:\.\d+)?)\s*(EUR|USD|GBP)", upper)
+    if m:
+        conds.append({"field": "declared_value", "operator": "equals", "value": float(m.group(1))})
+        conds.append({"field": "currency", "operator": "equals", "value": m.group(2)})
+    group = groups[0]
+    return _fenced({
+        "summary": "Scenario converted (stub)",
+        "cases": [{
+            "test_id": f"{country}-SC-01", "scenario": scenario.strip()[:300],
+            "business_summary": scenario.strip()[:300],
+            "kind": "negative" if negative else "positive", "preconditions": [],
+            "input_conditions": conds, "expected_requirement": group,
+            "expected_case_created": not negative,
+            "validation_criteria": f"{group} {'not ' if negative else ''}requested",
+            "rule_coverage": [rule.get("id")] if rule.get("id") else [], "priority": "medium",
+        }],
+        "uncovered_conditions": [] if conds else ["No machine-readable condition found in the scenario."],
+    })
+
+
 def _stub_test_suite(user_text: str) -> str:
     rules = _json_after(user_text, "Design the test suite for these rules") or []
+    if "Business scenario" in user_text:
+        return _stub_scenario(rules if isinstance(rules, list) else [],
+                              user_text.split("do not design the full suite):", 1)[-1])
     if not isinstance(rules, list) or not rules:
         country = _country(user_text) or "BG"
         group = (_groups(user_text) or ["IOSS"])[0]

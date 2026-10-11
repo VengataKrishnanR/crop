@@ -184,6 +184,19 @@ class AdvisoryService:
         return invoke_agent(_sub_agent("test_case_designer"), prompt, session_id=_sid("tests"),
                             validate=validate_test_suite)
 
+    def scenario_to_tests(self, rule_set_version: str, rows: list[dict[str, Any]], scenario: str) -> dict[str, Any]:
+        """Convert one business scenario (plain words) into test case(s) for the rules in scope."""
+        prompt = (
+            f"M2C draft {rule_set_version}. "
+            + _block("Design the test suite for these rules", rows)
+            + "\nBusiness scenario (written by a person; convert ONLY this scenario into test case(s), "
+            "do not design the full suite):\n"
+            + scenario.strip()
+            + "\n"
+        )
+        return invoke_agent(_sub_agent("test_case_designer"), prompt, session_id=_sid("scenario"),
+                            validate=validate_test_suite)
+
     # -- UAT execution ---------------------------------------------------------------
     def generate_payload(self, sample: dict[str, Any], test_case: dict[str, Any],
                          rules: list[dict[str, Any]], country: str) -> dict[str, Any]:

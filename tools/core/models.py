@@ -600,3 +600,79 @@ class UatComparison(Base):
     differences: Mapped[Any] = mapped_column(JSON, default=list)
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
+
+
+# --------------------------------------------------------------------------- #
+# Email: settings, sent-mail log, DMG email template and per-case task
+# --------------------------------------------------------------------------- #
+
+class MailSettings(Base):
+    """SMTP settings (one row). Without a host, mail goes to the outbox folder."""
+
+    __tablename__ = "mail_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    host: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    port: Mapped[int] = mapped_column(Integer, default=587)
+    security: Mapped[str] = mapped_column(String(8), default="starttls")  # starttls | ssl | none
+    username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    password_enc: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    from_address: Mapped[str] = mapped_column(String(255), default="ccre-onboarding@localhost")
+    public_url: Mapped[str] = mapped_column(String(255), default="http://localhost:8000")
+    updated_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class Notification(Base):
+    """Every email the platform sent (or put in the outbox)."""
+
+    __tablename__ = "notification"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    case_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
+    kind: Mapped[str] = mapped_column(String(24))  # REMINDER | DMG | TEST
+    state: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    to: Mapped[Any] = mapped_column(JSON, default=list)
+    cc: Mapped[Any] = mapped_column(JSON, default=list)
+    subject: Mapped[str] = mapped_column(String(255))
+    body: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(12))  # SENT | OUTBOX | FAILED
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    sent_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
+
+
+class DmgTemplate(Base):
+    """The DMG change email template and recipients — configured by the CCRE team."""
+
+    __tablename__ = "dmg_template"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    subject: Mapped[str] = mapped_column(String(255))
+    body: Mapped[str] = mapped_column(Text)
+    to: Mapped[Any] = mapped_column(JSON, default=list)
+    cc: Mapped[Any] = mapped_column(JSON, default=list)
+    updated_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class DmgTask(Base):
+    """One onboarding's DMG email: filled from the template, reviewed, then sent."""
+
+    __tablename__ = "dmg_task"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    case_id: Mapped[str] = mapped_column(String(36), index=True)
+    # DRAFT -> IN_REVIEW -> SENT (completed);  IN_REVIEW -> DRAFT on reject;  NOT_REQUIRED (completed)
+    status: Mapped[str] = mapped_column(String(16), default="DRAFT")
+    subject: Mapped[str] = mapped_column(String(255))
+    body: Mapped[str] = mapped_column(Text)
+    to: Mapped[Any] = mapped_column(JSON, default=list)
+    cc: Mapped[Any] = mapped_column(JSON, default=list)
+    prepared_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    submitted_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    decided_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    decision_comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    notification_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    sent_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now, onupdate=_now)

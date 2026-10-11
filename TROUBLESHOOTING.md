@@ -14,6 +14,13 @@
 | Sign-in says the password is wrong for `admin@ccre.local` | The admin password was changed, or `CCRE_ADMIN_PASSWORD` differed on first start | Ask another admin to reset it in Admin; or (losing all data) delete `.ccre_data\ccre_v2.db` and restart |
 | A user gets **403** "needs one of these roles" | Their role does not own that step | Change the role in Admin, or have the right person do it |
 | A business user sees no onboardings | No countries assigned | Admin → set their countries (e.g. `DE`) → Save |
+| Reminder: “No active user has the … role” | Nobody holds the approver role (for that country) | Admin → add a user with that role |
+| Reminder: “sent less than 10 minutes ago” | Reminders are throttled per stage | Wait, or contact the approver directly |
+| Emails do not arrive | No SMTP host — they are in the outbox | Admin → Email → set the SMTP host and **Send test**; check *Sent emails* for FAILED + reason |
+| DMG: “A second CCRE team member must review” | Four-eyes rule on the DMG email | Ask another CCRE team member / consultant to approve |
+| DMG: “Set the DMG recipients … first” | The template has no To address | Rule config → DMG email template and recipients → To → Save template |
+| “Submit rule config” is blocked by DMG | The DMG task is not completed | Approve and send the DMG email, or have a CCRE consultant mark it not required |
+| Test cases cannot be approved as a stage | Some rows still need a decision | Approve / Reject every row (or **Approve all waiting**) |
 | An action button is greyed out | A gate is not met | The reason is printed under the button (e.g. validation blockers, no test results) |
 | Endpoint **Test** says “Not reachable” | No route to the host | Connect to the DHL VPN; for `*.dhl.com` the corporate proxy is bypassed automatically |
 | Endpoint **Test** returns HTTP 401/403 | Wrong or expired key | Admin → Edit → enter the key again → Update endpoint |

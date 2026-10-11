@@ -192,23 +192,21 @@ function switchView(view) {
   document.querySelectorAll('.ccre-nav__item').forEach((b) =>
     b.classList.toggle('ccre-nav__item--active', b.dataset.view === view));
   if (view === 'kpis') run('KPIs', renderKpis);
-  if (view === 'admin') run('Admin', async () => { await renderAdmin(); await renderEndpoints(); });
+  if (view === 'admin') run('Admin', async () => { await renderAdmin(); await renderEndpoints(); await renderMail(); });
 }
 document.querySelectorAll('.ccre-nav__item').forEach((b) => { b.onclick = () => switchView(b.dataset.view); });
 
 // ── onboarding list ──────────────────────────────────────────
 async function loadCases(selectId) {
   S.cases = await api('GET', '/api/onboardings');
-  $('case-list').innerHTML = S.cases.length ? S.cases.map((c) => `
-    <button class="ccre-case-item${c.id === S.caseId ? ' ccre-case-item--active' : ''}" data-id="${esc(c.id)}">
-      <div class="ccre-case-item__top"><span>${esc(c.country)} · ${esc(c.title)}</span></div>
-      <div class="ccre-case-item__state">${esc(c.code)} — ${esc(c.state_label)}</div>
-    </button>`).join('')
-    : `<p class="ccre-hint">No onboardings yet${hasRole('PM') ? '' : ' — click “+ New”'}.</p>`;
-  $('case-list').querySelectorAll('.ccre-case-item').forEach((b) => { b.onclick = () => openCase(b.dataset.id); });
+  const sel = $('case-select');
+  sel.innerHTML = (S.cases.length ? '<option value="">— choose an onboarding —</option>' : '<option value="">No onboardings yet</option>')
+    + S.cases.map((c) => `<option value="${esc(c.id)}">${esc(c.country)} · ${esc(c.title)} — ${esc(c.code)} — ${esc(c.state_label)}</option>`).join('');
+  sel.onchange = () => { if (sel.value) openCase(sel.value); else { S.caseId = null; $('case-view').hidden = true; $('case-empty').hidden = false; } };
   $('btn-new').hidden = hasRole('PM');
-  const target = selectId || S.caseId;
-  if (target && S.cases.some((c) => c.id === target)) await openCase(target, true);
+  let target = selectId || S.caseId;
+  if (!target && S.cases.length === 1) target = S.cases[0].id;
+  if (target && S.cases.some((c) => c.id === target)) { sel.value = target; await openCase(target, true); }
   else { S.caseId = null; $('case-view').hidden = true; $('case-empty').hidden = false; }
 }
 
@@ -231,12 +229,12 @@ async function openCase(id, keepStage) {
   S.caseId = id;
   S.overview = await api('GET', `/api/onboardings/${id}`);
   if (changed || !keepStage) S.viewStage = S.overview.stage;
-  document.querySelectorAll('.ccre-case-item').forEach((b) =>
-    b.classList.toggle('ccre-case-item--active', b.dataset.id === id));
+  $('case-select').value = id;
   $('case-empty').hidden = true;
   $('case-view').hidden = false;
   renderCaseHead();
   renderStepper();
+  renderWaiting();
   renderActions();
   await renderStage();
 }
@@ -269,44 +267,83 @@ function visibleStages() {
   return merged;
 }
 
+// Horizontal flow: every stage with its status — Completed / In progress / Not yet started.
 function renderStepper() {
   const stages = visibleStages();
   const order = S.meta.stages.map((s) => s.key);
   const current = order.indexOf(S.overview.stage);
+  const finished = S.overview.state === 'COMPLETED';
+  const withdrawn = S.overview.state === 'WITHDRAWN';
   $('stepper').innerHTML = stages.map((s, i) => {
-    const idx = Math.max(...s.keys.map((k) => order.indexOf(k)));
+    const last = Math.max(...s.keys.map((k) => order.indexOf(k)));
     const first = Math.min(...s.keys.map((k) => order.indexOf(k)));
-    let cls = 'ccre-step';
-    if (S.overview.state === 'COMPLETED' || idx < current) cls += ' ccre-step--done';
-    else if (current >= first && current <= idx) cls += ' ccre-step--current';
-    if (s.keys.includes(S.viewStage)) cls += ' ccre-step--viewing';
-    return `<button class="${cls}" data-stage="${esc(s.keys.includes(S.overview.stage) ? S.overview.stage : s.key)}">${i + 1}. ${esc(s.label)}</button>`;
+    let status = 'todo'; let text = 'Not yet started';
+    if (finished || last < current) { status = 'done'; text = 'Completed'; }
+    else if (!withdrawn && current >= first && current <= last) { status = 'active'; text = 'In progress'; }
+    else if (withdrawn && current >= first && current <= last) { text = 'Withdrawn'; }
+    const viewing = s.keys.includes(S.viewStage) ? ' ccre-flow__step--viewing' : '';
+    const target = s.keys.includes(S.overview.stage) ? S.overview.stage : s.key;
+    return `${i ? '<div class="ccre-flow__arrow">&#10140;</div>' : ''}
+      <button class="ccre-flow__step ccre-flow__step--${status}${viewing}" data-stage="${esc(target)}">
+        <span class="ccre-flow__num">STEP ${i + 1}</span>
+        <span class="ccre-flow__label">${esc(s.label)}</span>
+        <span class="ccre-flow__status"><span class="ccre-flow__dot"></span>${esc(text)}</span>
+      </button>`;
   }).join('');
-  $('stepper').querySelectorAll('.ccre-step').forEach((b) => {
+  $('stepper').querySelectorAll('.ccre-flow__step').forEach((b) => {
     b.onclick = () => { S.viewStage = b.dataset.stage; renderStepper(); renderStage(); };
   });
 }
 
+// Banner for users who cannot act at this step, with a reminder email button.
+function renderWaiting() {
+  const w = S.overview.waiting;
+  const el = $('waiting-banner');
+  if (!w || w.can_act) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  el.innerHTML = `<div><strong>&#9203; ${esc(w.message)}</strong>
+      ${w.last_reminder_at ? `<div class="ccre-hint">Last reminder sent ${esc(w.last_reminder_at.slice(0, 16).replace('T', ' '))}</div>` : ''}</div>
+    <button id="btn-remind" class="dhl-btn dhl-btn--primary dhl-btn--sm">&#9993; Send reminder email</button>`;
+  $('btn-remind').onclick = () => run('Reminder', async () => {
+    const v = await dialog('Send a reminder email', `<p class="ccre-hint">The people who must approve receive it; every other user involved in this onboarding is in CC.</p>
+      <label class="ccre-field-label">Message (optional)</label><textarea class="dhl-textarea ccre-small" name="message"></textarea>`, 'Send');
+    if (!v) return;
+    const res = await api('POST', `/api/onboardings/${S.caseId}/remind`, { message: v.message || null });
+    toast(`Reminder ${res.status === 'SENT' ? 'sent' : res.status === 'OUTBOX' ? 'written to the outbox' : 'failed'} — to ${res.to.join(', ')}${res.cc.length ? `, cc ${res.cc.length} user(s)` : ''}.`, res.status === 'FAILED');
+    await refreshCase();
+  });
+}
+
+// Approve / Reject at every stage. Reject always asks for the reason.
 function renderActions() {
-  const acts = S.overview.actions || [];
-  $('actions').innerHTML = acts.map((a) => `
-    <div class="ccre-action">
-      <button class="dhl-btn ${/return|reject|failed|correction|withdraw/.test(a.name) ? 'dhl-btn--ghost' : 'dhl-btn--primary'} dhl-btn--sm"
-        data-act="${esc(a.name)}" ${a.allowed ? '' : 'disabled'}>${esc(a.label)}</button>
+  const acts = (S.overview.actions || []).filter((a) => a.mine);
+  const order = { submit: 0, approve: 1, reject: 2 };
+  acts.sort((a, b) => (order[a.kind] ?? 3) - (order[b.kind] ?? 3));
+  $('actions').innerHTML = acts.map((a) => {
+    const cls = a.kind === 'approve' ? 'dhl-btn--primary ccre-act--approve' : a.kind === 'reject' ? 'dhl-btn--ghost ccre-act--reject' : 'dhl-btn--primary';
+    const icon = a.kind === 'approve' ? '&#10003; ' : a.kind === 'reject' ? '&#10005; ' : '';
+    return `<div class="ccre-action">
+      <button class="dhl-btn ${cls} dhl-btn--sm" data-act="${esc(a.name)}" data-kind="${esc(a.kind)}" ${a.allowed ? '' : 'disabled'}>${icon}${esc(a.label)}</button>
       ${a.allowed ? '' : `<div class="ccre-action__why">${esc(a.blocked_by.join(' '))}</div>`}
-    </div>`).join('');
+    </div>`;
+  }).join('');
   $('actions').querySelectorAll('[data-act]').forEach((b) => {
     b.onclick = () => run('Action', async () => {
       const name = b.dataset.act;
       let comment = null;
-      if (NEEDS_COMMENT.has(name)) {
-        const v = await dialog(b.textContent, `<label class="ccre-field-label">Reason (recorded on the audit trail)</label>
-          <textarea class="dhl-textarea ccre-small" name="comment" required></textarea>`, 'Confirm');
+      if (b.dataset.kind === 'reject') {
+        const v = await dialog(b.textContent.trim(), `<label class="ccre-field-label">Reason for rejecting (required — shared with the team and kept on the audit trail)</label>
+          <textarea class="dhl-textarea ccre-small" name="comment" required></textarea>`, 'Reject');
         if (!v) return;
         comment = v.comment;
+      } else if (b.dataset.kind === 'approve') {
+        const v = await dialog(b.textContent.trim(), `<label class="ccre-field-label">Comment (optional)</label>
+          <textarea class="dhl-textarea ccre-small" name="comment"></textarea>`, 'Approve');
+        if (!v) return;
+        comment = v.comment || null;
       }
       await api('POST', `/api/onboardings/${S.caseId}/transition`, { name, comment });
-      toast(`Done: ${b.textContent}`);
+      toast(`Done: ${b.textContent.trim()}`);
       S.viewStage = null;
       await refreshCase();
     });
@@ -509,7 +546,9 @@ async function renderRuleConfig(el) {
     html += canEdit
       ? '<p>Start the M2C draft. It is seeded with this country\'s existing workbook rows.</p><button id="m2c-start" class="dhl-btn dhl-btn--primary">Start M2C draft</button>'
       : '<p class="ccre-hint">The M2C draft starts when the onboarding reaches rule configuration.</p>';
+    html += '<h4>DMG changes</h4>' + await dmgSection();
     el.innerHTML = html;
+    wireDmg(el);
     if ($('m2c-start')) {
       $('m2c-start').onclick = () => run('Start M2C', async () => {
         const r = await api('POST', `/api/onboardings/${S.caseId}/m2c/start`);
@@ -540,8 +579,10 @@ async function renderRuleConfig(el) {
       <td>${esc(r.row_no ?? '')}</td><td>${esc(r.sirg_cd || '—')}</td><td>${esc(r.shipment_type || '—')}</td><td>${esc(r.currency || '—')}</td>
       <td>${esc(r.min_value ?? '—')}–${esc(r.max_value ?? '—')}</td><td class="ccre-mono">${esc(r.other_logic || '—')}</td>
       <td>${esc(r.bindings.map((b) => b.cmpt_nm || b.sir_id || '').filter(Boolean).join(', ') || '—')}</td></tr>`))}
-    <div id="m2c-report"></div>`;
+    <div id="m2c-report"></div>
+    <h4>DMG changes</h4>${await dmgSection()}`;
   el.innerHTML = html;
+  wireDmg(el);
   if ($('m2c-draft')) {
     $('m2c-draft').onclick = () => run('AI draft', async () => {
       await api('POST', `/api/onboardings/${S.caseId}/m2c/draft`, { notes: $('m2c-notes').value });
@@ -562,72 +603,171 @@ async function renderRuleConfig(el) {
   el.querySelectorAll('[data-reject]').forEach((b) => { b.onclick = () => decide(b.dataset.reject, false); });
 }
 
-// ── 4. Sanity check ──────────────────────────────────────────
-async function renderSanity(el) {
-  if (isBusiness()) return businessWaiting(el, 'The CCRE team is checking the configuration before testing starts.');
-  const g = S.overview.gates || {};
-  el.innerHTML = `<h3>Sanity check</h3>
-    <p>The deterministic validator and the config package must both be clean before UAT preparation. Blockers cannot be waived.</p>
-    ${kv([['Validation', g.validation_clean ? 'clean' : 'blockers present'],
-      ['Config package', g.package_complete ? 'covers every referenced requirement' : 'incomplete — Support rebuild needed']])}
-    <button id="sanity-run" class="dhl-btn dhl-btn--primary ccre-gap">Run validation</button><div id="sanity-report"></div>`;
-  $('sanity-run').onclick = () => run('Validate', async () => {
-    const rep = await api('POST', `/api/onboardings/${S.caseId}/m2c/validate`);
-    $('sanity-report').innerHTML = findingsHtml(rep);
+// ── DMG email task (inside rule config) ──────────────────────
+async function dmgSection() {
+  const [d, tpl] = await Promise.all([api('GET', `/api/onboardings/${S.caseId}/dmg`),
+    hasRole(...CCRE) ? api('GET', '/api/dmg/template') : Promise.resolve(null)]);
+  const t = d.task;
+  const inConfig = state() === 'RULE_CONFIG';
+  const ccre = hasRole(...CCRE);
+  const statusLine = !t ? '<span class="ccre-task ccre-task--open">&#9675; Not prepared</span>'
+    : t.completed ? `<span class="ccre-task ccre-task--done">&#10003; Task completed — ${t.status === 'SENT' ? `approved by ${esc(t.decided_by)} and sent${t.sent_at ? ' on ' + esc(t.sent_at.slice(0, 10)) : ''}` : `not required (${esc(t.decision_comment || '')})`}</span>`
+    : t.status === 'IN_REVIEW' ? `<span class="ccre-task ccre-task--open">&#9203; Waiting for CCRE review (submitted by ${esc(t.submitted_by)})</span>`
+    : '<span class="ccre-task ccre-task--open">&#9998; Draft — edit, then submit for review</span>';
+  let html = `<div class="ccre-card"><div class="ccre-row ccre-space"><strong>DMG email</strong>${statusLine}</div>`;
+  if (t && t.status === 'DRAFT' && t.decision_comment) {
+    html += `<div class="ccre-inline-error">Rejected by ${esc(t.decided_by)}: ${esc(t.decision_comment)}</div>`;
+  }
+  if (t && t.subject && t.status !== 'NOT_REQUIRED') {
+    const edit = ccre && inConfig && t.status === 'DRAFT';
+    html += `<div class="ccre-grid2 ccre-gap">
+        <div><label class="ccre-field-label">To</label><input id="dmg-to" class="dhl-input" value="${esc(t.to.join(', '))}" ${edit ? '' : 'disabled'}></div>
+        <div><label class="ccre-field-label">Cc</label><input id="dmg-cc" class="dhl-input" value="${esc(t.cc.join(', '))}" ${edit ? '' : 'disabled'}></div></div>
+      <label class="ccre-field-label">Subject</label><input id="dmg-subject" class="dhl-input" value="${esc(t.subject)}" ${edit ? '' : 'disabled'}>
+      <label class="ccre-field-label">Body</label><textarea id="dmg-body" class="dhl-textarea ccre-mail-body" ${edit ? '' : 'disabled'}>${esc(t.body)}</textarea>`;
+  }
+  if (ccre && inConfig) {
+    html += '<div class="ccre-row ccre-wrap ccre-gap">';
+    if (!t || t.status === 'DRAFT') html += `<button id="dmg-prepare" class="dhl-btn dhl-btn--ghost">${t ? '&#8635; Refill from template' : '&#9998; Prepare DMG email from template'}</button>`;
+    if (t && t.status === 'DRAFT') html += '<button id="dmg-save" class="dhl-btn dhl-btn--ghost">Save draft</button><button id="dmg-submit" class="dhl-btn dhl-btn--primary">Submit for CCRE review</button>';
+    if (t && t.status === 'IN_REVIEW') html += '<button id="dmg-approve" class="dhl-btn dhl-btn--primary ccre-act--approve">&#10003; Approve and send</button><button id="dmg-reject" class="dhl-btn dhl-btn--ghost ccre-act--reject">&#10005; Reject</button>';
+    if (hasRole('CCRE_CONSULTANT', 'ADMIN') && (!t || !t.completed)) html += '<button id="dmg-na" class="dhl-btn dhl-btn--ghost">Mark DMG not required</button>';
+    html += '</div>';
+  }
+  html += '</div>';
+  if (tpl) {
+    html += `<details class="ccre-details ccre-card"><summary>DMG email template and recipients (CCRE team)</summary>
+      <p class="ccre-hint">Placeholders are filled from the onboarding: ${Object.keys(tpl.placeholders).map((k) => `<code>{{${esc(k)}}}</code>`).join(' ')}</p>
+      <div class="ccre-grid2"><div><label class="ccre-field-label">To *</label><input id="tpl-to" class="dhl-input" value="${esc(tpl.to.join(', '))}" placeholder="dmg-team@dhl.com"></div>
+        <div><label class="ccre-field-label">Cc</label><input id="tpl-cc" class="dhl-input" value="${esc(tpl.cc.join(', '))}"></div></div>
+      <label class="ccre-field-label">Subject</label><input id="tpl-subject" class="dhl-input" value="${esc(tpl.subject)}">
+      <label class="ccre-field-label">Body</label><textarea id="tpl-body" class="dhl-textarea ccre-mail-body">${esc(tpl.body)}</textarea>
+      <button id="tpl-save" class="dhl-btn dhl-btn--primary ccre-gap">Save template</button>
+      <span class="ccre-hint">Last saved by ${esc(tpl.updated_by || '—')}</span></details>`;
+  }
+  return html;
+}
+
+function wireDmg(el) {
+  const list = (id) => $(id).value.split(/[,;\s]+/).filter(Boolean);
+  const reload = async (msg) => { if (msg) toast(msg); await refreshCase(); };
+  const on = (id, label, fn) => { const b = $(id); if (b) b.onclick = () => run(label, fn); };
+  on('dmg-prepare', 'Prepare DMG email', async () => { await api('POST', `/api/onboardings/${S.caseId}/dmg/prepare`); await reload('DMG email filled from the template.'); });
+  const save = async () => api('PUT', `/api/onboardings/${S.caseId}/dmg`, { subject: $('dmg-subject').value, body: $('dmg-body').value, to: list('dmg-to'), cc: list('dmg-cc') });
+  on('dmg-save', 'Save', async () => { await save(); toast('Draft saved.'); });
+  on('dmg-submit', 'Submit', async () => { await save(); await api('POST', `/api/onboardings/${S.caseId}/dmg/submit`); await reload('Submitted for CCRE review.'); });
+  on('dmg-approve', 'Approve', async () => {
+    const r = await api('POST', `/api/onboardings/${S.caseId}/dmg/decide`, { approve: true });
+    await reload(r.status === 'SENT' ? 'Approved — DMG email sent. Task completed.' : 'Approved.');
+  });
+  on('dmg-reject', 'Reject', async () => {
+    const v = await dialog('Reject the DMG email', '<label class="ccre-field-label">Reason (required)</label><textarea class="dhl-textarea ccre-small" name="comment" required></textarea>', 'Reject');
+    if (!v) return;
+    await api('POST', `/api/onboardings/${S.caseId}/dmg/decide`, { approve: false, comment: v.comment });
+    await reload('Returned to draft with your reason.');
+  });
+  on('dmg-na', 'Not required', async () => {
+    const v = await dialog('DMG not required', '<label class="ccre-field-label">Why is no DMG change needed? (required)</label><textarea class="dhl-textarea ccre-small" name="comment" required></textarea>', 'Confirm');
+    if (!v) return;
+    await api('POST', `/api/onboardings/${S.caseId}/dmg/not-required`, { comment: v.comment });
+    await reload('DMG marked not required — task completed.');
+  });
+  on('tpl-save', 'Save template', async () => {
+    await api('PUT', '/api/dmg/template', { subject: $('tpl-subject').value, body: $('tpl-body').value, to: list('tpl-to'), cc: list('tpl-cc') });
+    toast('DMG template saved.');
+    await renderStage();
   });
 }
 
-// ── 5/6. UAT test cases ──────────────────────────────────────
+// ── 4. Sanity check — a plain checklist ──────────────────────
+async function renderSanity(el) {
+  if (isBusiness()) return businessWaiting(el, 'The CCRE team is checking the configuration before testing starts.');
+  const s = await api('GET', `/api/onboardings/${S.caseId}/sanity`);
+  el.innerHTML = `<h3>Sanity check ${s.ready ? '<span class="dhl-val-chip dhl-val-chip--pass">ready to approve</span>' : '<span class="dhl-val-chip dhl-val-chip--fail">not ready</span>'}</h3>
+    <p>${esc(s.explanation)}</p>
+    ${s.items.map((i) => `<div class="ccre-check ${i.ok ? 'ccre-check--ok' : 'ccre-check--bad'}">
+      <span class="ccre-check__icon">${i.ok ? '&#10003;' : '&#10005;'}</span>
+      <div><strong>${esc(i.title)}</strong><div class="ccre-hint">${esc(i.detail)}</div>
+        ${(i.findings || []).length ? `<ul class="ccre-list ccre-gap">${i.findings.map((f) => `<li class="ccre-bad"><span class="ccre-finding__code">${esc(f.code)}</span> ${esc(f.message)}</li>`).join('')}</ul>` : ''}</div>
+    </div>`).join('')}
+    <p class="ccre-hint">${s.ready ? 'Everything is in place — approve with the button above.' : 'Fix the items marked ✕ (rule config / Support package rebuild / DMG email), or reject back to rule config with the reason.'}</p>`;
+}
+
+// ── 5/6. UAT test cases — AI rows + "+ scenario", decided row by row ──
 async function renderTestCases(el) {
   const cases = await api('GET', `/api/onboardings/${S.caseId}/uat/test-cases`);
   const st = state();
-  if (isBusiness()) {
-    if (!cases.length) return businessWaiting(el, 'Test cases will be shared with you for review once the CCRE team has prepared and reviewed them.');
-    const canReview = st === 'UAT_TC_REVIEW_BUSINESS';
-    el.innerHTML = `<h3>UAT test cases for your review</h3>
-      <p>${canReview ? 'Approve the set with the button above, or reject individual cases with a comment and return them.' : 'Read-only.'}</p>
-      ${table(['Test', 'What is tested', 'Expected outcome', 'Status', ''], cases.map((c) => `<tr>
-        <td class="ccre-mono">${esc(c.test_id)}</td><td>${esc(c.business_summary)}</td>
-        <td>${c.expected_case_created ? `${esc(c.expected_requirement || '')} is requested` : `${esc(c.expected_requirement || 'Nothing')} is not requested`}</td>
-        <td>${esc(c.status)}${c.review_comment ? `<div class="ccre-hint">${esc(c.review_comment)}</div>` : ''}</td>
-        <td>${canReview && c.status !== 'REJECTED' ? `<button class="dhl-btn dhl-btn--ghost dhl-btn--sm" data-rej="${esc(c.id)}">Reject</button>` : ''}</td></tr>`))}`;
-  } else {
-    const canGenerate = ['RULE_CONFIG', 'SANITY_CHECK', 'UAT_TC_PREP'].includes(st) && hasRole(...CCRE);
-    const canReview = ['UAT_TC_PREP', 'UAT_TC_REVIEW_CCRE'].includes(st) && hasRole(...CCRE);
-    el.innerHTML = `<h3>UAT test cases</h3>
-      <p class="ccre-hint">Written from the M2C draft. Preparation may start while the M2C is being finalised; the CCRE team reviews first, then the business team.</p>
-      ${canGenerate ? '<div class="ccre-row ccre-gap"><input id="tc-notes" class="dhl-input" placeholder="Notes for the AI test designer (optional)"><button id="tc-gen" class="dhl-btn dhl-btn--primary">&#129514; Generate test cases (AI)</button></div>' : ''}
-      ${table(['Test', 'Kind', 'Business summary', 'Inputs', 'Expected', 'Status', ''], cases.map((c) => `<tr>
-        <td class="ccre-mono">${esc(c.test_id)}</td><td>${esc(c.kind)}</td><td>${esc(c.business_summary)}</td>
-        <td>${esc((c.input_conditions || []).map(cond).join('; '))}</td>
-        <td>${esc(c.expected_requirement || 'none')} · ${c.expected_case_created ? 'raised' : 'not raised'}</td>
-        <td>${esc(c.status)}${c.review_comment ? `<div class="ccre-hint">${esc(c.review_comment)}</div>` : ''}</td>
-        <td>${canReview ? (c.status === 'REJECTED'
-          ? `<button class="dhl-btn dhl-btn--ghost dhl-btn--sm" data-restore="${esc(c.id)}">Restore</button>`
-          : `<button class="dhl-btn dhl-btn--ghost dhl-btn--sm" data-rej="${esc(c.id)}">Reject</button>`) : ''}</td></tr>`))}`;
+  const scenarioStates = ['RULE_CONFIG', 'SANITY_CHECK', 'UAT_TC_PREP', 'UAT_TC_REVIEW_CCRE', 'UAT_TC_REVIEW_BUSINESS'];
+  const ccre = hasRole(...CCRE);
+  const ccreDecides = ccre && scenarioStates.includes(st);
+  const bizDecides = isBusiness() && st === 'UAT_TC_REVIEW_BUSINESS';
+  const canAdd = (ccre && scenarioStates.includes(st)) || bizDecides;
+  const canGenerate = ccre && ['RULE_CONFIG', 'SANITY_CHECK', 'UAT_TC_PREP'].includes(st);
+  const pendingStatus = isBusiness() ? 'CCRE_APPROVED' : 'DRAFT';
+  const pending = cases.filter((c) => c.status === pendingStatus).length;
+  const statusText = { DRAFT: 'Waiting for CCRE', CCRE_APPROVED: 'Waiting for business', BUSINESS_APPROVED: 'Approved — will run', REJECTED: 'Rejected' };
+  if (isBusiness() && !cases.length && !bizDecides) {
+    return businessWaiting(el, 'Test cases will be shared with you for review once the CCRE team has prepared and approved them.');
   }
-  if ($('tc-gen')) {
-    $('tc-gen').onclick = () => run('Generate test cases', async () => {
-      const res = await api('POST', `/api/onboardings/${S.caseId}/uat/test-cases/generate`, { notes: $('tc-notes').value });
-      toast(`${res.length} test case(s) generated.`);
-      await refreshCase();
-    });
-  }
-  el.querySelectorAll('[data-rej]').forEach((b) => {
-    b.onclick = () => run('Reject test case', async () => {
-      const v = await dialog('Reject test case', `<label class="ccre-field-label">Why? (required)</label>
-        <textarea class="dhl-textarea ccre-small" name="comment" required></textarea>`, 'Reject');
-      if (!v) return;
-      await api('PATCH', `/api/uat/test-cases/${b.dataset.rej}`, { status: 'REJECTED', comment: v.comment });
-      await renderStage();
-    });
+  const decideBtns = (c) => {
+    if ((ccreDecides && c.status === 'DRAFT') || (bizDecides && c.status === 'CCRE_APPROVED')) {
+      return `<div class="ccre-dl"><button class="dhl-btn dhl-btn--ghost ccre-act--approve" data-approve="${esc(c.id)}">&#10003; Approve</button>
+        <button class="dhl-btn dhl-btn--ghost ccre-act--reject" data-reject="${esc(c.id)}">&#10005; Reject</button></div>`;
+    }
+    if (ccre && c.status === 'REJECTED' && ['UAT_TC_PREP', 'UAT_TC_REVIEW_CCRE'].includes(st)) {
+      return `<button class="dhl-btn dhl-btn--ghost dhl-btn--sm" data-reopen="${esc(c.id)}">Reopen</button>`;
+    }
+    return '';
+  };
+  el.innerHTML = `<h3>UAT test cases</h3>
+    <p class="ccre-hint">Every row is approved or rejected on its own — first by the CCRE team, then by the business team. Only rows approved by both are executed.</p>
+    <div class="ccre-row ccre-wrap ccre-gap">
+      ${canGenerate ? '<button id="tc-gen" class="dhl-btn dhl-btn--ghost">&#129514; Generate test cases (AI)</button>' : ''}
+      ${canAdd ? '<button id="tc-add" class="dhl-btn dhl-btn--primary">+ Add scenario</button>' : ''}
+      ${(ccreDecides || bizDecides) && pending ? `<button id="tc-all" class="dhl-btn dhl-btn--ghost ccre-act--approve">&#10003; Approve all ${pending} waiting</button>` : ''}
+    </div>
+    <div id="tc-add-box" class="ccre-card ccre-gap" hidden>
+      <label class="ccre-field-label">Describe the scenario in plain words — it is converted into a test case and goes through review</label>
+      <textarea id="tc-scenario" class="dhl-textarea ccre-small" placeholder="e.g. A consumer parcel to Germany, duty paid (DDP), worth 80 EUR, must ask for the Power of Attorney."></textarea>
+      <button id="tc-convert" class="dhl-btn dhl-btn--primary ccre-gap">Convert to test case</button>
+    </div>
+    ${table(isBusiness() ? ['Test', 'What is tested', 'Expected outcome', 'Status', 'Decision']
+      : ['Test', 'Source', 'Kind', 'What is tested', 'Inputs', 'Expected', 'Status', 'Decision'], cases.map((c) => `<tr>
+      <td class="ccre-mono">${esc(c.test_id)}</td>
+      ${isBusiness() ? '' : `<td><span class="ccre-badge-src">${esc(c.source || 'AI')}</span></td><td>${esc(c.kind)}</td>`}
+      <td>${esc(c.business_summary)}</td>
+      ${isBusiness() ? '' : `<td>${esc((c.input_conditions || []).map(cond).join('; '))}</td>`}
+      <td>${c.expected_case_created ? `${esc(c.expected_requirement || '')} is requested` : `${esc(c.expected_requirement || 'Nothing')} is not requested`}</td>
+      <td>${esc(statusText[c.status] || c.status)}${c.review_comment ? `<div class="ccre-hint">${esc(c.review_comment)}</div>` : ''}</td>
+      <td>${decideBtns(c)}</td></tr>`))}`;
+  const decide = (body) => api('POST', `/api/onboardings/${S.caseId}/uat/test-cases/decide`, body);
+  if ($('tc-gen')) $('tc-gen').onclick = () => run('Generate', async () => {
+    const res = await api('POST', `/api/onboardings/${S.caseId}/uat/test-cases/generate`, {});
+    toast(`${res.length} AI test case(s) added for review.`);
+    await refreshCase();
   });
-  el.querySelectorAll('[data-restore]').forEach((b) => {
-    b.onclick = () => run('Restore', async () => {
-      await api('PATCH', `/api/uat/test-cases/${b.dataset.restore}`, { status: 'DRAFT' });
-      await renderStage();
-    });
+  if ($('tc-add')) $('tc-add').onclick = () => { $('tc-add-box').hidden = !$('tc-add-box').hidden; $('tc-scenario').focus(); };
+  if ($('tc-convert')) $('tc-convert').onclick = () => run('Convert scenario', async () => {
+    const text = $('tc-scenario').value.trim();
+    if (text.length < 5) throw new Error('Describe the scenario first.');
+    $('tc-convert').disabled = true;
+    const res = await api('POST', `/api/onboardings/${S.caseId}/uat/test-cases/scenario`, { text });
+    toast(`${res.length} test case(s) created from your scenario — waiting for review.`);
+    await refreshCase();
   });
+  if ($('tc-all')) $('tc-all').onclick = () => run('Approve all', async () => {
+    await decide({ all_pending: true, approve: true });
+    await refreshCase();
+  });
+  el.querySelectorAll('[data-approve]').forEach((b) => { b.onclick = () => run('Approve', async () => {
+    await decide({ ids: [b.dataset.approve], approve: true }); await refreshCase(); }); });
+  el.querySelectorAll('[data-reject]').forEach((b) => { b.onclick = () => run('Reject', async () => {
+    const v = await dialog('Reject test case', '<label class="ccre-field-label">Reason (required)</label><textarea class="dhl-textarea ccre-small" name="comment" required></textarea>', 'Reject');
+    if (!v) return;
+    await decide({ ids: [b.dataset.reject], approve: false, comment: v.comment });
+    await refreshCase(); }); });
+  el.querySelectorAll('[data-reopen]').forEach((b) => { b.onclick = () => run('Reopen', async () => {
+    await api('POST', `/api/uat/test-cases/${b.dataset.reopen}/reopen`); await refreshCase(); }); });
 }
 
 // ── 7. UAT execution (results only; evidence is downloaded) ──
@@ -951,6 +1091,43 @@ $('ep-form').onsubmit = (e) => {
     await renderEndpoints();
   });
 };
+
+// ── Admin: email settings and sent-mail log ──────────────────
+async function renderMail() {
+  const [m, log] = await Promise.all([api('GET', '/api/admin/mail'), api('GET', '/api/admin/notifications')]);
+  $('mail-host').value = m.host || '';
+  $('mail-port').value = m.port;
+  $('mail-security').value = m.security;
+  $('mail-user').value = m.username || '';
+  $('mail-pass').value = '';
+  $('mail-pass').placeholder = m.password_set ? 'stored — leave empty to keep' : 'password';
+  $('mail-from').value = m.from_address;
+  $('mail-url').value = m.public_url;
+  $('mail-mode').textContent = m.mode === 'smtp' ? `Sending through ${m.host}.` : `No SMTP host — emails are written to ${m.outbox_folder}.`;
+  $('mail-log').innerHTML = table(['When', 'Type', 'Subject', 'To', 'Cc', 'Status'], log.map((n) => `<tr>
+    <td>${esc((n.at || '').slice(0, 16).replace('T', ' '))}</td><td>${esc(n.kind)}</td>
+    <td><details class="ccre-details"><summary>${esc(n.subject)}</summary><pre class="ccre-pre">${esc(n.body)}</pre></details></td>
+    <td>${esc(n.to.join(', '))}</td><td>${esc(n.cc.length ? n.cc.length + ' user(s)' : '—')}</td>
+    <td>${esc(n.status)}${n.error ? `<div class="ccre-inline-error">${esc(n.error)}</div>` : ''}</td></tr>`));
+}
+
+$('mail-form').onsubmit = (e) => {
+  e.preventDefault();
+  run('Save email settings', async () => {
+    const body = { host: $('mail-host').value.trim() || null, port: Number($('mail-port').value || 587),
+      security: $('mail-security').value, username: $('mail-user').value.trim() || null,
+      from_address: $('mail-from').value.trim(), public_url: $('mail-url').value.trim() };
+    if ($('mail-pass').value) body.password = $('mail-pass').value;
+    await api('PUT', '/api/admin/mail', body);
+    toast('Email settings saved.');
+    await renderMail();
+  });
+};
+$('mail-test').onclick = () => run('Test email', async () => {
+  const r = await api('POST', '/api/admin/mail/test', { to: $('mail-test-to').value.trim() });
+  toast(`Test email: ${r.status}${r.error ? ' — ' + r.error : ''}`, r.status === 'FAILED');
+  await renderMail();
+});
 
 // ── Ask Expert (internal) ────────────────────────────────────
 function chatMarkup(text) {

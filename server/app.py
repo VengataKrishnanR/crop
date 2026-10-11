@@ -67,11 +67,13 @@ from .admin import router as admin_router
 from .advisory import AdvisoryService, AdvisoryUnavailable
 from .auth import CurrentUser, current_user, require_internal
 from .config import load_settings
+from .collab import router as collab_router
 from .downloads import router as download_router
 from .endpoints import router as endpoint_router
 from .kpis import router as kpi_router
 from .lifecycle import ensure_builtin_template
 from .lifecycle import router as lifecycle_router
+from .mail import router as mail_router
 from .routes import router as domain_router
 
 log = logging.getLogger("ccre.server")
@@ -80,7 +82,7 @@ advisory = AdvisoryService()
 
 app = FastAPI(
     title="CCRE Rules Intelligence & Onboarding Platform",
-    version="2.0.0",
+    version="3.0.0",
     description=(
         "Country onboarding for CCRE from business requirement to RTP: intake (chat or form), "
         "AI timeline approved by the PM, M2C drafting with deterministic validation, UAT test "
@@ -123,6 +125,8 @@ app.include_router(lifecycle_router, prefix="/api")
 app.include_router(kpi_router, prefix="/api")
 app.include_router(endpoint_router, prefix="/api")
 app.include_router(download_router, prefix="/api")
+app.include_router(collab_router, prefix="/api")
+app.include_router(mail_router, prefix="/api")
 app.include_router(domain_router, prefix="/api", dependencies=[Depends(require_internal)])
 
 

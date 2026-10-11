@@ -54,28 +54,22 @@
     </header>
 
     <!-- ── Onboardings ── -->
-    <main id="view-onboardings" class="dhl-main">
-      <aside class="dhl-sidebar">
-        <div class="dhl-source-card">
-          <div class="ccre-row ccre-space">
-            <span class="dhl-pipeline__title">Onboardings</span>
-            <button id="btn-new" class="dhl-btn dhl-btn--ghost dhl-btn--sm">+ New</button>
-          </div>
-          <form id="new-form" class="ccre-new-case" hidden>
-            <div class="ccre-row">
-              <input id="new-country" class="dhl-input ccre-narrow" maxlength="2" placeholder="BG" required />
-              <input id="new-title" class="dhl-input" placeholder="What is needed, e.g. IOSS for B2C" required />
-            </div>
-            <button class="dhl-btn dhl-btn--primary dhl-btn--sm" type="submit">Create onboarding</button>
-          </form>
-          <div id="case-list" class="ccre-case-list"></div>
-        </div>
-      </aside>
+    <main id="view-onboardings" class="ccre-board">
+      <div class="ccre-board__bar">
+        <label class="ccre-field-label" for="case-select">Onboarding</label>
+        <select id="case-select" class="dhl-input ccre-case-select"></select>
+        <button id="btn-new" class="dhl-btn dhl-btn--ghost dhl-btn--sm">+ New onboarding</button>
+        <form id="new-form" class="ccre-row" hidden>
+          <input id="new-country" class="dhl-input ccre-narrow" maxlength="2" placeholder="BG" required />
+          <input id="new-title" class="dhl-input" placeholder="What is needed, e.g. IOSS for B2C" required />
+          <button class="dhl-btn dhl-btn--primary dhl-btn--sm" type="submit">Create</button>
+        </form>
+      </div>
 
-      <section class="dhl-output-panel">
+      <section class="dhl-output-panel ccre-board__panel">
         <div id="case-empty" class="dhl-output-empty">
           <div class="dhl-output-empty__icon">&#127758;</div>
-          <p>Select an onboarding on the left, or create a new one.</p>
+          <p>Choose an onboarding above, or create a new one.</p>
         </div>
 
         <div id="case-view" class="ccre-case" hidden>
@@ -87,7 +81,8 @@
             </div>
             <span id="case-state" class="dhl-val-chip dhl-val-chip--warn"></span>
           </div>
-          <div id="stepper" class="ccre-stepper"></div>
+          <div id="stepper" class="ccre-flow"></div>
+          <div id="waiting-banner" class="ccre-waiting" hidden></div>
           <div id="actions" class="ccre-actions"></div>
           <div id="stage-body" class="ccre-stage"></div>
           <div id="error-box" class="dhl-error-box"><span id="error-msg"></span></div>
@@ -152,6 +147,25 @@
         </div>
       </form>
       <div id="ep-table"></div>
+
+      <h2 class="ccre-section-gap">Email</h2>
+      <p class="ccre-hint">Used for approval reminders and the DMG email. Without an SMTP host, emails are written to the outbox folder and listed below — nothing is lost.</p>
+      <form id="mail-form" class="ccre-card">
+        <div class="ccre-grid2">
+          <div><label class="ccre-field-label">SMTP host (empty = outbox only)</label><input id="mail-host" class="dhl-input" placeholder="smtp.dhl.com"></div>
+          <div><label class="ccre-field-label">Port</label><input id="mail-port" class="dhl-input" type="number" value="587"></div>
+          <div><label class="ccre-field-label">Security</label><select id="mail-security" class="dhl-input"><option>starttls</option><option>ssl</option><option>none</option></select></div>
+          <div><label class="ccre-field-label">Username</label><input id="mail-user" class="dhl-input" autocomplete="off"></div>
+          <div><label class="ccre-field-label">Password</label><input id="mail-pass" class="dhl-input" type="password" autocomplete="new-password" placeholder="leave empty to keep"></div>
+          <div><label class="ccre-field-label">From address</label><input id="mail-from" class="dhl-input" type="email"></div>
+          <div><label class="ccre-field-label">Link in emails (this app's address)</label><input id="mail-url" class="dhl-input"></div>
+          <div><label class="ccre-field-label">Send a test email to</label><div class="ccre-row"><input id="mail-test-to" class="dhl-input" type="email"><button id="mail-test" class="dhl-btn dhl-btn--ghost dhl-btn--sm" type="button">Send test</button></div></div>
+        </div>
+        <div class="ccre-row ccre-gap"><button class="dhl-btn dhl-btn--primary" type="submit">Save email settings</button>
+          <span id="mail-mode" class="ccre-hint"></span></div>
+      </form>
+      <h4>Sent emails</h4>
+      <div id="mail-log"></div>
     </main>
   </div>
 
