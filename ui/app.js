@@ -622,6 +622,7 @@ function showIntakeCheck(form, res, showMissing = true) {
   Object.entries(res.errors || {}).forEach(([k, msg]) => put(k, `<span class="ccre-err">&#10005; ${esc(msg)}</span>`, 'is-err'));
   Object.entries(res.warnings || {}).forEach(([k, msg]) => put(k, `<span class="ccre-warn-text">! ${esc(msg)}</span>`));
   // A fresh form is not shouted at: "needed" marks appear once the user starts.
+  const allMissing = (res.missing || []).length;
   if (!showMissing) res = { ...res, missing: [] };
   const missingCond = (res.missing || []).filter((m) => condKeys.has(m.field));
   (res.missing || []).filter((m) => !condKeys.has(m.field)).forEach((m) => put(m.field, `<span class="ccre-err">Needed — ${esc(m.question)}</span>`, 'is-missing'));
@@ -636,9 +637,12 @@ function showIntakeCheck(form, res, showMissing = true) {
   if (row.max_weight != null) bits.push(`Max weight ${row.max_weight} kg`);
   if (row.other_logic) bits.push(`Other Logic: ${row.other_logic}`);
   if ($('cond-preview')) $('cond-preview').innerHTML = bits.length ? `<b>Written in the M2C as:</b> <span class="ccre-mono">${esc(bits.join(' · '))}</span>` : '';
-  const n = (res.missing || []).length + Object.keys(res.errors || {}).length;
-  $('m2c-status').innerHTML = n ? `<span class="ccre-st ccre-st--err">${(res.missing || []).length} to answer · ${Object.keys(res.errors || {}).length} not accepted</span>`
-    : '<span class="ccre-st ccre-st--ok">&#10003; Complete</span>';
+  const errs = Object.keys(res.errors || {}).length;
+  if (allMissing || errs) {
+    $('m2c-status').innerHTML = `<span class="ccre-st ${showMissing ? 'ccre-st--err' : ''}">${allMissing} to answer${errs ? ` · ${errs} not accepted` : ''}</span>`;
+  } else {
+    $('m2c-status').innerHTML = '<span class="ccre-st ccre-st--ok">&#10003; Complete</span>';
+  }
 }
 
 // What each requirement group asks for in this country — straight from the active config package.
@@ -723,7 +727,8 @@ async function renderIntake(el) {
           <div><label class="ccre-field-label">Business owner</label><input name="business_owner" class="dhl-input" value="${esc(prev.business_owner || '')}"></div>
         </div>
         <div class="ccre-row ccre-wrap ccre-gap">
-          <button class="dhl-btn dhl-btn--primary" type="submit">Save requirement</button></div></form>`;
+          <button class="dhl-btn dhl-btn--primary" type="submit">Save requirement</button>
+          <button type="button" id="intake-sample" class="dhl-btn dhl-btn--ghost" title="Fill every required field with valid sample values, to try the flow">&#129514; Fill with sample data</button></div></form>`;
     }
   }
   const next = data.requirement ? nextStep('submit_requirement', 'the requirement is complete — send it to the CCRE consultant for approval.') : '';
@@ -799,6 +804,36 @@ async function renderIntake(el) {
     await check();
     toast('Form filled from your text — check the fields marked in red.');
   });
+  $('intake-sample').onclick = () => {
+    // Valid values for every required field, using what the active package offers for this country.
+    const iso = (days) => { const d = new Date(); d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10); };
+    const opts = spec.options;
+    const group = (opts.requirement_groups || [])[0];
+    const region = form.querySelector('[data-pick="region"]');
+    const regionValue = opts.region_default || (opts.region || [])[0] || 'EU';
+    region.querySelector('select').value = [...region.querySelector('select').options].some((o) => o.value === regionValue) ? regionValue : '';
+    form.shipment_type.value = 'B2C';
+    form.effective_date.value = iso(30);
+    form.expiry_date.value = '';
+    form.no_expiry.checked = true;
+    form.all_products.checked = true;
+    form.querySelector('[data-multi="network_product_codes"]').dataset.values = '[]';
+    form.querySelector('[data-multi="requirement_groups"]').dataset.values = JSON.stringify(group ? [group] : []);
+    const currency = (opts.currency || []).includes('EUR') ? 'EUR' : ((opts.currency || [])[0] || 'EUR');
+    S.cond = [[{ field: 'declared_value', op: 'gt', value: 150, currency }],
+      [{ field: 'service_code', op: 'none', values: ['DD'] }]];
+    S.condNone = false;
+    form.description.value = `SAMPLE — ${opts.country} consumer (B2C) shipments must provide ${group || 'the requirement'} when the declared value is above 150 ${currency} and the service code is not DD.`;
+    form.requested_rtp.value = iso(90);
+    form.business_owner.value = 'Sample business owner';
+    wireMulti(form.querySelector('.ccre-m2c-grid'), later);
+    renderBuilder($('cond-builder'), condSpec, later);
+    syncBoxes();
+    touched = true;
+    check();
+    toast(group ? 'Sample values filled in — check them, then Save requirement.'
+      : `Sample values filled in, but the active package has no requirement group for ${opts.country} — pick or type one.`, !group);
+  };
   form.onsubmit = (e) => {
     e.preventDefault();
     run('Save requirement', async () => {
@@ -1509,6 +1544,7 @@ async function renderTestCases(el) {
       <label class="ccre-field-label">Describe the scenario in plain words — it is converted into a test case and goes through review</label>
       <textarea id="tc-scenario" class="dhl-textarea ccre-small" placeholder="e.g. A consumer parcel to Germany, duty paid (DDP), worth 80 EUR, must ask for the Power of Attorney."></textarea>
       <button id="tc-convert" class="dhl-btn dhl-btn--primary ccre-gap">Convert to test case</button>
+      <button id="tc-sample" type="button" class="dhl-btn dhl-btn--ghost ccre-gap">&#129514; Use a sample scenario</button>
     </div>
     ${table(isBusiness() ? ['Test', 'What is tested', 'Expected outcome', 'Status', 'Decision']
       : ['Test', 'Source', 'Kind', 'What is tested', 'Inputs', 'Expected', 'Status', 'Decision'], cases.map((c) => `<tr>
@@ -1526,6 +1562,12 @@ async function renderTestCases(el) {
     await refreshCase();
   });
   if ($('tc-add')) $('tc-add').onclick = () => { $('tc-add-box').hidden = !$('tc-add-box').hidden; $('tc-scenario').focus(); };
+  if ($('tc-sample')) $('tc-sample').onclick = () => {
+    const ctry = (S.overview && S.overview.country) || 'the country';
+    $('tc-scenario').value = `A B2C shipment to ${ctry} with a declared value of 200 EUR and service code DD must not raise the requirement; `
+      + 'the same shipment without DD must raise it.';
+    $('tc-scenario').focus();
+  };
   if ($('tc-convert')) $('tc-convert').onclick = () => run('Convert scenario', async () => {
     const text = $('tc-scenario').value.trim();
     if (text.length < 5) throw new Error('Describe the scenario first.');
