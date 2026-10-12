@@ -202,6 +202,8 @@ How the data is stored: see [docs/DATABASE.md](docs/DATABASE.md).
 
 ## Rule configuration workspace
 
+> Full explanation, in business and technical terms with worked examples: [docs/rule-configuration.md](docs/rule-configuration.md).
+
 Step 3 is where the M2C is actually built. The draft starts as the country's live rows from the loaded workbook, and every edit is checked immediately.
 
 | Sub-tab | What it does |
