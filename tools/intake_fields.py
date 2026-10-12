@@ -118,7 +118,7 @@ def load_options(session, country: str) -> dict[str, Any]:
     for _, _, npc in rows:
         codes |= {c.strip().upper() for c in (npc or "").split(",") if c.strip()}
     country_regions = Counter(r for c, r, _ in rows if c == country and r)
-    groups = sorted({cd for cd in session.execute(select(SirgDef.cd)).scalars() if cd})
+    groups, details, package_version = package_groups(session, country)
     return {
         "region": sorted(regions),
         "region_default": country_regions.most_common(1)[0][0] if country_regions else None,
@@ -128,9 +128,43 @@ def load_options(session, country: str) -> dict[str, Any]:
         "currency_all": sorted(set(COMMON_CURRENCIES) | permitted.get("currency", set())),
         "network_product_codes": sorted(codes),
         "requirement_groups": groups,
+        "requirement_group_details": details,
+        "package_version": package_version,
         "min_ops": list(MIN_OPS), "max_ops": list(MAX_OPS),
         "country": country,
     }
+
+
+def package_groups(session, country: str) -> tuple[list[str], list[dict[str, Any]], Optional[str]]:
+    """The requirement groups (SIRG) the ACTIVE config package maps for the country, each with the
+    definition(s) (SIR) it raises. Offering only these at intake means a requirement cannot ask
+    for something the package cannot raise."""
+    from sqlalchemy import func, select
+
+    from tools.core.models import CtryProcMapping, SirAttribute, SirDef, SirgDef
+    from tools.core.packages import active_package_version
+    version = active_package_version(session)
+    if not version:
+        return [], [], None
+    rows = session.execute(select(CtryProcMapping.sirg_id, CtryProcMapping.sir_id).where(
+        CtryProcMapping.package_version == version, CtryProcMapping.ctry_cd == country)).all()
+    sirgs = {g.id: g for g in session.execute(select(SirgDef).where(
+        SirgDef.package_version == version, SirgDef.id.in_({r[0] for r in rows}))).scalars()}
+    defs = {d.id: d for d in session.execute(select(SirDef).where(
+        SirDef.package_version == version, SirDef.id.in_({r[1] for r in rows}))).scalars()}
+    fields = dict(session.execute(select(SirAttribute.sir_id, func.count()).where(
+        SirAttribute.package_version == version, SirAttribute.sir_id.in_(set(defs))).group_by(SirAttribute.sir_id)).all())
+    by_group: dict[str, dict[str, Any]] = {}
+    for sirg_id, sir_id in rows:
+        g = sirgs.get(sirg_id)
+        if g is None:
+            continue
+        entry = by_group.setdefault(g.cd, {"code": g.cd, "name": g.nm, "definitions": []})
+        d = defs.get(sir_id)
+        entry["definitions"].append({"sir_id": sir_id, "cmpt_nm": d.cmpt_nm if d else None,
+                                     "name": d.nm if d else None, "fields": fields.get(sir_id, 0)})
+    details = [by_group[k] for k in sorted(by_group)]
+    return [d["code"] for d in details], details, version
 
 
 def field_specs(options: dict[str, Any]) -> list[dict[str, Any]]:
@@ -148,6 +182,13 @@ def field_specs(options: dict[str, Any]) -> list[dict[str, Any]]:
             spec["ops"] = options["min_ops"] if f["side"] == "min" else options["max_ops"]
         if key == "region" and options.get("region"):
             spec["accepted"] += f" Values: {', '.join(options['region'])}."
+        if key == "requirement_groups":
+            spec["details"] = options.get("requirement_group_details", [])
+            if options.get("package_version"):
+                spec["accepted"] = (f"The requirement groups the active config package {options['package_version']} "
+                                    f"maps for {options.get('country')}"
+                                    + (f": {', '.join(options['requirement_groups'])}." if options.get("requirement_groups")
+                                       else " — none yet: a package change is needed first (ask the CCRE team)."))
         if key == "currency" and options.get("currency"):
             spec["accepted"] += f" Already in the workbook: {', '.join(options['currency'])}."
         out.append(spec)
@@ -549,12 +590,15 @@ def check(criteria: dict[str, Any], options: dict[str, Any]) -> dict[str, Any]:
         if any(d.code == "EXPR_PARSE" for d in grammar.analyse(logic)):
             warnings["other_logic"] = "Written in plain words — the CCRE team will convert it into an expression."
     groups = c.get("requirement_groups")
-    if isinstance(groups, list):
+    if isinstance(groups, list) and options.get("package_version"):
         known = set(options.get("requirement_groups") or [])
-        unknown = [g for g in groups if known and g not in known]
+        unknown = [g for g in groups if g not in known]
         if unknown:
-            warnings["requirement_groups"] = (f"{', '.join(unknown)} is not in the config package yet — "
-                                              "Support will need to add it.")
+            warnings["requirement_groups"] = (
+                f"Package gap: {', '.join(unknown)} is not mapped for {c.get('country')} in the active config "
+                f"package {options['package_version']} — CCRE cannot raise it until Support adds it to the package. "
+                + (f"Available for {c.get('country')}: {', '.join(sorted(known))}." if known else
+                   f"The package has no requirement groups for {c.get('country')} at all."))
 
     missing = []
     for key in _ASK_ORDER:

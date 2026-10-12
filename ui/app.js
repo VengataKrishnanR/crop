@@ -435,12 +435,12 @@ function requirementCard(req) {
 // ── Pick-lists: choose from the list; "Other…" only when the value is not there ──
 const OTHER = '__other';
 
-function pickHtml(key, options, value, { blank = '— choose —', allowOther = true, cls = '' } = {}) {
+function pickHtml(key, options, value, { blank = '— choose —', allowOther = true, cls = '', labels = null, otherLabel = 'Other… (type it)' } = {}) {
   const opts = options || [];
   const isOther = value && !opts.includes(value);
   return `<span class="ccre-pick ${cls}" data-pick="${esc(key)}">
     <select class="dhl-select">${blank !== null ? `<option value="">${esc(blank)}</option>` : ''}${opts.map((o) =>
-      `<option ${o === value ? 'selected' : ''}>${esc(o)}</option>`).join('')}${allowOther ? `<option value="${OTHER}" ${isOther ? 'selected' : ''}>Other… (type it)</option>` : ''}</select>
+      `<option value="${esc(o)}" ${o === value ? 'selected' : ''}>${esc(labels && labels[o] ? labels[o] : o)}</option>`).join('')}${allowOther ? `<option value="${OTHER}" ${isOther ? 'selected' : ''}>${esc(otherLabel)}</option>` : ''}</select>
     <input class="dhl-input ccre-pick-other" placeholder="Type the value" value="${esc(isOther ? value : '')}" ${isOther ? '' : 'hidden'}></span>`;
 }
 
@@ -460,10 +460,10 @@ function wirePicks(root) {
 }
 
 // Several values: chips + a pick-list to add more.
-function multiHtml(key, options, values) {
+function multiHtml(key, options, values, pickOpts = {}) {
   return `<div class="ccre-multi" data-multi="${esc(key)}" data-values='${esc(JSON.stringify(values || []))}'>
     <div class="ccre-chips"></div>
-    <div class="ccre-row ccre-multi-add">${pickHtml(`${key}__add`, options, '', { blank: '+ add…' })}
+    <div class="ccre-row ccre-multi-add">${pickHtml(`${key}__add`, options, '', { blank: '+ add…', ...pickOpts })}
       <button type="button" class="dhl-btn dhl-btn--ghost ccre-small-btn" data-multi-add>Add</button></div></div>`;
 }
 
@@ -641,6 +641,20 @@ function showIntakeCheck(form, res, showMissing = true) {
     : '<span class="ccre-st ccre-st--ok">&#10003; Complete</span>';
 }
 
+// What each requirement group asks for in this country — straight from the active config package.
+function groupCatalogHtml(opts) {
+  const det = opts.requirement_group_details || [];
+  if (!opts.package_version) return '';
+  if (!det.length) {
+    return `<div class="ccre-inline-error">The active config package ${esc(opts.package_version)} has no requirement groups for ${esc(opts.country)} yet.
+      A package change is needed before CCRE can raise anything here — the CCRE team requests it from Support.</div>`;
+  }
+  return `<details class="ccre-accept"><summary>&#128203; What each group asks for in ${esc(opts.country)} (config package ${esc(opts.package_version)})</summary>
+    <div>${table(['Group', 'Definition (what is asked for)', 'Fields'], det.map((g) => `<tr><td><b>${esc(g.code)}</b><br>${esc(g.name)}</td>
+      <td>${g.definitions.map((d) => `${esc(d.cmpt_nm || '')} — ${esc(d.name || d.sir_id)}`).join('<br>')}</td>
+      <td>${g.definitions.map((d) => d.fields).join('<br>')}</td></tr>`))}</div></details>`;
+}
+
 function intakeFieldCard(key, label, required, accepted, control, wide) {
   return `<div class="ccre-m2c-field${wide ? ' ccre-span2' : ''}" id="mf-${key}">
     <label class="ccre-field-label">${esc(label)}${required ? ' *' : ''}</label>${control}
@@ -693,7 +707,9 @@ async function renderIntake(el) {
             `<input type="date" name="expiry_date" class="dhl-input" value="${esc(cur.expiry_date && cur.expiry_date !== 'N/A' ? cur.expiry_date : '')}">
              <label class="ccre-tick ccre-none"><input type="checkbox" name="no_expiry" ${cur.expiry_date === 'N/A' ? 'checked' : ''}> No expiry</label>`)}
           ${intakeFieldCard('requirement_groups', 'Requirement to raise (group)', true, fs.requirement_groups.accepted,
-            multiHtml('requirement_groups', opts.requirement_groups, Array.isArray(cur.requirement_groups) ? cur.requirement_groups : []))}
+            multiHtml('requirement_groups', opts.requirement_groups, Array.isArray(cur.requirement_groups) ? cur.requirement_groups : [], {
+              labels: Object.fromEntries((opts.requirement_group_details || []).map((g) => [g.code, `${g.code} — ${g.name}`])),
+              otherLabel: 'Not in the list… (needs a package change)' }) + groupCatalogHtml(opts), true)}
           ${intakeFieldCard('network_product_codes', fs.network_product_codes.label, false, fs.network_product_codes.accepted,
             `${multiHtml('network_product_codes', opts.network_product_codes, Array.isArray(cur.network_product_codes) ? cur.network_product_codes : [])}
              <label class="ccre-tick ccre-none"><input type="checkbox" name="all_products" ${npcNa ? 'checked' : ''}> All products</label>`, true)}
