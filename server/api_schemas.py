@@ -257,12 +257,19 @@ class LifecycleTransition(BaseModel):
     comment: Optional[str] = None
 
 
+class IntakeExtract(BaseModel):
+    text: str = ""
+    m2c: dict[str, Any] = Field(default_factory=dict)
+
+
 class IntakeChat(BaseModel):
     message: str = Field(min_length=1)
 
 
 class IntakeForm(BaseModel):
-    description: str = Field(min_length=1, description="The requirement in the business team's own words")
+    description: str = Field(default="", description="The requirement in the business team's own words")
+    m2c: dict[str, Any] = Field(default_factory=dict,
+                                description="The M2C criteria (one per Import column); see /intake/fields")
     shipment_type: Optional[str] = None
     direction: Optional[str] = None
     requirement_groups: list[str] = Field(default_factory=list)

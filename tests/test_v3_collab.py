@@ -8,6 +8,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from conftest import FULL_M2C
+
 pytestmark = pytest.mark.workflow
 
 BUSINESS = {"X-CCRE-Role": "BUSINESS"}
@@ -35,7 +37,7 @@ def _users(client: TestClient) -> None:
 def _case_in_review(client: TestClient) -> str:
     case_id = client.post("/api/onboardings", json={"ctry_cd": "BG", "title": "BG IOSS"}, headers=BUSINESS).json()["id"]
     client.post(f"/api/onboardings/{case_id}/intake/form", headers=BUSINESS,
-                json={"description": "BG B2C needs IOSS when SDT is present", "requirement_groups": ["IOSS"]})
+                json={"m2c": FULL_M2C, "description": "BG B2C needs IOSS when SDT is present", "requirement_groups": ["IOSS"]})
     assert client.post(f"/api/onboardings/{case_id}/transition", json={"name": "submit_requirement"},
                        headers=BUSINESS).status_code == 200
     return case_id
@@ -97,7 +99,7 @@ def loaded(client: TestClient, real_package_path: Path, real_workbook_path: Path
 def _to_rule_config(client: TestClient, country: str = "DE") -> str:
     case_id = client.post("/api/onboardings", json={"ctry_cd": country, "title": "POA for DDP"},
                           headers=BUSINESS).json()["id"]
-    client.post(f"/api/onboardings/{case_id}/intake/form", headers=BUSINESS, json={
+    client.post(f"/api/onboardings/{case_id}/intake/form", headers=BUSINESS, json={"m2c": FULL_M2C,
         "description": f"{country} consumer shipments must provide a Power of Attorney when the incoterm is DDP.",
         "shipment_type": "B2C", "requirement_groups": ["POA"]})
     for name, who in (("submit_requirement", BUSINESS), ("approve_requirement", CONSULTANT)):

@@ -7,6 +7,8 @@ import io
 
 import pytest
 from fastapi.testclient import TestClient
+
+from conftest import FULL_M2C
 from openpyxl import load_workbook
 
 from test_v3_collab import BUSINESS, CONSULTANT, PM, TEAM, _to_rule_config, loaded  # noqa: F401
@@ -27,7 +29,7 @@ def _ws(client: TestClient, case_id: str, headers=TEAM) -> dict:
 def test_only_the_business_submits_its_requirement(client: TestClient) -> None:
     case_id = client.post("/api/onboardings", json={"ctry_cd": "DE", "title": "t"}, headers=BUSINESS).json()["id"]
     client.post(f"/api/onboardings/{case_id}/intake/form", headers=BUSINESS,
-                json={"description": "DE needs POA when DDP", "requirement_groups": ["POA"]})
+                json={"m2c": FULL_M2C, "description": "DE needs POA when DDP", "requirement_groups": ["POA"]})
     consultant = client.get(f"/api/onboardings/{case_id}", headers=CONSULTANT).json()
     assert not any(a["name"] == "submit_requirement" and a["mine"] for a in consultant["actions"])
     assert client.post(f"/api/onboardings/{case_id}/transition", json={"name": "submit_requirement"},
@@ -39,7 +41,7 @@ def test_only_the_business_submits_its_requirement(client: TestClient) -> None:
 def test_consultant_submits_the_timeline_and_the_pm_approves(client: TestClient) -> None:
     case_id = client.post("/api/onboardings", json={"ctry_cd": "DE", "title": "t"}, headers=BUSINESS).json()["id"]
     client.post(f"/api/onboardings/{case_id}/intake/form", headers=BUSINESS,
-                json={"description": "DE needs POA when DDP", "requirement_groups": ["POA"]})
+                json={"m2c": FULL_M2C, "description": "DE needs POA when DDP", "requirement_groups": ["POA"]})
     for name, who in (("submit_requirement", BUSINESS), ("approve_requirement", CONSULTANT)):
         assert client.post(f"/api/onboardings/{case_id}/transition", json={"name": name}, headers=who).status_code == 200
     gen = client.post(f"/api/onboardings/{case_id}/timeline/generate", headers=CONSULTANT,

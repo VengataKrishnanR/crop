@@ -146,7 +146,17 @@ def executable_test_cases(session: Session, case_id: str) -> list[UatTestCase]:
 
 def gate_context(session: Session, case: OnboardingCase) -> GateContext:
     ctx = GateContext()
-    ctx.has_requirement = latest_requirement(session, case.id) is not None
+    req = latest_requirement(session, case.id)
+    ctx.has_requirement = req is not None
+    if req is not None:
+        chk = (req.structured or {}).get("m2c_check")
+        if chk is None:
+            ctx.requirement_gaps = ["the M2C criteria (region, B2B/B2C, dates, product codes, value, weight, "
+                                    "other logic)"]
+        else:
+            from tools.intake_fields import FIELD_BY_KEY
+            ctx.requirement_gaps = [m["label"] for m in chk.get("missing", [])] + [
+                f"{FIELD_BY_KEY[k]['label']} ({v})" for k, v in (chk.get("errors") or {}).items()]
     ctx.has_timeline = current_timeline(session, case.id) is not None
 
     rule_set = case_rule_set(session, case)

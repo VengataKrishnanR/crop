@@ -271,3 +271,23 @@ del { background: #fee2e2; padding: 0 3px; }
 @media (max-width: 720px) { .ccre-rc-summary { grid-template-columns: repeat(2, 1fr); } .ccre-span2 { grid-column: auto; } }
 .ccre-next > .dhl-btn, .ccre-row > .dhl-btn, .ccre-rc-table .dhl-btn { width: auto; flex: 0 0 auto; }
 .ccre-rc-table th { white-space: nowrap; }
+
+/* ── Requirement intake: M2C criteria ── */
+.ccre-m2c-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px 16px; }
+.ccre-m2c-field { border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 10px; background: #fff; }
+.ccre-m2c-field.is-err, .ccre-m2c-field.is-missing { border-color: var(--red); background: #fffafa; }
+.ccre-m2c-field .dhl-input, .ccre-m2c-field .dhl-select, .ccre-m2c-field .dhl-textarea { width: 100%; box-sizing: border-box; }
+.ccre-bound { display: grid; grid-template-columns: 70px 1fr; gap: 6px; }
+.ccre-codes { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-bottom: 6px; }
+.ccre-code { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid var(--color-border);
+  border-radius: 999px; font-size: 13px; cursor: pointer; }
+.ccre-code:has(input:checked) { background: var(--dhl-yellow); border-color: #c9a800; }
+.ccre-none { padding: 2px 0 0; font-size: 12px; color: #555; }
+.ccre-accept { margin-top: 4px; font-size: 12px; }
+.ccre-accept summary { cursor: pointer; color: #1d4ed8; }
+.ccre-accept > div { margin-top: 4px; padding: 6px 8px; background: #eff6ff; border-radius: 6px; color: #1e3a8a; }
+.ccre-field-msg { font-size: 12px; margin-top: 4px; }
+.ccre-err { color: var(--red); }
+.ccre-warn-text { color: #92400e; }
+.ccre-m2c-table td { font-size: 13px; vertical-align: top; }
+.ccre-inline { display: inline; }

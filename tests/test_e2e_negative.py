@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from conftest import FULL_M2C
+
 pytestmark = pytest.mark.e2e_negative
 
 BUSINESS = {"X-CCRE-Role": "BUSINESS"}
@@ -21,7 +23,7 @@ def _new(client: TestClient, country: str = "BG") -> str:
 
 
 def _form(client: TestClient, case_id: str) -> None:
-    resp = client.post(f"/api/onboardings/{case_id}/intake/form", headers=BUSINESS, json={
+    resp = client.post(f"/api/onboardings/{case_id}/intake/form", headers=BUSINESS, json={"m2c": FULL_M2C,
         "description": "BG B2C needs IOSS when SDT is present", "requirement_groups": ["IOSS"]})
     assert resp.status_code == 200, resp.text
 
@@ -169,7 +171,11 @@ def test_advisory_layer_switched_off_is_a_clean_503(client: TestClient, monkeypa
                         lambda: (False, "Advisory layer disabled by CCRE_AGENTS_ENABLED."))
     try:
         case_id = _new(client)
-        resp = client.post(f"/api/onboardings/{case_id}/intake/chat", json={"message": "hi"}, headers=BUSINESS)
+        # The intake questions need no model; the interpretation does.
+        chat = client.post(f"/api/onboardings/{case_id}/intake/chat", json={"message": "hi"}, headers=BUSINESS)
+        assert chat.status_code == 200 and chat.json()["missing"]
+        resp = client.post(f"/api/onboardings/{case_id}/intake/form", headers=BUSINESS,
+                           json={"description": "POA for DDP", "m2c": FULL_M2C, "requirement_groups": ["POA"]})
         assert resp.status_code == 503 and "disabled" in resp.json()["detail"]
         assert client.post("/api/run", json={"message": "hi"}, headers=TEAM).status_code == 503
     finally:

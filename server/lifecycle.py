@@ -21,6 +21,7 @@ from tools.core.models import (
     Rule, Timeline, UatComparison, UatResult, UatRun, UatTestCase,
 )
 from tools.core.security import CCRE_ROLES, UserRole
+from tools import intake_fields as F
 from tools.execution import builtin_sample_payload
 from tools.timeline import (
     MILESTONES, QUESTIONS, complexity_facts, estimate, normalise_answers, validate_plan,
@@ -445,27 +446,122 @@ def intake_view(case_id: str, user: CurrentUser = Depends(current_user),
             "requirement": _requirement_out(latest_requirement(session, case.id))}
 
 
+# -- M2C criteria: what every requirement must state ------------------------- #
+
+def _m2c_merge(session: Session, case: OnboardingCase, text: str, given: dict[str, Any]) -> dict[str, Any]:
+    """Criteria read from the text, overlaid by what the user filled in (the form wins)."""
+    options = F.load_options(session, case.ctry_cd)
+    merged = F.extract(text, options) if text and text.strip() else {}
+    for key, value in (given or {}).items():
+        if value not in (None, "", []):
+            merged[key] = value
+    return F.check(merged, options)
+
+
+def _m2c_structured(case: OnboardingCase, checked: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
+    c = checked["criteria"]
+    out = dict(base)
+    out["m2c"] = c
+    out["m2c_check"] = {k: checked[k] for k in ("errors", "warnings", "missing", "complete")}
+    out["m2c_row"] = checked["m2c_row"]
+    out["m2c_view"] = [{"key": f["key"], "label": label, "value": value}
+                       for f, (label, value) in zip(F.FIELDS, F.describe(c))]
+    out["country_code"] = case.ctry_cd
+    if isinstance(c.get("requirement_groups"), list):
+        out["requirement_groups"] = sorted(set(c["requirement_groups"]) | set(out.get("requirement_groups") or []))
+    if c.get("shipment_type") not in (None, F.NA):
+        out["shipment_type"] = c["shipment_type"]
+    if c.get("currency") not in (None, F.NA):
+        out["currency"] = c["currency"]
+    return out
+
+
+def _criteria_sentence(case: OnboardingCase, c: dict[str, Any]) -> str:
+    parts = [f"{label}: {value}" for label, value in F.describe(c)]
+    return f"{case.ctry_cd} requirement. " + "; ".join(parts)
+
+
+@router.get("/onboardings/{case_id}/intake/fields", tags=["intake"])
+def intake_fields(case_id: str, user: CurrentUser = Depends(current_user),
+                  session: Session = Depends(get_session)) -> dict[str, Any]:
+    """The M2C criteria to gather, with dropdown values and what each field accepts."""
+    case = _case(session, case_id, user)
+    options = F.load_options(session, case.ctry_cd)
+    req = latest_requirement(session, case.id)
+    current = (req.structured or {}).get("m2c") if req else None
+    return {"fields": F.field_specs(options), "options": options,
+            "current": current or {"country": case.ctry_cd, "region": options.get("region_default")}}
+
+
+@router.post("/onboardings/{case_id}/intake/extract", tags=["intake"])
+def intake_extract(case_id: str, body: S.IntakeExtract, user: CurrentUser = Depends(require(*_INTAKE_ROLES)),
+                   session: Session = Depends(get_session)) -> dict[str, Any]:
+    """NLP: read the M2C criteria from the text; say what is still missing. Saves nothing."""
+    case = _case(session, case_id, user)
+    return _m2c_merge(session, case, body.text, body.m2c)
+
+
 @router.post("/onboardings/{case_id}/intake/chat", tags=["intake"])
 def intake_chat(case_id: str, body: S.IntakeChat, user: CurrentUser = Depends(require(*_INTAKE_ROLES)),
                 session: Session = Depends(get_session)) -> dict[str, Any]:
+    """The intake conversation. The code decides what is still missing and asks for it,
+    one M2C column at a time; the model only writes the final interpretation."""
     from tools.core.models import IntakeMessage
 
     case = _case(session, case_id, user)
     _require_state(case, State.INTAKE)
     session.add(IntakeMessage(case_id=case.id, role="user", author=user.label, text=body.message.strip()))
     session.flush()
-    transcript = [(m.role, m.text) for m in session.execute(
-        select(IntakeMessage).where(IntakeMessage.case_id == case.id).order_by(IntakeMessage.id)).scalars()]
-    turn = _advise(advisory.intake_turn, case, transcript)
-    session.add(IntakeMessage(case_id=case.id, role="assistant", author="agent:intake_assistant",
-                              text=turn["reply"]))
+    messages = list(session.execute(select(IntakeMessage).where(IntakeMessage.case_id == case.id)
+                                    .order_by(IntakeMessage.id)).scalars())
+    options = F.load_options(session, case.ctry_cd)
+    previous = latest_requirement(session, case.id)
+    criteria: dict[str, Any] = dict((previous.structured or {}).get("m2c") or {}) if previous else {}
+    asked: Optional[str] = None
+    for m in messages:
+        if m.role == "assistant":
+            asked = next((f["key"] for f in F.FIELDS if f["question"][:40] in m.text), None)
+            continue
+        for key, value in F.extract(m.text, options).items():
+            criteria[key] = value
+        if asked:
+            answer = F.answer_for(asked, m.text, options)
+            if answer is not None:
+                criteria[asked] = answer
+        asked = None
+    checked = F.check(criteria, options)
+
     requirement = None
-    if turn.get("complete") and turn.get("requirement"):
-        user_text = "\n".join(text for role, text in transcript if role == "user")
-        requirement = _requirement_out(_save_requirement(session, case, "CHAT", user_text,
-                                                         turn["requirement"], user))
+    complete = checked["complete"]
+    if checked["errors"]:
+        key, problem = next(iter(checked["errors"].items()))
+        spec = F.FIELD_BY_KEY[key]
+        reply = f"{spec['label']}: {problem}\n{spec['question']}\nAccepted: {spec['accepted']}"
+    elif checked["missing"]:
+        nxt = checked["missing"][0]
+        got = [f"{label}: {value}" for label, value in F.describe(checked["criteria"])
+               if not value.startswith("— ")]
+        left = len(checked["missing"])
+        intro = "" if len(got) > 1 else "Thanks. I need the details the CCRE team writes into the M2C, one at a time.\n\n"
+        so_far = ("\n\nSo far: " + "; ".join(got) + ".") if len(got) > 1 else ""
+        reply = (f"{intro}{nxt['question']}\nAccepted: {nxt['accepted']}\n"
+                 f"({left} question{'s' if left != 1 else ''} left){so_far}")
+    else:
+        user_text = "\n".join(m.text for m in messages if m.role == "user")
+        form = {"country_code": case.ctry_cd, "requirement_groups": checked["criteria"]["requirement_groups"],
+                "shipment_type": checked["criteria"].get("shipment_type")}
+        reading = _advise(advisory.interpret_form, case, form, user_text)
+        req = _save_requirement(session, case, "CHAT", user_text, _m2c_structured(case, checked, reading), user)
+        requirement = _requirement_out(req)
+        lines = "\n".join(f"- {label}: {value}" for label, value in F.describe(checked["criteria"]))
+        notes = "".join(f"\n! {F.FIELD_BY_KEY[k]['label']}: {w}" for k, w in checked["warnings"].items())
+        reply = (f"Here is the requirement for the M2C:\n{lines}{notes}\n\n"
+                 "If anything is wrong, just tell me (e.g. 'effective date 01-12-2026'). "
+                 "Otherwise click 'Submit requirement for approval'.")
+    session.add(IntakeMessage(case_id=case.id, role="assistant", author="agent:intake_assistant", text=reply))
     session.commit()
-    return {"reply": turn["reply"], "complete": bool(turn.get("complete")), "requirement": requirement}
+    return {"reply": reply, "complete": complete, "requirement": requirement,
+            "missing": checked["missing"], "criteria": checked["criteria"]}
 
 
 @router.post("/onboardings/{case_id}/intake/form", tags=["intake"])
@@ -473,13 +569,25 @@ def intake_form(case_id: str, body: S.IntakeForm, user: CurrentUser = Depends(re
                 session: Session = Depends(get_session)) -> dict[str, Any]:
     case = _case(session, case_id, user)
     _require_state(case, State.INTAKE)
-    form = body.model_dump(mode="json", exclude={"description"})
+    given = dict(body.m2c or {})
+    groups = [g.strip().upper() for g in body.requirement_groups if g.strip()]
+    if groups and not given.get("requirement_groups"):
+        given["requirement_groups"] = groups
+    for key in ("shipment_type", "currency"):
+        if getattr(body, key) and not given.get(key):
+            given[key] = getattr(body, key)
+    checked = _m2c_merge(session, case, body.description, given)
+    description = body.description.strip() or _criteria_sentence(case, checked["criteria"])
+    form = body.model_dump(mode="json", exclude={"description", "m2c"})
     form["country_code"] = case.ctry_cd
-    form["requirement_groups"] = [g.strip().upper() for g in body.requirement_groups if g.strip()]
-    structured = _advise(advisory.interpret_form, case, form, body.description)
-    req = _save_requirement(session, case, "FORM", body.description.strip(), structured, user)
+    form["requirement_groups"] = checked["criteria"].get("requirement_groups") or groups
+    if checked["criteria"].get("shipment_type") not in (None, F.NA):
+        form["shipment_type"] = checked["criteria"]["shipment_type"]
+    structured = _advise(advisory.interpret_form, case, form, description)
+    req = _save_requirement(session, case, "FORM", description, _m2c_structured(case, checked, structured), user)
     session.commit()
-    return {"requirement": _requirement_out(req)}
+    return {"requirement": _requirement_out(req), "check": {k: checked[k] for k in
+                                                             ("errors", "warnings", "missing", "complete")}}
 
 
 # --------------------------------------------------------------------------- #

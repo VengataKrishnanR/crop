@@ -16,7 +16,7 @@ Two properties are enforced here rather than trusted:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Optional
 
@@ -65,6 +65,7 @@ class Transition:
     label: str
     # Gates that must hold. Checked against a GateContext before the move.
     requires_requirement: bool = False
+    requires_requirement_complete: bool = False
     requires_timeline: bool = False
     requires_rule_set: bool = False
     requires_clean_validation: bool = False
@@ -92,7 +93,8 @@ TRANSITIONS: tuple[Transition, ...] = (
     # ── 1. Requirement — CCRE consultant approves ───────────────────────────
     # The business team owns its requirement: only it submits; the consultant only approves or rejects.
     _t(State.INTAKE, State.REQUIREMENT_REVIEW, {Role.BUSINESS},
-       "submit_requirement", "Submit requirement for approval", requires_requirement=True),
+       "submit_requirement", "Submit requirement for approval", requires_requirement=True,
+       requires_requirement_complete=True),
     _t(State.REQUIREMENT_REVIEW, State.TIMELINE_PLANNING, {Role.CCRE_CONSULTANT},
        "approve_requirement", "Approve requirement", requires_requirement=True, kind="approve"),
     _t(State.REQUIREMENT_REVIEW, State.INTAKE, {Role.CCRE_CONSULTANT},
@@ -239,6 +241,7 @@ class GateContext:
     report: Optional[ValidationReport] = None
     package_complete: bool = False
     has_requirement: bool = False
+    requirement_gaps: list = field(default_factory=list)   # M2C criteria still missing / wrong
     has_timeline: bool = False
     has_rule_set: bool = False
     test_cases_ready: int = 0
@@ -275,6 +278,8 @@ def find_transition(state: State, name: str) -> Optional[Transition]:
 def gate_reasons(transition: Transition, ctx: GateContext) -> list[str]:
     """Why this transition is currently blocked. Empty means it may fire."""
     reasons: list[str] = []
+    if transition.requires_requirement_complete and ctx.has_requirement and ctx.requirement_gaps:
+        reasons.append("The requirement is missing M2C details: " + ", ".join(ctx.requirement_gaps) + ".")
     if transition.requires_requirement and not ctx.has_requirement:
         reasons.append("No requirement has been captured yet (chat or form).")
     if transition.requires_timeline and not ctx.has_timeline:

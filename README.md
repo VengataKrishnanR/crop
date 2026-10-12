@@ -89,6 +89,31 @@ Without any endpoint the run uses a built-in **mock CCRE** (offline demo). Your 
 
 ---
 
+## Requirement intake = the M2C columns
+
+Every requirement must state the M2C Import columns the CCRE team writes. The rest of the flow depends on them, so **"Submit requirement for approval" stays disabled until every column is answered and accepted**.
+
+| Column | What is accepted |
+|---|---|
+| Region | One region from the workbook (EU, ME, SB, AM). Pre-filled from the country's existing rows |
+| Country | The onboarding's country (fixed) |
+| B2B/B2C | B2B, B2C or B2B/B2C |
+| Effective date / Date of expiry | DD-MM-YYYY. Expiry on or after the effective date, or **No expiry** |
+| Network product code | Several codes, comma-separated: tick the workbook's codes or add your own, or **All products** |
+| Declared / Intrinsic value, Currency | DV or IV and an ISO currency, needed only when a value limit is given (new currencies are flagged) |
+| Min / Max value, Min / Max weight (kg) | An **operator** (min: `>=` `>` `=`, max: `<=` `<` `=`) and a number, or **No minimum / No maximum**. The M2C stores inclusive numbers, as the workbook already does: `> 150` is written as **150.01** and `< 1000` as **999.99**, shown under the field |
+| Other Logic | Your condition in plain words or as an expression, or **No other condition**. Plain words are flagged for the CCRE team to convert |
+| Requirement group | The document(s) to raise, e.g. IOSS, POAB (unknown groups are flagged as a package gap) |
+
+Every field has an **ⓘ Accepted values** panel. Three ways to fill them:
+- **Form + NLP:** describe the requirement, click **Fill the fields from my text (NLP)**, and the form is filled. Anything still missing is outlined in red with its question.
+- **Chat:** describe it in your own words. The assistant asks for each missing column, one question at a time, until every column is answered. If an answer is not accepted, it explains why and asks again.
+- **Plain form:** fill the fields directly, **Check**, then **Save requirement**.
+
+In **Rule configuration**, **Rows from the requirement** creates one M2C row per requirement group from these criteria.
+
+---
+
 ## Rule configuration workspace
 
 Step 3 is where the M2C is actually built. The draft starts as the country's live rows from the loaded workbook, and every edit is checked immediately.

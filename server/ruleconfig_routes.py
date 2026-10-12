@@ -196,6 +196,40 @@ def add_row(case_id: str, body: RowIn, user: CurrentUser = Depends(require_ccre)
     return _fresh(session, rule, case)
 
 
+@router.post("/onboardings/{case_id}/rule-config/rows/from-requirement")
+def rows_from_requirement(case_id: str, user: CurrentUser = Depends(require_ccre),
+                          session: Session = Depends(get_session)) -> list[dict[str, Any]]:
+    """One Import row per requirement group, filled from the approved requirement's M2C criteria."""
+    from tools.workflow.case_facts import latest_requirement
+
+    case = _case(session, case_id, user)
+    rs = _editable(session, case)
+    req = latest_requirement(session, case.id)
+    structured = (req.structured or {}) if req else {}
+    values = structured.get("m2c_row")
+    groups = (structured.get("m2c") or {}).get("requirement_groups") or structured.get("requirement_groups") or []
+    if not values:
+        raise HTTPException(409, "The requirement has no complete M2C criteria to copy.")
+    rows = []
+    for group in groups or [None]:
+        rule = Rule(rule_set_id=rs.id, row_no=None, direction="Import", ctry_cd=case.ctry_cd, sirg_cd=group)
+        for key, value in values.items():
+            if key in ("effective_date", "expiry_date") and value:
+                value = dt.date.fromisoformat(value)
+            if key != "ctry_cd":
+                setattr(rule, key, value)
+        session.add(rule)
+        session.flush()
+        _audit(session, case, user, "m2c:row_from_requirement", {"rule_id": rule.id, "sirg_cd": group,
+                                                                "requirement_version": req.version})
+        rows.append(rule)
+    session.commit()
+    cat = rc.Catalog.load(session, case.ctry_cd)
+    for r in rows:
+        session.refresh(r)
+    return [_row_out(r, cat, case.ctry_cd) for r in rows]
+
+
 @router.put("/onboardings/{case_id}/rule-config/rows/{rule_id}")
 def edit_row(case_id: str, rule_id: str, body: RowIn, user: CurrentUser = Depends(require_ccre),
              session: Session = Depends(get_session)) -> dict[str, Any]:

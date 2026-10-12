@@ -26,6 +26,11 @@
 | “Rows can only be edited while … Rule configuration” | The onboarding moved on | Reject back to rule configuration (sanity check or UAT review) to correct |
 | Consultant cannot submit the requirement | Only the business submits its own requirement | The business user clicks **Submit requirement for approval** |
 | PM cannot submit the timeline | The consultant submits; the PM approves | The CCRE consultant clicks **Submit timeline for PM approval** |
+| “The requirement is missing M2C details: …” | A column is unanswered or not accepted | 1. Requirement: fill the red fields (or answer the chat), then Save |
+| A date is “not valid” | Wrong format | Use DD-MM-YYYY, e.g. 15-11-2026 |
+| A min value shows “Written in M2C as 150.01” | The M2C stores inclusive bounds | Expected: `> 150` = `>= 150.01`. Use `>=` if 150 itself is included |
+| Chat keeps asking the same question | The answer was not understood or not accepted | Answer in the form shown under **Accepted**, or say “none” where it is optional |
+| Tests: “Permission denied” on the M2C workbook | The workbook is open in Excel (locked) | Close it, or set `CCRE_REFERENCE_DIR` to a folder with copies |
 | An action button is greyed out | A gate is not met | The reason is printed under the button (e.g. validation blockers, no test results) |
 | Endpoint **Test** says “Not reachable” | No route to the host | Connect to the DHL VPN; for `*.dhl.com` the corporate proxy is bypassed automatically |
 | Endpoint **Test** returns HTTP 401/403 | Wrong or expired key | Admin → Edit → enter the key again → Update endpoint |
