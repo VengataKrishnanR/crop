@@ -105,10 +105,29 @@ Every requirement must state the M2C Import columns the CCRE team writes. The re
 | Other Logic | Your condition in plain words or as an expression, or **No other condition**. Plain words are flagged for the CCRE team to convert |
 | Requirement group | The document(s) to raise, e.g. IOSS, POAB (unknown groups are flagged as a package gap) |
 
-Every field has an **ⓘ Accepted values** panel. Three ways to fill them:
-- **Form + NLP:** describe the requirement, click **Fill the fields from my text (NLP)**, and the form is filled. Anything still missing is outlined in red with its question.
-- **Chat:** describe it in your own words. The assistant asks for each missing column, one question at a time, until every column is answered. If an answer is not accepted, it explains why and asks again.
-- **Plain form:** fill the fields directly, **Check**, then **Save requirement**.
+**Nothing has to be typed when it is in a list.** Every field is a pick-list built from the workbook and the package: regions, product codes, requirement groups, currencies, service codes, incoterms, short codes and countries. **Other… (type it)** is offered only for values that are not listed. Dates use a calendar. Each field has an **ⓘ Accepted values** panel.
+
+**Conditions** (value, weight, other logic) are built row by row, like a ServiceNow filter:
+
+```
+All of these conditions must be met
+   Declared value        is greater than      150  [EUR]          AND  OR  ✕
+   Short code (e.g. SDT) is present           [SDT]               AND  OR  ✕
+   Service code          does not contain     (DD)                AND  OR  ✕
+or Incoterm              is one of            (DDP)               AND  OR  ✕
+Written in the M2C as: Min value 150.01 · DV · EUR · Other Logic: matchCiMask(...) && (!serviceCodeList.contains("DD") || incotermCodeList.contains("DDP"))
+```
+
+- **AND** adds a condition that must also hold. **OR** adds an alternative to that row.
+- Value and weight operators: is greater than, is at least, is less than, is at most, is equal to, is between.
+- Value and weight rows fill the M2C Min/Max, DV/IV and Currency columns. The other rows become Other Logic.
+- The builder refuses what one M2C row cannot hold, and says why. For example: value limits joined with OR, declared and intrinsic value together, a value without a currency, or "between 30 and 2".
+- **No conditions** means the requirement applies at any value and weight.
+
+Ways to fill the form:
+- **Form:** pick the values from the lists, then **Save requirement**. Fields still needed are marked once you start.
+- **NLP (optional):** describe the requirement and click **Fill the form from my text**. The lists and condition rows are pre-filled for you to check.
+- **Chat:** the assistant asks for each missing column, one question at a time.
 
 In **Rule configuration**, **Rows from the requirement** creates one M2C row per requirement group from these criteria.
 

@@ -477,7 +477,8 @@ def _m2c_structured(case: OnboardingCase, checked: dict[str, Any], base: dict[st
 
 
 def _criteria_sentence(case: OnboardingCase, c: dict[str, Any]) -> str:
-    parts = [f"{label}: {value}" for label, value in F.describe(c)]
+    # Labels without their format hints ("(DD-MM-YYYY)"), so readers do not take them for codes.
+    parts = [f"{label.split(' (')[0]}: {value}" for label, value in F.describe(c)]
     return f"{case.ctry_cd} requirement. " + "; ".join(parts)
 
 
@@ -489,8 +490,11 @@ def intake_fields(case_id: str, user: CurrentUser = Depends(current_user),
     options = F.load_options(session, case.ctry_cd)
     req = latest_requirement(session, case.id)
     current = (req.structured or {}).get("m2c") if req else None
-    return {"fields": F.field_specs(options), "options": options,
-            "current": current or {"country": case.ctry_cd, "region": options.get("region_default")}}
+    current = dict(current or {"country": case.ctry_cd, "region": options.get("region_default")})
+    if "conditions" not in current:
+        current["conditions"] = F.to_conditions(current, req.text if req else "")
+    return {"fields": F.field_specs(options), "options": options, "current": current,
+            "conditions": {"fields": F.CONDITION_FIELDS, "options": F.condition_options(session)}}
 
 
 @router.post("/onboardings/{case_id}/intake/extract", tags=["intake"])
@@ -498,7 +502,10 @@ def intake_extract(case_id: str, body: S.IntakeExtract, user: CurrentUser = Depe
                    session: Session = Depends(get_session)) -> dict[str, Any]:
     """NLP: read the M2C criteria from the text; say what is still missing. Saves nothing."""
     case = _case(session, case_id, user)
-    return _m2c_merge(session, case, body.text, body.m2c)
+    out = _m2c_merge(session, case, body.text, body.m2c)
+    # The same reading as condition-builder rows, for the form.
+    out["conditions"] = body.m2c.get("conditions") if isinstance(body.m2c.get("conditions"), list)         else F.to_conditions(out["criteria"], body.text)
+    return out
 
 
 @router.post("/onboardings/{case_id}/intake/chat", tags=["intake"])

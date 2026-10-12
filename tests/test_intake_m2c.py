@@ -150,3 +150,61 @@ def test_rule_config_rows_from_the_requirement(client: TestClient, loaded: None)
     row = rows.json()[0]
     assert row["sirg_cd"] == "POA" and row["region"] == "EU" and row["shipment_type"] == "B2C"
     assert row["effective_date"] == "2026-11-15" and row["row_no"] is None
+
+
+# --------------------------------------------------------------------------- #
+# the condition builder
+# --------------------------------------------------------------------------- #
+
+BASE = {**FULL_M2C, "requirement_groups": ["IOSS"]}
+
+
+def test_builder_rows_become_m2c_columns() -> None:
+    conds = [[{"field": "declared_value", "op": "gt", "value": 150, "currency": "EUR"}],
+             [{"field": "weight", "op": "between", "value": 2, "value2": 30}],
+             [{"field": "short_code", "op": "present", "values": ["SDT"]}],
+             [{"field": "service_code", "op": "none", "values": ["DD"]},
+              {"field": "incoterm", "op": "any", "values": ["DDP"]}]]
+    res = F.check({**BASE, "conditions": conds}, OPTIONS)
+    assert res["complete"], res
+    row = res["m2c_row"]
+    assert (row["min_value"], row["max_value"], row["value_basis"], row["currency"]) == (150.01, None, "DV", "EUR")
+    assert (row["min_weight"], row["max_weight"]) == (2.0, 30.0)
+    # Groups are joined with AND; rows inside a group with OR.
+    assert row["other_logic"] == ('matchCiMask("shortCode|==|SDT","value|!=|<blank>") && '
+                                  '(!serviceCodeList.contains("DD") || incotermCodeList.contains("DDP"))')
+
+
+def test_no_conditions_means_nothing_else_applies() -> None:
+    res = F.check({**BASE, "conditions": []}, OPTIONS)
+    assert res["complete"]
+    assert res["criteria"]["min_value"] == F.NA and res["m2c_row"]["other_logic"] is None
+
+
+@pytest.mark.parametrize("conds,needle", [
+    ([[{"field": "declared_value", "op": "gt", "value": 150, "currency": "EUR"},
+       {"field": "weight", "op": "lt", "value": 3}]], "cannot be joined with OR"),
+    ([[{"field": "declared_value", "op": "gt", "value": 150}]], "choose the currency"),
+    ([[{"field": "declared_value", "op": "gt", "value": 1, "currency": "EUR"}],
+      [{"field": "intrinsic_value", "op": "lt", "value": 9, "currency": "EUR"}]], "not both"),
+    ([[{"field": "weight", "op": "between", "value": 30, "value2": 2}]], "not be below"),
+    ([[{"field": "weight", "op": "gt", "value": "abc"}]], "enter a number"),
+    ([[{"field": "service_code", "op": "any", "values": []}]], "choose a value"),
+])
+def test_builder_refuses_what_the_m2c_cannot_hold(conds, needle) -> None:
+    res = F.check({**BASE, "conditions": conds}, OPTIONS)
+    assert needle in res["errors"]["conditions"]
+    assert not res["complete"]
+
+
+def test_nlp_reading_is_offered_as_builder_rows(client: TestClient) -> None:
+    case_id = _case(client)
+    res = client.post(f"/api/onboardings/{case_id}/intake/extract", headers=BUSINESS, json={
+        "text": "BG consumer shipments must provide IOSS when SDT is present and no DD, declared value above 150 EUR"}).json()
+    fields = [g[0]["field"] for g in res["conditions"]]
+    assert fields == ["declared_value", "short_code", "service_code"]
+    assert res["conditions"][0][0] == {"field": "declared_value", "op": "gt", "value": 150.0, "currency": "EUR"}
+    spec = client.get(f"/api/onboardings/{case_id}/intake/fields", headers=BUSINESS).json()["conditions"]
+    assert {f["key"] for f in spec["fields"]} >= {"declared_value", "weight", "service_code", "incoterm", "short_code"}
+    assert "DD" in spec["options"]["service_codes"] and "DDP" in spec["options"]["incoterms"]
+    assert "CN" in spec["options"]["countries"]
