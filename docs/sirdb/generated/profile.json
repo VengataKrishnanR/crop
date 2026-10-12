@@ -1,0 +1,5341 @@
+{
+  "workbook": {
+    "path": "M2c_6_5_ver_1_W29_2.10.9-beta.2_20262608-131409_20262409-100918_20262409-144825_20262409-162826 (2).xlsx",
+    "sha256": "8a8ad95e442795d69dad1b558249c77e042be5308fcfa672ce43dfdded04f393",
+    "size": 130750
+  },
+  "inventory": [
+    {
+      "sheet": "Import",
+      "index": 0,
+      "dimensions": "A1:Q57",
+      "max_row": 57,
+      "max_col": 17,
+      "headerless": false,
+      "data_rows": 56,
+      "headers": [
+        "Region",
+        "Country",
+        "B2B/B2C",
+        "Effective Date (DD-MM-YYY)",
+        "Date of Expiry (DD-MM-YYY)",
+        "Network Product Code",
+        "Declared Value/ Intristic Value",
+        "Currency",
+        "Min Value (>=)",
+        "Max Value (<=)",
+        "Shipt Weight (kg) (>=)",
+        "Shipt Weight (kg) (<=)",
+        "Other Logic",
+        "Country Hold Code",
+        "Global Hold Code",
+        "Document Reference",
+        "SIRG Document Reference"
+      ],
+      "autofilter": "A1:Q55",
+      "formula_cells": 33,
+      "data_validations": [],
+      "columns": [
+        {
+          "column": 1,
+          "letter": "A",
+          "header": "Region",
+          "non_empty": 56,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 56
+          },
+          "distinct": 4,
+          "top_values": [
+            [
+              "EU",
+              37
+            ],
+            [
+              "ME",
+              10
+            ],
+            [
+              "AM",
+              6
+            ],
+            [
+              "SB",
+              3
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 2,
+          "letter": "B",
+          "header": "Country",
+          "non_empty": 56,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 56
+          },
+          "distinct": 21,
+          "top_values": [
+            [
+              "MX",
+              6
+            ],
+            [
+              "BH",
+              5
+            ],
+            [
+              "RS",
+              5
+            ],
+            [
+              "GR",
+              4
+            ],
+            [
+              "FI",
+              3
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 3,
+          "letter": "C",
+          "header": "B2B/B2C",
+          "non_empty": 56,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 56
+          },
+          "distinct": 3,
+          "top_values": [
+            [
+              "B2C",
+              49
+            ],
+            [
+              "C2C",
+              6
+            ],
+            [
+              "B2B",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 4,
+          "letter": "D",
+          "header": "Effective Date (DD-MM-YYY)",
+          "non_empty": 56,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 56
+          },
+          "distinct": 6,
+          "top_values": [
+            [
+              "01-01-2021",
+              33
+            ],
+            [
+              "29-12-2024",
+              8
+            ],
+            [
+              "01-06-2024",
+              6
+            ],
+            [
+              "07-01-2026",
+              6
+            ],
+            [
+              "24-09-2026",
+              2
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 5,
+          "letter": "E",
+          "header": "Date of Expiry (DD-MM-YYY)",
+          "non_empty": 35,
+          "empty": 21,
+          "formulas": 0,
+          "types": {
+            "str": 35
+          },
+          "distinct": 1,
+          "top_values": [
+            [
+              "02-01-2021",
+              35
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 6,
+          "letter": "F",
+          "header": "Network Product Code",
+          "non_empty": 56,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 56
+          },
+          "distinct": 1,
+          "top_values": [
+            [
+              "H,V,Y,M,E,P,8,J,3",
+              56
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 7,
+          "letter": "G",
+          "header": "Declared Value/ Intristic Value",
+          "non_empty": 56,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 56
+          },
+          "distinct": 2,
+          "top_values": [
+            [
+              "DV",
+              44
+            ],
+            [
+              "IV",
+              12
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 8,
+          "letter": "H",
+          "header": "Currency",
+          "non_empty": 56,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 56
+          },
+          "distinct": 8,
+          "top_values": [
+            [
+              "EUR",
+              30
+            ],
+            [
+              "USD",
+              9
+            ],
+            [
+              "BHD",
+              5
+            ],
+            [
+              "NOK",
+              3
+            ],
+            [
+              "ZAR",
+              3
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 9,
+          "letter": "I",
+          "header": "Min Value (>=)",
+          "non_empty": 48,
+          "empty": 8,
+          "formulas": 0,
+          "types": {
+            "int": 42,
+            "float": 6
+          },
+          "distinct": 10,
+          "top_values": [
+            [
+              "150",
+              16
+            ],
+            [
+              "0",
+              9
+            ],
+            [
+              "1000",
+              5
+            ],
+            [
+              "50.01",
+              5
+            ],
+            [
+              "300",
+              4
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 10,
+          "letter": "J",
+          "header": "Max Value (<=)",
+          "non_empty": 10,
+          "empty": 46,
+          "formulas": 0,
+          "types": {
+            "int": 3,
+            "float": 7
+          },
+          "distinct": 2,
+          "top_values": [
+            [
+              "999.99",
+              7
+            ],
+            [
+              "1499",
+              3
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 11,
+          "letter": "K",
+          "header": "Shipt Weight (kg) (>=)",
+          "non_empty": 5,
+          "empty": 51,
+          "formulas": 0,
+          "types": {
+            "int": 3,
+            "float": 2
+          },
+          "distinct": 2,
+          "top_values": [
+            [
+              "0",
+              3
+            ],
+            [
+              "4.99",
+              2
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 12,
+          "letter": "L",
+          "header": "Shipt Weight (kg) (<=)",
+          "non_empty": 3,
+          "empty": 53,
+          "formulas": 0,
+          "types": {
+            "float": 3
+          },
+          "distinct": 1,
+          "top_values": [
+            [
+              "29.9",
+              3
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 13,
+          "letter": "M",
+          "header": "Other Logic",
+          "non_empty": 13,
+          "empty": 43,
+          "formulas": 0,
+          "types": {
+            "str": 13
+          },
+          "distinct": 9,
+          "top_values": [
+            [
+              "!serviceCodeList.contains(\"DD\")",
+              4
+            ],
+            [
+              "serviceCodeList.contains(\"DD\")",
+              2
+            ],
+            [
+              "matchCiMask(\"shortCode|==|SDT\",\"value|==|<blank>\")",
+              1
+            ],
+            [
+              "OriginCountry==\"AU\"||OriginCountry==\"BD\"||OriginCountry==\"BN\"||OriginCountry==\"HK\"||OriginCountry==\"IN\"||OriginCountry==\"ID\"||OriginCountry==\"JP\"||OriginCountry==\"MO\"||OriginCountry==\"MY\"||OriginCountry==\"MV\"||OriginCountry==\"PK\"||OriginCountry==\"PH\"||OriginCountry==\"SG\"||OriginCountry==\"KR\"||OriginCountry==\"LK\"||OriginCountry==\"VN\"||OriginCountry==\"TH\"||OriginCountry==\"TW\"||OriginCountry==\"IN\"||OriginCountry==\"CN\"",
+              1
+            ],
+            [
+              "OriginCountry!=\"UK\" && !serviceCodeList.contains(\"DD\")",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 14,
+          "letter": "N",
+          "header": "Country Hold Code",
+          "non_empty": 26,
+          "empty": 30,
+          "formulas": 0,
+          "types": {
+            "str": 24,
+            "int": 2
+          },
+          "distinct": 18,
+          "top_values": [
+            [
+              "POA",
+              3
+            ],
+            [
+              "CNPK",
+              3
+            ],
+            [
+              "NCI",
+              3
+            ],
+            [
+              "CIDM",
+              2
+            ],
+            [
+              "TBD",
+              2
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 15,
+          "letter": "O",
+          "header": "Global Hold Code",
+          "non_empty": 33,
+          "empty": 23,
+          "formulas": 0,
+          "types": {
+            "str": 33
+          },
+          "distinct": 4,
+          "top_values": [
+            [
+              "CIDM",
+              14
+            ],
+            [
+              "CPA",
+              11
+            ],
+            [
+              "VALU",
+              7
+            ],
+            [
+              "CNPK",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 16,
+          "letter": "P",
+          "header": "Document Reference",
+          "non_empty": 56,
+          "empty": 0,
+          "formulas": 33,
+          "types": {
+            "str": 56
+          },
+          "distinct": 36,
+          "top_values": [
+            [
+              "TEST|TEST|TEST",
+              21
+            ],
+            [
+              "ES|Import|DH|CIDM",
+              1
+            ],
+            [
+              "ES|Import|CM|CPA",
+              1
+            ],
+            [
+              "NO|Import|PFX|CIDM",
+              1
+            ],
+            [
+              "FI|Import|3|VALU",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 17,
+          "letter": "Q",
+          "header": "SIRG Document Reference",
+          "non_empty": 56,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 56
+          },
+          "distinct": 25,
+          "top_values": [
+            [
+              "TEST|TEST|TEST",
+              24
+            ],
+            [
+              "BH|Import|PII",
+              3
+            ],
+            [
+              "ZA|Import|PII",
+              2
+            ],
+            [
+              "MX|Import|IRID",
+              2
+            ],
+            [
+              "MX|Import|ICTC",
+              2
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        }
+      ]
+    },
+    {
+      "sheet": "SIR Reference",
+      "index": 1,
+      "dimensions": "A1:I86",
+      "max_row": 86,
+      "max_col": 9,
+      "headerless": false,
+      "data_rows": 85,
+      "headers": [
+        "Document Reference",
+        "SIR Document Reference",
+        "Waived if Whitelisted",
+        "Waived to Validate",
+        "Check if Service Code=",
+        "CmptNm",
+        "SIR Technical Id",
+        "AttributeID",
+        null
+      ],
+      "autofilter": "A1:I84",
+      "formula_cells": 34,
+      "data_validations": [],
+      "columns": [
+        {
+          "column": 1,
+          "letter": "A",
+          "header": "Document Reference",
+          "non_empty": 85,
+          "empty": 0,
+          "formulas": 34,
+          "types": {
+            "str": 85
+          },
+          "distinct": 44,
+          "top_values": [
+            [
+              "TEST|TEST|TEST|TEST",
+              23
+            ],
+            [
+              "ZA|Import|NCI|CIDM",
+              4
+            ],
+            [
+              "LB|Import|FRML|CIDM",
+              4
+            ],
+            [
+              "ES|Import|DH|CIDM",
+              3
+            ],
+            [
+              "FI|Import|1|CIDM",
+              3
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 2,
+          "letter": "B",
+          "header": "SIR Document Reference",
+          "non_empty": 85,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 85
+          },
+          "distinct": 19,
+          "top_values": [
+            [
+              "TEST|TEST|TEST|TEST",
+              57
+            ],
+            [
+              "MX|Import|IRID|IRIDMX",
+              4
+            ],
+            [
+              "ID|Import|PII|Identification",
+              3
+            ],
+            [
+              "SE|Import|CPOA|CPOASE",
+              3
+            ],
+            [
+              "AE|Import|PII|PIIAE_V1",
+              3
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 3,
+          "letter": "C",
+          "header": "Waived if Whitelisted",
+          "non_empty": 20,
+          "empty": 65,
+          "formulas": 0,
+          "types": {
+            "str": 20
+          },
+          "distinct": 1,
+          "top_values": [
+            [
+              "Y",
+              20
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 4,
+          "letter": "D",
+          "header": "Waived to Validate",
+          "non_empty": 4,
+          "empty": 81,
+          "formulas": 0,
+          "types": {
+            "str": 3,
+            "int": 1
+          },
+          "distinct": 2,
+          "top_values": [
+            [
+              "Y",
+              3
+            ],
+            [
+              "4",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 5,
+          "letter": "E",
+          "header": "Check if Service Code=",
+          "non_empty": 34,
+          "empty": 51,
+          "formulas": 0,
+          "types": {
+            "str": 34
+          },
+          "distinct": 1,
+          "top_values": [
+            [
+              "PQ",
+              34
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 6,
+          "letter": "F",
+          "header": "CmptNm",
+          "non_empty": 85,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 85
+          },
+          "distinct": 28,
+          "top_values": [
+            [
+              "Identification",
+              24
+            ],
+            [
+              "POA",
+              12
+            ],
+            [
+              "PPY",
+              11
+            ],
+            [
+              "PersonalIdentity",
+              4
+            ],
+            [
+              "FxIdentification",
+              4
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 7,
+          "letter": "G",
+          "header": "SIR Technical Id",
+          "non_empty": 48,
+          "empty": 37,
+          "formulas": 0,
+          "types": {
+            "str": 48
+          },
+          "distinct": 25,
+          "top_values": [
+            [
+              "917cb7dc-3e25-4420-b07e-74d5322225ed",
+              4
+            ],
+            [
+              "e4fd168a-e13a-43bc-a6d8-92a3030dea94",
+              4
+            ],
+            [
+              "81d8263e-5562-4f40-b3c6-b8d2365fac8e",
+              4
+            ],
+            [
+              "bd0fdd5f-9a13-49c2-8a26-ff088f615d3b",
+              4
+            ],
+            [
+              "1fa69546-1dd1-4b27-a4dc-76bf04fe99fa",
+              3
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 8,
+          "letter": "H",
+          "header": "AttributeID",
+          "non_empty": 46,
+          "empty": 39,
+          "formulas": 0,
+          "types": {
+            "str": 46
+          },
+          "distinct": 44,
+          "top_values": [
+            [
+              "8ef75c9c-3b58-432e-ad2e-0a3d7fe5f066&&ceb4b2d8-35d7-459f-9567-8754b73e13ba",
+              2
+            ],
+            [
+              "2d578111-ca23-4d22-8c03-d0420819ec0c&&52949c1d-2aca-4030-bf31-abb816f40a8d",
+              2
+            ],
+            [
+              "60fd6f23-847f-4eab-a880-2ed1c8ef0244",
+              1
+            ],
+            [
+              "3fc006ce-ecfd-4fce-afae-d23b4b7587bc&&ac2079e8-95f9-4fdb-9691-a621da398b6d&&f17735ab-4cd4-4ae4-854a-0af642bc2e02",
+              1
+            ],
+            [
+              "90e457ba-c8d1-4d48-8042-505122efb9b7",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 9,
+          "letter": "I",
+          "header": null,
+          "non_empty": 49,
+          "empty": 36,
+          "formulas": 0,
+          "types": {
+            "str": 49
+          },
+          "distinct": 41,
+          "top_values": [
+            [
+              "Passport Number && Passport Image",
+              3
+            ],
+            [
+              "National ID",
+              2
+            ],
+            [
+              "NID",
+              2
+            ],
+            [
+              "Passport Number",
+              2
+            ],
+            [
+              "Passport Number&&Passport Image",
+              2
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        }
+      ]
+    },
+    {
+      "sheet": "Export",
+      "index": 2,
+      "dimensions": "A1:R1",
+      "max_row": 1,
+      "max_col": 18,
+      "headerless": false,
+      "data_rows": 0,
+      "headers": [
+        "Region",
+        "Country",
+        "B2B/B2C",
+        "Effective Date (DD-MM-YYY)",
+        "Date of Expiry (DD-MM-YYY)",
+        "Network Product Code",
+        "Declared Value/ Intristic Value",
+        "Currency",
+        "Min Value (>=)",
+        "Max Value (<=)",
+        "Shipt Weight (kg) (>=)",
+        "Shipt Weight (kg) (<=)",
+        "Other Logic",
+        "Country Hold Code",
+        "Global Hold Code",
+        "Document Reference",
+        "SIRG Document Reference",
+        "Business Owner"
+      ],
+      "autofilter": "A1:L12",
+      "formula_cells": 0,
+      "data_validations": [],
+      "columns": [
+        {
+          "column": 1,
+          "letter": "A",
+          "header": "Region",
+          "non_empty": 0,
+          "empty": 0,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 2,
+          "letter": "B",
+          "header": "Country",
+          "non_empty": 0,
+          "empty": 0,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 3,
+          "letter": "C",
+          "header": "B2B/B2C",
+          "non_empty": 0,
+          "empty": 0,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 4,
+          "letter": "D",
+          "header": "Effective Date (DD-MM-YYY)",
+          "non_empty": 0,
+          "empty": 0,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 5,
+          "letter": "E",
+          "header": "Date of Expiry (DD-MM-YYY)",
+          "non_empty": 0,
+          "empty": 0,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 6,
+          "letter": "F",
+          "header": "Network Product Code",
+          "non_empty": 0,
+          "empty": 0,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 7,
+          "letter": "G",
+          "header": "Declared Value/ Intristic Value",
+          "non_empty": 0,
+          "empty": 0,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 8,
+          "letter": "H",
+          "header": "Currency",
+          "non_empty": 0,
+          "empty": 0,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 9,
+          "letter": "I",
+          "header": "Min Value (>=)",
+          "non_empty": 0,
+          "empty": 0,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 10,
+          "letter": "J",
+          "header": "Max Value (<=)",
+          "non_empty": 0,
+          "empty": 0,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 11,
+          "letter": "K",
+          "header": "Shipt Weight (kg) (>=)",
+          "non_empty": 0,
+          "empty": 0,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 12,
+          "letter": "L",
+          "header": "Shipt Weight (kg) (<=)",
+          "non_empty": 0,
+          "empty": 0,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 13,
+          "letter": "M",
+          "header": "Other Logic",
+          "non_empty": 0,
+          "empty": 0,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 14,
+          "letter": "N",
+          "header": "Country Hold Code",
+          "non_empty": 0,
+          "empty": 0,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 15,
+          "letter": "O",
+          "header": "Global Hold Code",
+          "non_empty": 0,
+          "empty": 0,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 16,
+          "letter": "P",
+          "header": "Document Reference",
+          "non_empty": 0,
+          "empty": 0,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 17,
+          "letter": "Q",
+          "header": "SIRG Document Reference",
+          "non_empty": 0,
+          "empty": 0,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 18,
+          "letter": "R",
+          "header": "Business Owner",
+          "non_empty": 0,
+          "empty": 0,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        }
+      ]
+    },
+    {
+      "sheet": "Technical SIR",
+      "index": 3,
+      "dimensions": "A1:D985",
+      "max_row": 985,
+      "max_col": 4,
+      "headerless": false,
+      "data_rows": 984,
+      "headers": [
+        "CmptNm",
+        "Nm",
+        "Dsc",
+        "SIR Technical ID"
+      ],
+      "autofilter": "A1:D985",
+      "formula_cells": 0,
+      "data_validations": [],
+      "columns": [
+        {
+          "column": 1,
+          "letter": "A",
+          "header": "CmptNm",
+          "non_empty": 984,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 984
+          },
+          "distinct": 725,
+          "top_values": [
+            [
+              "PPYComposed",
+              31
+            ],
+            [
+              "Identification",
+              22
+            ],
+            [
+              "CommInv",
+              21
+            ],
+            [
+              "ownValDec",
+              15
+            ],
+            [
+              "CTID",
+              14
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 2,
+          "letter": "B",
+          "header": "Nm",
+          "non_empty": 984,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 984
+          },
+          "distinct": 980,
+          "top_values": [
+            [
+              "Alcohol Shipment Requirements - US",
+              3
+            ],
+            [
+              "Power of Attorney - DE",
+              2
+            ],
+            [
+              "Power of Attorney - BG",
+              2
+            ],
+            [
+              "POA Composed - AL",
+              1
+            ],
+            [
+              "Proof of Payment - Composed - AL",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 1
+        },
+        {
+          "column": 3,
+          "letter": "C",
+          "header": "Dsc",
+          "non_empty": 963,
+          "empty": 21,
+          "formulas": 0,
+          "types": {
+            "str": 963
+          },
+          "distinct": 427,
+          "top_values": [
+            [
+              "Proof of Payment",
+              41
+            ],
+            [
+              "Power of Attorney - Composed",
+              23
+            ],
+            [
+              "Personal Identification for the user",
+              22
+            ],
+            [
+              "Commercial Invoice is required - Composed",
+              16
+            ],
+            [
+              "Proof of Payment Document - Consignee - Composed",
+              15
+            ]
+          ],
+          "leading_or_trailing_space": 3
+        },
+        {
+          "column": 4,
+          "letter": "D",
+          "header": "SIR Technical ID",
+          "non_empty": 984,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 984
+          },
+          "distinct": 984,
+          "top_values": [
+            [
+              "1900c4f0-92e5-4790-bb71-9334873966a1",
+              1
+            ],
+            [
+              "d3156d07-c521-426b-83ed-ae41458f8d52",
+              1
+            ],
+            [
+              "e3e59bb6-df16-4c72-abb0-58fec0fab955",
+              1
+            ],
+            [
+              "f23af225-7a0f-462a-bbff-5fd1577374bc",
+              1
+            ],
+            [
+              "19ef5ed1-6c8c-453e-8107-ac46618a9ec1",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        }
+      ]
+    },
+    {
+      "sheet": "Technical SIRG",
+      "index": 4,
+      "dimensions": "A1:H1005",
+      "max_row": 1005,
+      "max_col": 8,
+      "headerless": false,
+      "data_rows": 1004,
+      "headers": [
+        "SIRG Technical ID",
+        "SIRG Cd",
+        "SIRG Nm",
+        "SIRG Dsc",
+        "DHL Ctry Cd",
+        "Processing Type",
+        "CmptNm",
+        "SIR Technical ID"
+      ],
+      "autofilter": "A1:H1005",
+      "formula_cells": 0,
+      "data_validations": [],
+      "columns": [
+        {
+          "column": 1,
+          "letter": "A",
+          "header": "SIRG Technical ID",
+          "non_empty": 1004,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 1004
+          },
+          "distinct": 94,
+          "top_values": [
+            [
+              "ab097089-4df4-458e-ad53-a83553f51b67",
+              70
+            ],
+            [
+              "946b08d6-f18d-4cb6-a5f1-4888f1a5b646",
+              59
+            ],
+            [
+              "e4ab8623-c01b-4310-b3b1-d6550e6b6da6",
+              57
+            ],
+            [
+              "98f5cf51-ac75-4461-a69f-48b211058bfc",
+              48
+            ],
+            [
+              "607ab921-d397-499c-9a96-4fa8f026e01d",
+              37
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 2,
+          "letter": "B",
+          "header": "SIRG Cd",
+          "non_empty": 1004,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 1004
+          },
+          "distinct": 94,
+          "top_values": [
+            [
+              "CPPY",
+              70
+            ],
+            [
+              "PII",
+              59
+            ],
+            [
+              "INV",
+              57
+            ],
+            [
+              "DES",
+              48
+            ],
+            [
+              "BTID",
+              37
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 3,
+          "letter": "C",
+          "header": "SIRG Nm",
+          "non_empty": 1004,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 1004
+          },
+          "distinct": 86,
+          "top_values": [
+            [
+              "Proof of Payment Document - Consignee",
+              70
+            ],
+            [
+              "Consignee ID required",
+              59
+            ],
+            [
+              "Commercial Invoice is required",
+              57
+            ],
+            [
+              "Goods Description & HS Code",
+              48
+            ],
+            [
+              "Business Tax Identification",
+              37
+            ]
+          ],
+          "leading_or_trailing_space": 1
+        },
+        {
+          "column": 4,
+          "letter": "D",
+          "header": "SIRG Dsc",
+          "non_empty": 0,
+          "empty": 1004,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 5,
+          "letter": "E",
+          "header": "DHL Ctry Cd",
+          "non_empty": 1004,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 1004
+          },
+          "distinct": 96,
+          "top_values": [
+            [
+              "US",
+              34
+            ],
+            [
+              "CA",
+              28
+            ],
+            [
+              "IL",
+              27
+            ],
+            [
+              "MX",
+              25
+            ],
+            [
+              "MY",
+              25
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 6,
+          "letter": "F",
+          "header": "Processing Type",
+          "non_empty": 1004,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 1004
+          },
+          "distinct": 1,
+          "top_values": [
+            [
+              "IMP_CLR",
+              1004
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 7,
+          "letter": "G",
+          "header": "CmptNm",
+          "non_empty": 1004,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 1004
+          },
+          "distinct": 725,
+          "top_values": [
+            [
+              "PPYComposed",
+              31
+            ],
+            [
+              "Identification",
+              22
+            ],
+            [
+              "CommInv",
+              21
+            ],
+            [
+              "ownValDec",
+              15
+            ],
+            [
+              "CTID",
+              14
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 8,
+          "letter": "H",
+          "header": "SIR Technical ID",
+          "non_empty": 1004,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 1004
+          },
+          "distinct": 984,
+          "top_values": [
+            [
+              "7d37e969-12b0-4b80-a815-0b30f45ad46c",
+              3
+            ],
+            [
+              "e858f010-24e4-40fe-959d-f58c134e66b2",
+              3
+            ],
+            [
+              "fa288a13-6fcd-43e8-bcef-8b71c39dff99",
+              3
+            ],
+            [
+              "384e48d1-7a67-42f3-9937-9157bf0466e1",
+              3
+            ],
+            [
+              "9e818fb6-85b1-412d-a083-86943e46ec6e",
+              3
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        }
+      ]
+    },
+    {
+      "sheet": "Other Logic",
+      "index": 5,
+      "dimensions": "A1:A6",
+      "max_row": 6,
+      "max_col": 1,
+      "headerless": false,
+      "data_rows": 5,
+      "headers": [
+        "Other Logic"
+      ],
+      "autofilter": null,
+      "formula_cells": 0,
+      "data_validations": [],
+      "columns": [
+        {
+          "column": 1,
+          "letter": "A",
+          "header": "Other Logic",
+          "non_empty": 5,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 5
+          },
+          "distinct": 5,
+          "top_values": [
+            [
+              "(matchCiMask(\"shortCode,==,SDT\") && matchCiMask(\"value,==,<blank>\") )  ",
+              1
+            ],
+            [
+              "OriginCountry==\"AU\"||OriginCountry==\"BD\"||OriginCountry==\"BN\"||OriginCountry==\"HK\"||OriginCountry==\"IN\"||OriginCountry==\"ID\"||OriginCountry==\"JP\"||OriginCountry==\"MO\"||OriginCountry==\"MY\"||OriginCountry==\"MV\"||OriginCountry==\"PK\"||OriginCountry==\"PH\"||OriginCountry==\"SG\"||OriginCountry==\"KR\"||OriginCountry==\"LK\"",
+              1
+            ],
+            [
+              "OriginCountry!=\"UK\" && !serviceCodeList.contains(\"DD\")",
+              1
+            ],
+            [
+              "!serviceCodeList.contains(\"DD\")",
+              1
+            ],
+            [
+              "serviceCodeList.contains(\"DE\") || serviceCodeList.contains(\"DS\") || serviceCodeList.contains(\"DT\") || serviceCodeList.contains(\"DU\")",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 1
+        }
+      ]
+    },
+    {
+      "sheet": "Validation",
+      "index": 6,
+      "dimensions": "A1:F34",
+      "max_row": 34,
+      "max_col": 6,
+      "headerless": false,
+      "data_rows": 33,
+      "headers": [
+        "Region",
+        "B2B/B2C",
+        "Declared Value/ Intristic Value",
+        "Currency List",
+        "Waived if Whitelisted",
+        "Country"
+      ],
+      "autofilter": null,
+      "formula_cells": 0,
+      "data_validations": [],
+      "columns": [
+        {
+          "column": 1,
+          "letter": "A",
+          "header": "Region",
+          "non_empty": 3,
+          "empty": 30,
+          "formulas": 0,
+          "types": {
+            "str": 3
+          },
+          "distinct": 3,
+          "top_values": [
+            [
+              "EU",
+              1
+            ],
+            [
+              "ME",
+              1
+            ],
+            [
+              "SB",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 2,
+          "letter": "B",
+          "header": "B2B/B2C",
+          "non_empty": 3,
+          "empty": 30,
+          "formulas": 0,
+          "types": {
+            "str": 3
+          },
+          "distinct": 3,
+          "top_values": [
+            [
+              "B2B",
+              1
+            ],
+            [
+              "B2C",
+              1
+            ],
+            [
+              "B2B/B2C",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 3,
+          "letter": "C",
+          "header": "Declared Value/ Intristic Value",
+          "non_empty": 2,
+          "empty": 31,
+          "formulas": 0,
+          "types": {
+            "str": 2
+          },
+          "distinct": 2,
+          "top_values": [
+            [
+              "DV",
+              1
+            ],
+            [
+              "IV",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 4,
+          "letter": "D",
+          "header": "Currency List",
+          "non_empty": 7,
+          "empty": 26,
+          "formulas": 0,
+          "types": {
+            "str": 7
+          },
+          "distinct": 7,
+          "top_values": [
+            [
+              "EUR",
+              1
+            ],
+            [
+              "SEK",
+              1
+            ],
+            [
+              "USD",
+              1
+            ],
+            [
+              "NOK",
+              1
+            ],
+            [
+              "ZAR",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 5,
+          "letter": "E",
+          "header": "Waived if Whitelisted",
+          "non_empty": 2,
+          "empty": 31,
+          "formulas": 0,
+          "types": {
+            "str": 2
+          },
+          "distinct": 2,
+          "top_values": [
+            [
+              "Y",
+              1
+            ],
+            [
+              "N",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 6,
+          "letter": "F",
+          "header": "Country",
+          "non_empty": 33,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 33
+          },
+          "distinct": 33,
+          "top_values": [
+            [
+              "IT",
+              1
+            ],
+            [
+              "ES",
+              1
+            ],
+            [
+              "IC",
+              1
+            ],
+            [
+              "IE",
+              1
+            ],
+            [
+              "SE",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 1
+        }
+      ]
+    },
+    {
+      "sheet": "Sheet2",
+      "index": 7,
+      "dimensions": "A1:A12",
+      "max_row": 12,
+      "max_col": 1,
+      "headerless": true,
+      "data_rows": 12,
+      "headers": [
+        null
+      ],
+      "autofilter": null,
+      "formula_cells": 0,
+      "data_validations": [],
+      "columns": [
+        {
+          "column": 1,
+          "letter": "A",
+          "header": null,
+          "non_empty": 12,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 12
+          },
+          "distinct": 12,
+          "top_values": [
+            [
+              "ES",
+              1
+            ],
+            [
+              "NO",
+              1
+            ],
+            [
+              "FI",
+              1
+            ],
+            [
+              "GR",
+              1
+            ],
+            [
+              "RO",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        }
+      ]
+    },
+    {
+      "sheet": "Sheet1",
+      "index": 8,
+      "dimensions": "A1:H1",
+      "max_row": 1,
+      "max_col": 8,
+      "headerless": true,
+      "data_rows": 1,
+      "headers": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "autofilter": null,
+      "formula_cells": 0,
+      "data_validations": [],
+      "columns": [
+        {
+          "column": 1,
+          "letter": "A",
+          "header": null,
+          "non_empty": 1,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 1
+          },
+          "distinct": 1,
+          "top_values": [
+            [
+              "dfb77196-12f7-434c-9cab-deee448ad983",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 2,
+          "letter": "B",
+          "header": null,
+          "non_empty": 1,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 1
+          },
+          "distinct": 1,
+          "top_values": [
+            [
+              "POA",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 3,
+          "letter": "C",
+          "header": null,
+          "non_empty": 1,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 1
+          },
+          "distinct": 1,
+          "top_values": [
+            [
+              "Power of Attorney",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 4,
+          "letter": "D",
+          "header": null,
+          "non_empty": 0,
+          "empty": 1,
+          "formulas": 0,
+          "types": {},
+          "distinct": 0,
+          "top_values": [],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 5,
+          "letter": "E",
+          "header": null,
+          "non_empty": 1,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 1
+          },
+          "distinct": 1,
+          "top_values": [
+            [
+              "DE",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 6,
+          "letter": "F",
+          "header": null,
+          "non_empty": 1,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 1
+          },
+          "distinct": 1,
+          "top_values": [
+            [
+              "IMP_CLR",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 7,
+          "letter": "G",
+          "header": null,
+          "non_empty": 1,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 1
+          },
+          "distinct": 1,
+          "top_values": [
+            [
+              "DEPOA",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        },
+        {
+          "column": 8,
+          "letter": "H",
+          "header": null,
+          "non_empty": 1,
+          "empty": 0,
+          "formulas": 0,
+          "types": {
+            "str": 1
+          },
+          "distinct": 1,
+          "top_values": [
+            [
+              "1595f691-8d36-40db-a273-fb8f233c9872",
+              1
+            ]
+          ],
+          "leading_or_trailing_space": 0
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 2,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 2,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 2,
+      "column": "document_reference",
+      "value": "ES|Import|DH|CIDM",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 2,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 3,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 3,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 3,
+      "column": "document_reference",
+      "value": "ES|Import|CM|CPA",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 3,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 4,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 4,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 4,
+      "column": "document_reference",
+      "value": "NO|Import|PFX|CIDM",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 5,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 5,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 5,
+      "column": "document_reference",
+      "value": "FI|Import|3|VALU",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 5,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 6,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 6,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 6,
+      "column": "document_reference",
+      "value": "FI|Import|1|CIDM",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 7,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 7,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 7,
+      "column": "document_reference",
+      "value": "FI|Import||CPA",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 7,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 8,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 8,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 8,
+      "column": "document_reference",
+      "value": "GR|Import||CIDM",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 8,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 9,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 9,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 9,
+      "column": "document_reference",
+      "value": "GR|Import|POA|CPA",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 9,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 10,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 10,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 10,
+      "column": "document_reference",
+      "value": "GR|Import|CNPK|VALU",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 10,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 11,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 11,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 11,
+      "column": "document_reference",
+      "value": "RO|Import|N3|CPA",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 11,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 12,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 12,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 12,
+      "column": "document_reference",
+      "value": "RO|Import|CV|VALU",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 12,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 13,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 13,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 13,
+      "column": "document_reference",
+      "value": "RO|Import|N2|CNPK",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 13,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 14,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 14,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 14,
+      "column": "document_reference",
+      "value": "CZ|Import|CIDM|CPA",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 14,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 15,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 15,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 15,
+      "column": "document_reference",
+      "value": "CZ|Import|CIDM|CIDM",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 15,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 16,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 16,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 16,
+      "column": "document_reference",
+      "value": "CZ|Import|VALU|VALU",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 16,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 17,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 17,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 17,
+      "column": "document_reference",
+      "value": "ZA|Import|NCI|CIDM",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 18,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 18,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 18,
+      "column": "document_reference",
+      "value": "ZA|Import|INST|CPA",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 18,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 19,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 19,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 19,
+      "column": "document_reference",
+      "value": "LB|Import|FRML|CIDM",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 20,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 20,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 20,
+      "column": "document_reference",
+      "value": "BH|Import|CNPK|CIDM",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 21,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 21,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 21,
+      "column": "document_reference",
+      "value": "BH|Import|CNPK|CPA",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 21,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 22,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 22,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 22,
+      "column": "document_reference",
+      "value": "TR|Import||CPA",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 22,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 23,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 23,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 23,
+      "column": "document_reference",
+      "value": "TR|Import||CIDM",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 24,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 24,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 24,
+      "column": "document_reference",
+      "value": "TR|Import||VALU",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 24,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 25,
+      "column": "effective_date",
+      "value": "28-02-2022",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 25,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_EXPIRY_BEFORE_EFFECTIVE",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 25,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Expiry 02-01-2021 is before effective 28-02-2022.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 25,
+      "column": "country",
+      "value": "ID",
+      "message": "'ID' is not in the Validation tab list 'Country' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 25,
+      "column": "document_reference",
+      "value": "ID|Import||CIDM",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 26,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 26,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 26,
+      "column": "currency",
+      "value": "QAR",
+      "message": "'QAR' is not in the Validation tab list 'Currency List' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 26,
+      "column": "document_reference",
+      "value": "QA|Import||CIDM",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 27,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 27,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 27,
+      "column": "document_reference",
+      "value": "HU|Import|POA|CPA",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 27,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 28,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 28,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 28,
+      "column": "document_reference",
+      "value": "HU|Import|NCI|VALU",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 28,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 29,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 29,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 29,
+      "column": "document_reference",
+      "value": "SK|Import|POA|CPA",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 29,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 30,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 30,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 30,
+      "column": "document_reference",
+      "value": "SK|Import|NCI|CIDM",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 30,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 31,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 31,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 31,
+      "column": "document_reference",
+      "value": "SK|Import|NCI/POA|VALU",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_HOLD_COMPOSITE",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 31,
+      "column": "country_hold_code",
+      "value": "NCI/POA",
+      "message": "Hold code holds two codes separated by '/'.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 31,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 32,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 32,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 32,
+      "column": "document_reference",
+      "value": "IL|Import|TBD|CIDM",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 32,
+      "column": "document_reference",
+      "value": "IL|Import|TBD|CIDM",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_HOLD_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 32,
+      "column": "country_hold_code",
+      "value": "TBD",
+      "message": "Hold code is a placeholder (TBD).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 32,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_BUSINESS_WITHOUT_REFERENCE",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 32,
+      "column": null,
+      "value": null,
+      "message": "Business conditions are filled in but both references are placeholders.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 33,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 33,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 33,
+      "column": "document_reference",
+      "value": "IL|Import|TBD|CPA",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 33,
+      "column": "document_reference",
+      "value": "IL|Import|TBD|CPA",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_HOLD_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 33,
+      "column": "country_hold_code",
+      "value": "TBD",
+      "message": "Hold code is a placeholder (TBD).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_SIRGREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 33,
+      "column": "sirg_document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "SIRG Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_BUSINESS_WITHOUT_REFERENCE",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 33,
+      "column": null,
+      "value": null,
+      "message": "Business conditions are filled in but both references are placeholders.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 34,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 34,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_FORMULA",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 34,
+      "column": "document_reference",
+      "value": "ZA|Import|EML|CIDM",
+      "message": "Document Reference is the CONCATENATE formula (Country|Import|CountryHold|GlobalHold).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 35,
+      "column": "effective_date",
+      "value": "01-06-2024",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 35,
+      "column": "country",
+      "value": "RS",
+      "message": "'RS' is not in the Validation tab list 'Country' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 35,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 35,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 36,
+      "column": "effective_date",
+      "value": "01-06-2024",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 36,
+      "column": "country",
+      "value": "RS",
+      "message": "'RS' is not in the Validation tab list 'Country' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 36,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 36,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 37,
+      "column": "effective_date",
+      "value": "01-06-2024",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 37,
+      "column": "country",
+      "value": "RS",
+      "message": "'RS' is not in the Validation tab list 'Country' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 37,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 37,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 38,
+      "column": "effective_date",
+      "value": "01-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 38,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 38,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 39,
+      "column": "effective_date",
+      "value": "01-06-2024",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 39,
+      "column": "country",
+      "value": "RS",
+      "message": "'RS' is not in the Validation tab list 'Country' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 39,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 39,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 40,
+      "column": "effective_date",
+      "value": "01-06-2024",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 40,
+      "column": "country",
+      "value": "RS",
+      "message": "'RS' is not in the Validation tab list 'Country' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 40,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 40,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 41,
+      "column": "effective_date",
+      "value": "29-12-2024",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 41,
+      "column": "region",
+      "value": "AM",
+      "message": "'AM' is not in the Validation tab list 'Region' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 41,
+      "column": "country",
+      "value": "MX",
+      "message": "'MX' is not in the Validation tab list 'Country' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 41,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 41,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 42,
+      "column": "effective_date",
+      "value": "29-12-2024",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 42,
+      "column": "region",
+      "value": "AM",
+      "message": "'AM' is not in the Validation tab list 'Region' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 42,
+      "column": "country",
+      "value": "MX",
+      "message": "'MX' is not in the Validation tab list 'Country' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 42,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 42,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 43,
+      "column": "effective_date",
+      "value": "29-12-2024",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 43,
+      "column": "region",
+      "value": "AM",
+      "message": "'AM' is not in the Validation tab list 'Region' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 43,
+      "column": "country",
+      "value": "MX",
+      "message": "'MX' is not in the Validation tab list 'Country' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 43,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 43,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 44,
+      "column": "effective_date",
+      "value": "29-12-2024",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 44,
+      "column": "region",
+      "value": "AM",
+      "message": "'AM' is not in the Validation tab list 'Region' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 44,
+      "column": "shipment_type",
+      "value": "C2C",
+      "message": "'C2C' is not in the Validation tab list 'B2B/B2C' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 44,
+      "column": "country",
+      "value": "MX",
+      "message": "'MX' is not in the Validation tab list 'Country' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 44,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 44,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 45,
+      "column": "effective_date",
+      "value": "29-12-2024",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 45,
+      "column": "region",
+      "value": "AM",
+      "message": "'AM' is not in the Validation tab list 'Region' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 45,
+      "column": "shipment_type",
+      "value": "C2C",
+      "message": "'C2C' is not in the Validation tab list 'B2B/B2C' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 45,
+      "column": "country",
+      "value": "MX",
+      "message": "'MX' is not in the Validation tab list 'Country' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 45,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 45,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 46,
+      "column": "effective_date",
+      "value": "29-12-2024",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 46,
+      "column": "region",
+      "value": "AM",
+      "message": "'AM' is not in the Validation tab list 'Region' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 46,
+      "column": "shipment_type",
+      "value": "C2C",
+      "message": "'C2C' is not in the Validation tab list 'B2B/B2C' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 46,
+      "column": "country",
+      "value": "MX",
+      "message": "'MX' is not in the Validation tab list 'Country' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 46,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 46,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 47,
+      "column": "effective_date",
+      "value": "01-06-2024",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 47,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 47,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 48,
+      "column": "effective_date",
+      "value": "29-12-2024",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 48,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 48,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 49,
+      "column": "effective_date",
+      "value": "29-12-2024",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 49,
+      "column": "shipment_type",
+      "value": "C2C",
+      "message": "'C2C' is not in the Validation tab list 'B2B/B2C' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 49,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 49,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 50,
+      "column": "effective_date",
+      "value": "07-01-2026",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 50,
+      "column": "currency",
+      "value": "AED",
+      "message": "'AED' is not in the Validation tab list 'Currency List' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 50,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 50,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 51,
+      "column": "effective_date",
+      "value": "07-01-2026",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 51,
+      "column": "currency",
+      "value": "AED",
+      "message": "'AED' is not in the Validation tab list 'Currency List' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 51,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 51,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 52,
+      "column": "effective_date",
+      "value": "07-01-2026",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 52,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_EXPIRY_BEFORE_EFFECTIVE",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 52,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Expiry 02-01-2021 is before effective 07-01-2026.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 52,
+      "column": "shipment_type",
+      "value": "C2C",
+      "message": "'C2C' is not in the Validation tab list 'B2B/B2C' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 52,
+      "column": "currency",
+      "value": "AED",
+      "message": "'AED' is not in the Validation tab list 'Currency List' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 52,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 52,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 53,
+      "column": "effective_date",
+      "value": "07-01-2026",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 53,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 53,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 54,
+      "column": "effective_date",
+      "value": "07-01-2026",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 54,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_EXPIRY_BEFORE_EFFECTIVE",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 54,
+      "column": "expiry_date",
+      "value": "02-01-2021",
+      "message": "Expiry 02-01-2021 is before effective 07-01-2026.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 54,
+      "column": "shipment_type",
+      "value": "C2C",
+      "message": "'C2C' is not in the Validation tab list 'B2B/B2C' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 54,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 54,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 55,
+      "column": "effective_date",
+      "value": "07-01-2026",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 55,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_PLACEHOLDER",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 55,
+      "column": "document_reference",
+      "value": "TEST|TEST|TEST",
+      "message": "Document Reference is a placeholder (TEST).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 56,
+      "column": "effective_date",
+      "value": "24-09-2026",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 56,
+      "column": "currency",
+      "value": "BGN",
+      "message": "'BGN' is not in the Validation tab list 'Currency List' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 56,
+      "column": "document_reference",
+      "value": "BG|Import|POAB",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_OUTSIDE_AUTOFILTER",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 56,
+      "column": null,
+      "value": "A1:Q55",
+      "message": "Row is outside the sheet's filter range A1:Q55 (likely appended later).",
+      "basis": "inferred"
+    },
+    {
+      "code": "IMP_DATE_TEXT",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 57,
+      "column": "effective_date",
+      "value": "24-09-2026",
+      "message": "Date stored as text (DD-MM-YYYY), not as an Excel date; normalised value kept separately.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_NOT_IN_VALIDATION_LIST",
+      "severity": "warning",
+      "sheet": "Import",
+      "row": 57,
+      "column": "currency",
+      "value": "BGN",
+      "message": "'BGN' is not in the Validation tab list 'Currency List' (the list is not enforced by Excel).",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_DOCREF_LITERAL",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 57,
+      "column": "document_reference",
+      "value": "BG|Import|IOSS",
+      "message": "Document Reference is a typed value, not the formula.",
+      "basis": "verified"
+    },
+    {
+      "code": "IMP_OUTSIDE_AUTOFILTER",
+      "severity": "info",
+      "sheet": "Import",
+      "row": 57,
+      "column": null,
+      "value": "A1:Q55",
+      "message": "Row is outside the sheet's filter range A1:Q55 (likely appended later).",
+      "basis": "inferred"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 2,
+      "column": "document_reference",
+      "value": "=IF(Import!P2<>0,Import!P2,\"\")",
+      "message": "Links to Import row 2 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 5,
+      "column": "document_reference",
+      "value": "=IF(Import!P3<>0,Import!P3,\"\")",
+      "message": "Links to Import row 3 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 6,
+      "column": "document_reference",
+      "value": "=IF(Import!P4<>0,Import!P4,\"\")",
+      "message": "Links to Import row 4 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 7,
+      "column": "document_reference",
+      "value": "=IF(Import!P4<>0,Import!P4,\"\")",
+      "message": "Links to Import row 4 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 13,
+      "column": "document_reference",
+      "value": "=IF(Import!P8<>0,Import!P8,\"\")",
+      "message": "Links to Import row 8 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 16,
+      "column": "document_reference",
+      "value": "=IF(Import!P9<>0,Import!P9,\"\")",
+      "message": "Links to Import row 9 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 17,
+      "column": "document_reference",
+      "value": "=IF(Import!P10<>0,Import!P10,\"\")",
+      "message": "Links to Import row 10 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 18,
+      "column": "document_reference",
+      "value": "=IF(Import!P11<>0,Import!P11,\"\")",
+      "message": "Links to Import row 11 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 19,
+      "column": "document_reference",
+      "value": "=IF(Import!P12<>0,Import!P12,\"\")",
+      "message": "Links to Import row 12 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 20,
+      "column": "document_reference",
+      "value": "=IF(Import!P13<>0,Import!P13,\"\")",
+      "message": "Links to Import row 13 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 21,
+      "column": "document_reference",
+      "value": "=IF(Import!P14<>0,Import!P14,\"\")",
+      "message": "Links to Import row 14 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 22,
+      "column": "document_reference",
+      "value": "=IF(Import!P15<>0,Import!P15,\"\")",
+      "message": "Links to Import row 15 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 23,
+      "column": "document_reference",
+      "value": "=IF(Import!P16<>0,Import!P16,\"\")",
+      "message": "Links to Import row 16 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 24,
+      "column": "document_reference",
+      "value": "=IF(Import!P17<>0,Import!P17,\"\")",
+      "message": "Links to Import row 17 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 28,
+      "column": "document_reference",
+      "value": "=IF(Import!P18<>0,Import!P18,\"\")",
+      "message": "Links to Import row 18 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 29,
+      "column": "document_reference",
+      "value": "=IF(Import!P19<>0,Import!P19,\"\")",
+      "message": "Links to Import row 19 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 30,
+      "column": "document_reference",
+      "value": "=IF(Import!P19<>0,Import!P19,\"\")",
+      "message": "Links to Import row 19 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 31,
+      "column": "document_reference",
+      "value": "=IF(Import!P20<>0,Import!P20,\"\")",
+      "message": "Links to Import row 20 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_DOCREF_ORPHAN",
+      "severity": "warning",
+      "sheet": "SIR Reference",
+      "row": 33,
+      "column": "document_reference",
+      "value": "BH|Import|CNPK|VALU",
+      "message": "No Import row has this Document Reference.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 34,
+      "column": "document_reference",
+      "value": "=IF(Import!P21<>0,Import!P21,\"\")",
+      "message": "Links to Import row 21 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 35,
+      "column": "document_reference",
+      "value": "=IF(Import!P22<>0,Import!P22,\"\")",
+      "message": "Links to Import row 22 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 36,
+      "column": "document_reference",
+      "value": "=IF(Import!P23<>0,Import!P23,\"\")",
+      "message": "Links to Import row 23 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 37,
+      "column": "document_reference",
+      "value": "=IF(Import!P23<>0,Import!P23,\"\")",
+      "message": "Links to Import row 23 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 38,
+      "column": "document_reference",
+      "value": "=IF(Import!P24<>0,Import!P24,\"\")",
+      "message": "Links to Import row 24 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 39,
+      "column": "document_reference",
+      "value": "=IF(Import!P25<>0,Import!P25,\"\")",
+      "message": "Links to Import row 25 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 42,
+      "column": "document_reference",
+      "value": "=IF(Import!P26<>0,Import!P26,\"\")",
+      "message": "Links to Import row 26 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 43,
+      "column": "document_reference",
+      "value": "=IF(Import!P27<>0,Import!P27,\"\")",
+      "message": "Links to Import row 27 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 44,
+      "column": "document_reference",
+      "value": "=IF(Import!P26<>0,Import!P26,\"\")",
+      "message": "Links to Import row 26 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 45,
+      "column": "document_reference",
+      "value": "=IF(Import!P27<>0,Import!P27,\"\")",
+      "message": "Links to Import row 27 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 46,
+      "column": "document_reference",
+      "value": "=IF(Import!P28<>0,Import!P28,\"\")",
+      "message": "Links to Import row 28 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 47,
+      "column": "document_reference",
+      "value": "=IF(Import!P29<>0,Import!P29,\"\")",
+      "message": "Links to Import row 29 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 48,
+      "column": "document_reference",
+      "value": "=IF(Import!P30<>0,Import!P30,\"\")",
+      "message": "Links to Import row 30 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 49,
+      "column": "document_reference",
+      "value": "=IF(Import!P31<>0,Import!P31,\"\")",
+      "message": "Links to Import row 31 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 50,
+      "column": "document_reference",
+      "value": "=IF(Import!P32<>0,Import!P32,\"\")",
+      "message": "Links to Import row 32 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FORMULA_POSITIONAL",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 51,
+      "column": "document_reference",
+      "value": "=IF(Import!P33<>0,Import!P33,\"\")",
+      "message": "Links to Import row 33 by position: inserting or deleting Import rows re-points it.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_DOCREF_ORPHAN",
+      "severity": "warning",
+      "sheet": "SIR Reference",
+      "row": 52,
+      "column": "document_reference",
+      "value": "NO|Import||VALU",
+      "message": "No Import row has this Document Reference.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_DOCREF_ORPHAN",
+      "severity": "warning",
+      "sheet": "SIR Reference",
+      "row": 53,
+      "column": "document_reference",
+      "value": "NO|Import|REGD|ILRQ",
+      "message": "No Import row has this Document Reference.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_DOCREF_ORPHAN",
+      "severity": "warning",
+      "sheet": "SIR Reference",
+      "row": 54,
+      "column": "document_reference",
+      "value": "NO|Import|DEXM|SHPK",
+      "message": "No Import row has this Document Reference.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_DOCREF_ORPHAN",
+      "severity": "warning",
+      "sheet": "SIR Reference",
+      "row": 55,
+      "column": "document_reference",
+      "value": "NO|Import||DIP",
+      "message": "No Import row has this Document Reference.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_DOCREF_ORPHAN",
+      "severity": "warning",
+      "sheet": "SIR Reference",
+      "row": 56,
+      "column": "document_reference",
+      "value": "NO|Import||PSVC",
+      "message": "No Import row has this Document Reference.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_DOCREF_ORPHAN",
+      "severity": "warning",
+      "sheet": "SIR Reference",
+      "row": 59,
+      "column": "document_reference",
+      "value": "LB|Import||VALU",
+      "message": "No Import row has this Document Reference.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_DOCREF_ORPHAN",
+      "severity": "warning",
+      "sheet": "SIR Reference",
+      "row": 60,
+      "column": "document_reference",
+      "value": "DK|Import|31|VALU",
+      "message": "No Import row has this Document Reference.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_FLAG_VALUE",
+      "severity": "warning",
+      "sheet": "SIR Reference",
+      "row": 82,
+      "column": "waived_to_validate",
+      "value": 4,
+      "message": "'4' is not Y or N.",
+      "basis": "verified"
+    },
+    {
+      "code": "SREF_UNHEADED_COLUMN",
+      "severity": "info",
+      "sheet": "SIR Reference",
+      "row": 1,
+      "column": "I",
+      "value": null,
+      "message": "Column I has no header; its values line up one-to-one with the AttributeID entries and read like attribute names. Stored as col_09_unheaded until confirmed (Q-01).",
+      "basis": "inferred"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "POAComposed",
+      "message": "CmptNm 'POAComposed' appears on 12 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "PPYComposed",
+      "message": "CmptNm 'PPYComposed' appears on 31 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "GoodsDesc",
+      "message": "CmptNm 'GoodsDesc' appears on 9 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "Identification",
+      "message": "CmptNm 'Identification' appears on 22 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "DiplomaticMtr",
+      "message": "CmptNm 'DiplomaticMtr' appears on 8 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "GiftShipment",
+      "message": "CmptNm 'GiftShipment' appears on 2 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "CooComposed",
+      "message": "CmptNm 'CooComposed' appears on 2 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "HealthPermit",
+      "message": "CmptNm 'HealthPermit' appears on 13 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "GoodsCertReq",
+      "message": "CmptNm 'GoodsCertReq' appears on 10 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "PPY",
+      "message": "CmptNm 'PPY' appears on 11 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "VatRedn",
+      "message": "CmptNm 'VatRedn' appears on 9 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "CommInv",
+      "message": "CmptNm 'CommInv' appears on 21 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "DutyConsent",
+      "message": "CmptNm 'DutyConsent' appears on 8 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "HealthPermitFac",
+      "message": "CmptNm 'HealthPermitFac' appears on 2 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "ownValDec",
+      "message": "CmptNm 'ownValDec' appears on 15 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "CTID",
+      "message": "CmptNm 'CTID' appears on 14 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "TmpImport",
+      "message": "CmptNm 'TmpImport' appears on 2 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "GoodsLic",
+      "message": "CmptNm 'GoodsLic' appears on 13 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "MisInv",
+      "message": "CmptNm 'MisInv' appears on 4 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "GoodsType",
+      "message": "CmptNm 'GoodsType' appears on 3 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "GoodsDescSngl",
+      "message": "CmptNm 'GoodsDescSngl' appears on 11 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "FoodPermit",
+      "message": "CmptNm 'FoodPermit' appears on 4 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "ShpDocs",
+      "message": "CmptNm 'ShpDocs' appears on 10 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "PrsnlUseConsent",
+      "message": "CmptNm 'PrsnlUseConsent' appears on 3 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "DiplomaticExmp",
+      "message": "CmptNm 'DiplomaticExmp' appears on 2 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "EImpForm",
+      "message": "CmptNm 'EImpForm' appears on 2 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "FoodImports",
+      "message": "CmptNm 'FoodImports' appears on 2 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "TradeZone",
+      "message": "CmptNm 'TradeZone' appears on 2 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "POA",
+      "message": "CmptNm 'POA' appears on 5 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "ResImp",
+      "message": "CmptNm 'ResImp' appears on 3 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "EORI",
+      "message": "CmptNm 'EORI' appears on 5 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "ConsigneeDtls",
+      "message": "CmptNm 'ConsigneeDtls' appears on 2 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "PersonalID",
+      "message": "CmptNm 'PersonalID' appears on 11 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "ConsentPOA",
+      "message": "CmptNm 'ConsentPOA' appears on 4 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "CITESCertificate",
+      "message": "CmptNm 'CITESCertificate' appears on 2 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "TravelProof",
+      "message": "CmptNm 'TravelProof' appears on 2 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "BrkrClr",
+      "message": "CmptNm 'BrkrClr' appears on 3 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "VhclShp",
+      "message": "CmptNm 'VhclShp' appears on 2 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "PymtRcpt",
+      "message": "CmptNm 'PymtRcpt' appears on 3 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "MOFAValue",
+      "message": "CmptNm 'MOFAValue' appears on 2 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "MedDrugsImp",
+      "message": "CmptNm 'MedDrugsImp' appears on 2 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "BTID",
+      "message": "CmptNm 'BTID' appears on 2 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "RetExport",
+      "message": "CmptNm 'RetExport' appears on 2 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIR_CMPT_REPEATED",
+      "severity": "info",
+      "sheet": "Technical SIR",
+      "row": null,
+      "column": "CmptNm",
+      "value": "INBUS",
+      "message": "CmptNm 'INBUS' appears on 6 rows with different SIR Technical IDs \u2014 CmptNm is not a key.",
+      "basis": "verified"
+    },
+    {
+      "code": "TSIRG_EXACT_DUPLICATE",
+      "severity": "warning",
+      "sheet": "Technical SIRG",
+      "row": 880,
+      "column": null,
+      "value": "GSTE",
+      "message": "Identical to row 877.",
+      "basis": "verified"
+    },
+    {
+      "code": "SHEET1_DIFFERS_FROM_SIRG",
+      "severity": "warning",
+      "sheet": "Sheet1",
+      "row": 1,
+      "column": null,
+      "value": "POA",
+      "message": "Shaped like a Technical SIRG row; same key as row 613 but differs in ['SIR Technical ID'].",
+      "basis": "inferred"
+    },
+    {
+      "code": "SHEET2_COUNTRY_LIST",
+      "severity": "info",
+      "sheet": "Sheet2",
+      "row": null,
+      "column": "A",
+      "value": "ES,NO,FI,GR,RO,CZ,ZA,LB,QA,BH,TR,ID",
+      "message": "12 country codes, no header. Not in Validation.Country: ['ID']. Countries of formula-based Import rows not in Sheet2: ['HU', 'IL', 'SK'].",
+      "basis": "inferred"
+    },
+    {
+      "code": "VAL_WHITESPACE",
+      "severity": "warning",
+      "sheet": "Validation",
+      "row": 18,
+      "column": "Country",
+      "value": "SK ",
+      "message": "'SK ' has leading/trailing spaces.",
+      "basis": "verified"
+    },
+    {
+      "code": "VAL_NOT_ENFORCED",
+      "severity": "info",
+      "sheet": "Validation",
+      "row": null,
+      "column": null,
+      "value": null,
+      "message": "The workbook has no Excel data-validation rules: the Validation lists are reference only.",
+      "basis": "verified"
+    },
+    {
+      "code": "OTHERLOGIC_ENTRY",
+      "severity": "info",
+      "sheet": "Other Logic",
+      "row": 2,
+      "column": "A",
+      "value": "(matchCiMask(\"shortCode,==,SDT\") && matchCiMask(\"value,==,<blank>\") )  ",
+      "message": "Not used verbatim in Import. Has leading/trailing spaces. Uses ',' inside matchCiMask where Import uses '|'.",
+      "basis": "verified"
+    },
+    {
+      "code": "OTHERLOGIC_ENTRY",
+      "severity": "info",
+      "sheet": "Other Logic",
+      "row": 3,
+      "column": "A",
+      "value": "OriginCountry==\"AU\"||OriginCountry==\"BD\"||OriginCountry==\"BN\"||OriginCountry==\"HK\"||OriginCountry==\"IN\"||OriginCountry==\"ID\"||OriginCountry==\"JP\"||OriginCountry==\"MO\"||OriginCountry==\"MY\"||OriginCountry==\"MV\"||OriginCountry==\"PK\"||OriginCountry==\"PH\"||OriginCountry==\"SG\"||OriginCountry==\"KR\"||OriginCountry==\"LK\"",
+      "message": "Not used verbatim in Import.",
+      "basis": "verified"
+    },
+    {
+      "code": "OTHERLOGIC_ENTRY",
+      "severity": "info",
+      "sheet": "Other Logic",
+      "row": 4,
+      "column": "A",
+      "value": "OriginCountry!=\"UK\" && !serviceCodeList.contains(\"DD\")",
+      "message": "Used verbatim in Import.",
+      "basis": "verified"
+    },
+    {
+      "code": "OTHERLOGIC_ENTRY",
+      "severity": "info",
+      "sheet": "Other Logic",
+      "row": 5,
+      "column": "A",
+      "value": "!serviceCodeList.contains(\"DD\")",
+      "message": "Used verbatim in Import.",
+      "basis": "verified"
+    },
+    {
+      "code": "OTHERLOGIC_ENTRY",
+      "severity": "info",
+      "sheet": "Other Logic",
+      "row": 6,
+      "column": "A",
+      "value": "serviceCodeList.contains(\"DE\") || serviceCodeList.contains(\"DS\") || serviceCodeList.contains(\"DT\") || serviceCodeList.contains(\"DU\")",
+      "message": "Not used verbatim in Import.",
+      "basis": "verified"
+    },
+    {
+      "code": "EXPORT_HEADER_ONLY",
+      "severity": "info",
+      "sheet": "Export",
+      "row": 1,
+      "column": null,
+      "value": "A1:R1",
+      "message": "Header row only (18 columns); compared with Import it adds ['Business Owner']. Filter range A1:L12 covers empty rows.",
+      "basis": "inferred"
+    }
+  ],
+  "summary": {
+    "findings": {
+      "info": 236,
+      "warning": 97
+    },
+    "by_code": {
+      "IMP_DATE_TEXT": 91,
+      "IMP_DOCREF_FORMULA": 33,
+      "IMP_SIRGREF_PLACEHOLDER": 24,
+      "IMP_EXPIRY_BEFORE_EFFECTIVE": 3,
+      "IMP_NOT_IN_VALIDATION_LIST": 30,
+      "IMP_HOLD_COMPOSITE": 1,
+      "IMP_DOCREF_PLACEHOLDER": 23,
+      "IMP_HOLD_PLACEHOLDER": 2,
+      "IMP_BUSINESS_WITHOUT_REFERENCE": 2,
+      "IMP_DOCREF_LITERAL": 23,
+      "IMP_OUTSIDE_AUTOFILTER": 2,
+      "SREF_FORMULA_POSITIONAL": 34,
+      "SREF_DOCREF_ORPHAN": 8,
+      "SREF_FLAG_VALUE": 1,
+      "SREF_UNHEADED_COLUMN": 1,
+      "TSIR_CMPT_REPEATED": 44,
+      "TSIRG_EXACT_DUPLICATE": 1,
+      "SHEET1_DIFFERS_FROM_SIRG": 1,
+      "SHEET2_COUNTRY_LIST": 1,
+      "VAL_WHITESPACE": 1,
+      "VAL_NOT_ENFORCED": 1,
+      "OTHERLOGIC_ENTRY": 5,
+      "EXPORT_HEADER_ONLY": 1
+    }
+  }
+}

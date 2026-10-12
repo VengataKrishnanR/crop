@@ -1,0 +1,22 @@
+# Local PostgreSQL for the SIR/SIRG reference database.
+#   docker compose -f deploy/sirdb-compose.yml --env-file deploy/sirdb.env up -d
+# Credentials come from deploy/sirdb.env (copy deploy/sirdb.env.example; never commit the real file).
+services:
+  sirdb:
+    image: postgres:16.4
+    container_name: ccre-sirdb
+    environment:
+      POSTGRES_DB: ${SIRDB_DB:-sirdb}
+      POSTGRES_USER: ${SIRDB_USER:?set SIRDB_USER in deploy/sirdb.env}
+      POSTGRES_PASSWORD: ${SIRDB_PASSWORD:?set SIRDB_PASSWORD in deploy/sirdb.env}
+    ports:
+      - "${SIRDB_PORT:-55432}:5432"
+    volumes:
+      - sirdb-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+volumes:
+  sirdb-data:

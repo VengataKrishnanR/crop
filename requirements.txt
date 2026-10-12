@@ -21,3 +21,4 @@ cryptography>=42
 
 # Dev / test
 pytest>=8.0
+psycopg[binary]>=3.2   # SIR/SIRG reference database (PostgreSQL)
