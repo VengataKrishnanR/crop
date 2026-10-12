@@ -86,8 +86,8 @@ def test_bg_is_blocked_at_sanity_by_its_package_gap(client: TestClient, real_pac
         client.post(f"/api/onboardings/{case_id}/transition", json={"name": name}, headers=who)
     client.post(f"/api/onboardings/{case_id}/timeline/generate", headers=PM, json={"answers": {
         "requested_rtp": "2027-03-31", "earliest_start": "2026-11-02"}})
-    for name in ("submit_timeline", "approve_timeline"):
-        client.post(f"/api/onboardings/{case_id}/transition", json={"name": name}, headers=PM)
+    for name, who in (("submit_timeline", CONSULTANT), ("approve_timeline", PM)):
+        client.post(f"/api/onboardings/{case_id}/transition", json={"name": name}, headers=who)
     client.post(f"/api/onboardings/{case_id}/m2c/start", headers=TEAM)
     # Without the DMG task, rule config cannot even be submitted.
     early = client.post(f"/api/onboardings/{case_id}/transition", json={"name": "request_sanity_check"},

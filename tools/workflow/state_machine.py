@@ -73,6 +73,7 @@ class Transition:
     requires_execution_complete: bool = False
     requires_tests_passed: bool = False
     requires_dmg_complete: bool = False
+    requires_rows_clean: bool = False
     requires_ccre_review_done: bool = False
     requires_business_review_done: bool = False
     #: submit | approve | reject | system — drives the uniform Approve / Reject UI
@@ -89,7 +90,8 @@ def _t(source: State, target: State, actors, name: str, label: str, **gates) -> 
 
 TRANSITIONS: tuple[Transition, ...] = (
     # ── 1. Requirement — CCRE consultant approves ───────────────────────────
-    _t(State.INTAKE, State.REQUIREMENT_REVIEW, {Role.BUSINESS, Role.CCRE_TEAM, Role.CCRE_CONSULTANT},
+    # The business team owns its requirement: only it submits; the consultant only approves or rejects.
+    _t(State.INTAKE, State.REQUIREMENT_REVIEW, {Role.BUSINESS},
        "submit_requirement", "Submit requirement for approval", requires_requirement=True),
     _t(State.REQUIREMENT_REVIEW, State.TIMELINE_PLANNING, {Role.CCRE_CONSULTANT},
        "approve_requirement", "Approve requirement", requires_requirement=True, kind="approve"),
@@ -97,8 +99,9 @@ TRANSITIONS: tuple[Transition, ...] = (
        "return_requirement", "Reject requirement", kind="reject"),
 
     # ── 2. Timeline — AI from PM answers, PM approves, published ───────────
-    _t(State.TIMELINE_PLANNING, State.TIMELINE_REVIEW, {Role.PM, Role.CCRE_TEAM},
-       "submit_timeline", "Submit timeline for approval", requires_timeline=True),
+    # The CCRE consultant plans and submits the timeline; the PM reviews and approves or rejects it.
+    _t(State.TIMELINE_PLANNING, State.TIMELINE_REVIEW, {Role.CCRE_CONSULTANT},
+       "submit_timeline", "Submit timeline for PM approval", requires_timeline=True),
     _t(State.TIMELINE_REVIEW, State.RULE_CONFIG, {Role.PM},
        "approve_timeline", "Approve timeline (publish)", requires_timeline=True, kind="approve"),
     _t(State.TIMELINE_REVIEW, State.TIMELINE_PLANNING, {Role.PM},
@@ -107,7 +110,7 @@ TRANSITIONS: tuple[Transition, ...] = (
     # ── 3/4. Rule config + DMG → sanity check (CCRE approves) ───────────────
     _t(State.RULE_CONFIG, State.SANITY_CHECK, {Role.CCRE_TEAM},
        "request_sanity_check", "Submit rule config + DMG for sanity check",
-       requires_rule_set=True, requires_dmg_complete=True),
+       requires_rule_set=True, requires_dmg_complete=True, requires_rows_clean=True),
     _t(State.SANITY_CHECK, State.UAT_TC_PREP, _CCRE,
        "sanity_passed", "Approve sanity check",
        requires_rule_set=True, requires_clean_validation=True, requires_package_complete=True,
@@ -244,6 +247,7 @@ class GateContext:
     tests_passed: int = 0
     tests_failed: int = 0
     dmg_complete: bool = False
+    rows_with_errors: int = 0      # M2C draft rows with a blocking row check
     tc_pending_ccre: int = 0       # rows still waiting for a CCRE decision
     tc_ccre_approved: int = 0      # approved by CCRE, waiting for the business decision
     tc_business_approved: int = 0  # approved by both — these are executed
@@ -294,6 +298,8 @@ def gate_reasons(transition: Transition, ctx: GateContext) -> list[str]:
             reasons.append("No test results have been recorded.")
         else:
             reasons.append(f"{ctx.tests_failed} of {ctx.tests_total} tests did not pass.")
+    if transition.requires_rows_clean and ctx.rows_with_errors:
+        reasons.append(f"{ctx.rows_with_errors} M2C row(s) still have errors — fix them in Rule configuration.")
     if transition.requires_dmg_complete and not ctx.dmg_complete:
         reasons.append("The DMG email task is not completed (approved and sent, or marked not required).")
     if transition.requires_ccre_review_done:

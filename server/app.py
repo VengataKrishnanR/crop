@@ -74,6 +74,7 @@ from .kpis import router as kpi_router
 from .lifecycle import ensure_builtin_template
 from .lifecycle import router as lifecycle_router
 from .mail import router as mail_router
+from .ruleconfig_routes import router as ruleconfig_router
 from .routes import router as domain_router
 
 log = logging.getLogger("ccre.server")
@@ -127,6 +128,7 @@ app.include_router(endpoint_router, prefix="/api")
 app.include_router(download_router, prefix="/api")
 app.include_router(collab_router, prefix="/api")
 app.include_router(mail_router, prefix="/api")
+app.include_router(ruleconfig_router, prefix="/api")
 app.include_router(domain_router, prefix="/api", dependencies=[Depends(require_internal)])
 
 
