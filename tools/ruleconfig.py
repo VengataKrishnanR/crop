@@ -51,9 +51,8 @@ _COMPARED = [f for f in RULE_FIELDS if f != "ctry_cd"]
 # --------------------------------------------------------------------------- #
 
 def current_package(session: Session) -> Optional[str]:
-    return session.execute(
-        select(ConfigPackage.version).order_by(ConfigPackage.ingested_at.desc()).limit(1)
-    ).scalar_one_or_none()
+    from tools.core.packages import active_package_version
+    return active_package_version(session)
 
 
 @dataclass
@@ -390,7 +389,9 @@ def build_m2c_workbook(session: Session, case: OnboardingCase, draft: RuleSet,
     for r in rules:
         n = row_of[r.id]
         for b in r.bindings:
-            ref.append([f'=IF(Import!P{n}<>0,Import!P{n},"")', f"{r.ctry_cd}|Import|{b.sirg_cd or r.sirg_cd or ''}",
+            # SIR Document Reference is Country|Import|SIRGCd|CmptNm (4 parts), verified on the workbook.
+            ref.append([f'=IF(Import!P{n}<>0,Import!P{n},"")',
+                        f"{r.ctry_cd}|Import|{b.sirg_cd or r.sirg_cd or ''}|{b.cmpt_nm or ''}",
                         "Y" if b.waived_if_whitelisted else "N", "Y" if b.waived_to_validate else "N",
                         b.check_service_code or "", b.cmpt_nm or "", b.sir_id or "",
                         "&".join(b.attribute_ids or [])])

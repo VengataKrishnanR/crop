@@ -133,6 +133,50 @@ In **Rule configuration**, **Rows from the requirement** creates one M2C row per
 
 ---
 
+## Beta files (config packages) and the Reference page
+
+**How the two files connect.** They link by IDs, never by row position:
+- The **M2C workbook** says **when** to ask. Import rule → `SIRG Document Reference` = `Country|Import|GroupCode`.
+- The **beta file** (sir-configuration package) says **what** to ask:
+  - group (`ShpInfReqGrpDef.csv`)
+  - country mapping (`ShpInfReqDefInShpInfReqGrpDefOfCtryProc.csv`: country + `IMP_CLR` + group → definition)
+  - definition file (`sir definitions/<id>.json`, with every field and its message position)
+- **SIR Reference** names the definition (column G) and the fields to ask for (column H, attribute IDs inside that JSON). It joins a rule in one of two ways:
+  - **Legacy hold-code rules:** by `Document Reference`.
+  - **SIRG rules:** by `Country|Import|Group` from its `SIR Document Reference`.
+
+**Admin → Beta files:**
+1. **Upload** the .zip. It is stored by its SHA-256; uploading the same file again does nothing.
+2. **Automatic review:**
+   - zip safety and the required parts
+   - version and release date from the changelog
+   - typed notes in the mapping CSV
+   - mappings to unknown groups or missing definition files
+   - definition IDs vs file names
+   - file-name column (spaces)
+   - definitions shipped but never mapped
+   - release notes vs mappings
+   - changelog claims that aren't true
+   - drift against the M2C workbook (same / different definition / one side only)
+   - changes against the active package
+3. **Activate**, which needs no blocking problems. The previous package becomes SUPERSEDED and stays available.
+4. **Version safety:** a file whose version is already loaded from different content is loaded as `version+hash`, so nothing is overwritten.
+
+Every check reads the **active** package: package coverage, the sanity check, rule configuration, validation and the agents.
+
+**Reference page** (internal roles): pick a country and group to see each link with ✓ or ✕:
+1. M2C rule
+2. workbook Technical SIRG
+3. package group
+4. package country mapping
+5. definition file
+6. workbook vs package definition
+7. the SIR Reference fields
+
+Under the links it shows the fields with their message positions, plus a per-country drift table (workbook vs active package).
+
+---
+
 ## Sanity check (step 4)
 
 Six plain checks, **run automatically** when the onboarding enters the stage:

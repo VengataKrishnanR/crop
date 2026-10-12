@@ -120,7 +120,10 @@ def _onboard_to_uat_execution(client: TestClient) -> str:
 
 
 def align_rows(client: TestClient, case_id: str) -> None:
-    """CCRE team: make the rows for the requirement's groups say what the requirement says."""
+    """CCRE team: make the rows for the requirement's groups say what the requirement says.
+
+    The DE POA workbook row is bound to a newer definition (b5a141ed…) than the 2.10.4 test package
+    ships, so — as in real life — a consultant accepts that package gap as an exception."""
     req = client.get(f"/api/onboardings/{case_id}/intake", headers=TEAM).json()["requirement"]["structured"]
     groups = set((req.get("m2c") or {}).get("requirement_groups") or req.get("requirement_groups") or [])
     for row in client.get(f"/api/onboardings/{case_id}/rule-config", headers=TEAM).json()["rows"]:
@@ -128,6 +131,12 @@ def align_rows(client: TestClient, case_id: str) -> None:
             resp = client.post(f"/api/onboardings/{case_id}/rule-config/rows/{row['id']}/align-requirement",
                                headers=TEAM)
             assert resp.status_code == 200, resp.text
+    sanity = client.get(f"/api/onboardings/{case_id}/sanity", headers=TEAM).json()
+    if any(i["key"] == "package" and i["status"] == "fail" for i in sanity["items"]):
+        resp = client.post(f"/api/onboardings/{case_id}/sanity/waivers", headers=CONSULTANT, json={
+            "item_key": "package", "reason": "Workbook uses a newer definition than the test package",
+            "reference": "TEST-PKG"})
+        assert resp.status_code == 200, resp.text
 
 
 def complete_dmg(client: TestClient, case_id: str) -> None:

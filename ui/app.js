@@ -193,11 +193,12 @@ async function loadStatus() {
 
 // ── views ────────────────────────────────────────────────────
 function switchView(view) {
-  ['onboardings', 'kpis', 'admin'].forEach((v) => { $(`view-${v}`).hidden = v !== view; });
+  ['onboardings', 'kpis', 'reference', 'admin'].forEach((v) => { $(`view-${v}`).hidden = v !== view; });
   document.querySelectorAll('.ccre-nav__item').forEach((b) =>
     b.classList.toggle('ccre-nav__item--active', b.dataset.view === view));
   if (view === 'kpis') run('KPIs', renderKpis);
-  if (view === 'admin') run('Admin', async () => { await renderAdmin(); await renderEndpoints(); await renderMail(); });
+  if (view === 'reference') run('Reference', renderReference);
+  if (view === 'admin') run('Admin', async () => { await renderPackages(); await renderAdmin(); await renderEndpoints(); await renderMail(); });
 }
 document.querySelectorAll('.ccre-nav__item').forEach((b) => { b.onclick = () => switchView(b.dataset.view); });
 
@@ -1937,3 +1938,163 @@ document.querySelectorAll('.dhl-suggestion').forEach((b) => { b.onclick = () => 
     showLogin();
   }
 })();
+
+// ── Admin: beta files (config packages) ──────────────────────
+const PKG_STATUS = { ACTIVE: 'ccre-st--ok', REVIEWED: 'ccre-st--warn', SUPERSEDED: '', REJECTED: 'ccre-st--err' };
+
+async function uploadFile(path, file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  const headers = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const resp = await fetch(path, { method: 'POST', headers, body: fd });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(typeof data.detail === 'string' ? data.detail : `Upload failed (${resp.status})`);
+  return data;
+}
+
+function pkgReviewHtml(u) {
+  const s = u.summary || {};
+  const sev = { error: 'ccre-issue--error', warning: 'ccre-issue--warning', info: 'ccre-issue--package' };
+  const w = u.workbook;
+  const ch = u.changes_vs_active;
+  return `${kv([['File', u.filename], ['Version (changelog)', `${s.declared_version || '—'} released ${s.release_date || '—'}`],
+      ['Loaded as', u.version], ['Groups · mappings · countries', `${s.groups} · ${s.mappings} · ${s.countries}`],
+      ['Definitions · fields', `${s.definitions} · ${s.attributes}`], ['SHA-256', u.sha256]])}
+    ${(s.pending_in_changelog || []).length ? `<h4>Still "Unreleased" in the changelog</h4>${list(s.pending_in_changelog)}` : ''}
+    <h4>Review (${u.ok ? 'no blocking problems' : 'blocking problems — cannot be activated'})</h4>
+    <ul class="ccre-issues">${(u.findings || []).map((f) => `<li class="${sev[f.severity]}"><b>${esc(f.severity)}</b> ${esc(f.message)}
+      ${f.details.length ? `<details class="ccre-details"><summary>${f.count} item(s)</summary>${list(f.details.map(String))}</details>` : ''}</li>`).join('') || '<li class="ccre-issue--package">Nothing to report.</li>'}</ul>
+    ${w ? `<h4>Compared with the M2C workbook (${esc(w.workbook_version || '—')})</h4>
+      ${kv([['Same definition', w.same], ['Different definition', w.definition_differs.length], ['Only in the workbook', w.workbook_only.length],
+        ['Only in the package', w.package_only.length], ['Countries only in the workbook', w.countries_only_in_workbook.join(', ') || '—']])}` : ''}
+    ${ch ? `<h4>Changes against the active package (${esc(ch.active_version || 'none')})</h4>
+      ${kv([['Mappings added', ch.added.length], ['Mappings removed', ch.removed.length], ['Countries added', ch.countries_added.join(', ') || '—'],
+        ['Countries removed', ch.countries_removed.join(', ') || '—']])}` : ''}`;
+}
+
+async function renderPackages() {
+  const data = await api('GET', '/api/admin/packages');
+  $('pkg-active').innerHTML = data.active_upload_id
+    ? `<span class="ccre-st ccre-st--ok">Active: ${esc(data.active_version)}</span>`
+    : data.legacy_active ? `<span class="ccre-st ccre-st--warn">In use: ${esc(data.active_version)} (loaded before uploads existed — upload and activate a beta file to make the choice explicit)</span>`
+      : '<span class="ccre-st ccre-st--err">No config package loaded yet</span>';
+  $('pkg-list').innerHTML = data.uploads.length ? table(['File', 'Version', 'Released', 'Uploaded', 'Review', 'Status', ''],
+    data.uploads.map((u) => `<tr><td>${esc(u.filename)}</td><td>${esc(u.version)}</td><td>${esc(u.release_date || '—')}</td>
+      <td>${esc(u.uploaded_by)}<br><small>${esc(u.uploaded_at.slice(0, 16).replace('T', ' '))}</small></td>
+      <td>${['error', 'warning', 'info'].map((k) => (u.counts[k] ? `<span class="ccre-st ${k === 'error' ? 'ccre-st--err' : k === 'warning' ? 'ccre-st--warn' : ''}">${u.counts[k]} ${k}</span>` : '')).join(' ') || '&#10003;'}</td>
+      <td><span class="ccre-st ${PKG_STATUS[u.status] || ''}">${esc(u.status)}</span>${u.decision_note ? `<br><small>${esc(u.decision_note)}</small>` : ''}</td>
+      <td><button class="dhl-btn dhl-btn--ghost dhl-btn--sm" data-pkg-view="${esc(u.id)}">Review</button>
+        ${u.ok && u.status !== 'ACTIVE' && u.status !== 'REJECTED' ? `<button class="dhl-btn dhl-btn--primary dhl-btn--sm" data-pkg-act="${esc(u.id)}">Activate</button>` : ''}
+        ${u.status === 'REVIEWED' ? `<button class="dhl-btn dhl-btn--ghost dhl-btn--sm ccre-act--reject" data-pkg-rej="${esc(u.id)}">Reject</button>` : ''}</td></tr>`))
+    : '<p class="ccre-hint">No beta file uploaded yet.</p>';
+  $('pkg-upload').onclick = () => run('Upload', async () => {
+    const f = $('pkg-file').files[0];
+    if (!f) { toast('Choose the .zip first.', true); return; }
+    $('pkg-upload').disabled = true;
+    try {
+      const u = await uploadFile('/api/admin/packages', f);
+      let msg = 'Uploaded and reviewed — check the review, then activate.';
+      if (u.already_uploaded) msg = 'This exact file was uploaded before — showing its review.';
+      else if (!u.ok) msg = 'Uploaded, but the review found blocking problems.';
+      toast(msg, !u.ok);
+      await renderPackages();
+      await showPackage(u.id);
+    } finally { $('pkg-upload').disabled = false; }
+  });
+  $('pkg-list').querySelectorAll('[data-pkg-view]').forEach((b) => { b.onclick = () => run('Review', () => showPackage(b.dataset.pkgView)); });
+  $('pkg-list').querySelectorAll('[data-pkg-act]').forEach((b) => {
+    b.onclick = () => run('Activate', async () => {
+      const v = await dialog('Activate this beta file?', `<p>From now on every check — package coverage, the sanity check, rule configuration, the mapping explorer — uses this package. The previous one stays available.</p>
+        <label class="ccre-field-label">Note (optional, e.g. the Support ticket)</label><input class="dhl-input" name="note">`, 'Activate');
+      if (!v) return;
+      await api('POST', `/api/admin/packages/${b.dataset.pkgAct}/activate`, { note: v.note || '' });
+      toast('Beta file activated.');
+      await renderPackages();
+    });
+  });
+  $('pkg-list').querySelectorAll('[data-pkg-rej]').forEach((b) => {
+    b.onclick = () => run('Reject', async () => {
+      const v = await dialog('Reject this beta file', '<label class="ccre-field-label">Why (required)</label><textarea class="dhl-textarea ccre-small" name="note" required></textarea>', 'Reject');
+      if (!v) return;
+      await api('POST', `/api/admin/packages/${b.dataset.pkgRej}/reject`, { note: v.note });
+      await renderPackages();
+    });
+  });
+}
+
+async function showPackage(id) {
+  const u = await api('GET', `/api/admin/packages/${id}`);
+  await dialog(`Review — ${u.filename}`, `<div class="ccre-pkg-review">${pkgReviewHtml(u)}</div>`, 'Close');
+}
+
+// ── Reference: mapping explorer ──────────────────────────────
+async function renderReference() {
+  const [ref, drift] = await Promise.all([api('GET', '/api/reference/countries'), api('GET', '/api/reference/drift')]);
+  S.ref = ref;
+  $('ref-active').innerHTML = `<span class="ccre-st ccre-st--ok">Config package in use: ${esc(ref.package_version || 'none')}</span>
+    <span class="ccre-st">M2C workbook: ${esc(drift.workbook_version || 'none')}</span>`;
+  const cSel = $('ref-country');
+  cSel.innerHTML = ref.countries.map((c) => `<option>${esc(c.country)}</option>`).join('');
+  const where = (g) => {
+    if (g.in_workbook && g.in_package) return 'workbook + package';
+    return g.in_workbook ? 'workbook only' : 'package only';
+  };
+  const fillGroups = () => {
+    const c = ref.countries.find((x) => x.country === cSel.value);
+    $('ref-group').innerHTML = (c ? c.groups : []).map((g) => `<option value="${esc(g.code)}">${esc(g.code)} — ${where(g)}</option>`).join('');
+  };
+  cSel.onchange = fillGroups;
+  if (S.refPick) cSel.value = S.refPick[0];
+  fillGroups();
+  if (S.refPick) $('ref-group').value = S.refPick[1];
+  $('ref-trace').onclick = () => run('Trace', traceReference);
+  const t = drift.total;
+  $('ref-drift').innerHTML = `<p class="ccre-hint">Each (country, group) in either source: <b>same</b> definition in both, a <b>different</b> definition, or present on one side only. A different definition usually means the workbook was updated for a newer beta file.</p>
+    ${kv([['Same', t.same], ['Different definition', t.differs], ['Only in the workbook', t.workbook_only], ['Only in the package', t.package_only]])}
+    ${table(['Country', 'Same', 'Different definition', 'Workbook only', 'Package only', ''], drift.countries.map((r) => `<tr>
+      <td><b>${esc(r.country)}</b></td><td>${r.same}</td><td>${r.differs ? `<span class="ccre-st ccre-st--warn">${r.differs}</span>` : 0}</td>
+      <td>${r.workbook_only ? `<span class="ccre-st ccre-st--err">${r.workbook_only}</span>` : 0}</td><td>${r.package_only}</td>
+      <td><button class="dhl-btn dhl-btn--ghost ccre-small-btn" data-ref-c="${esc(r.country)}">Pick</button></td></tr>`))}`;
+  $('ref-drift').querySelectorAll('[data-ref-c]').forEach((b) => {
+    b.onclick = () => { cSel.value = b.dataset.refC; fillGroups(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  });
+}
+
+async function traceReference() {
+  const c = $('ref-country').value;
+  const g = $('ref-group').value;
+  if (!c || !g) return;
+  S.refPick = [c, g];
+  const t = await api('GET', `/api/reference/trace?country=${encodeURIComponent(c)}&group=${encodeURIComponent(g)}`);
+  const icon = { ok: ['ccre-st--ok', '&#10003;'], missing: ['ccre-st--err', '&#10005;'], na: ['', '—'] };
+  const chain = t.checks.map((x, i) => `<div class="ccre-chain-step ccre-chain-step--${x.status}">
+      <div class="ccre-sanity-num">${i + 1}</div>
+      <div><div class="ccre-row ccre-space ccre-wrap"><strong>${esc(x.title)}</strong><span class="ccre-st ${icon[x.status][0]}">${icon[x.status][1]}</span></div>
+      <div class="ccre-mono ccre-small-text">${esc(x.detail)}</div></div></div>`).join('');
+  const defs = t.definitions.map((d) => `<details class="ccre-details ccre-card" ${d.in_package_mapping ? 'open' : ''}>
+      <summary><b>${esc(d.cmpt_nm || '(not shipped)')}</b> — ${esc(d.name || d.sir_id)}
+        ${d.in_package_mapping ? '<span class="ccre-st ccre-st--ok">package mapping</span>' : ''}
+        ${d.in_workbook_mapping ? '<span class="ccre-st">workbook mapping</span>' : ''}
+        ${d.shipped ? '' : '<span class="ccre-st ccre-st--err">file not in package</span>'}</summary>
+      <p class="ccre-hint ccre-mono">${esc(d.sir_id)}</p>
+      ${d.attributes.length ? table(['Field', 'Entity', 'Mandatory', 'Goes to (message position)'], d.attributes.map((a) => `<tr>
+        <td>${esc(a.name || a.att_id)}<br><small class="ccre-mono">${esc(a.att_id)}</small></td><td><small>${esc(a.entity)}</small></td>
+        <td>${a.mandatory ? 'yes' : ''}</td><td class="ccre-mono"><small>${esc(a.message_positions.join(' · ') || '—')}</small></td></tr>`)) : '<p class="ccre-hint">No fields (definition not shipped by the active package).</p>'}
+    </details>`).join('');
+  const fieldsCell = (b) => (b.whole_definition ? '<i>the whole definition</i>' : b.attributes.map((a) => `${a.found ? '&#10003;' : '&#10005;'} ${esc(a.name || a.att_id)}${a.message_positions.length ? ` <small class="ccre-mono">&rarr; ${esc(a.message_positions[0])}</small>` : ''}`).join('<br>'));
+  const binds = t.bindings.length ? table(['Import row', 'Definition', 'Fields asked for (SIR Reference)', 'Waived if whitelisted', 'Waived to validate', 'Service code'],
+    t.bindings.map((b) => `<tr><td>${esc(b.rule_row)}</td><td>${esc(b.cmpt_nm || '')}<br><small class="ccre-mono">${esc(b.sir_id || '')}</small>
+      ${b.definition_mapped ? '' : '<br><span class="ccre-st ccre-st--err">not the definition the package maps</span>'}</td>
+      <td>${fieldsCell(b)}</td>
+      <td>${b.waived_if_whitelisted ? 'Y' : ''}</td><td>${b.waived_to_validate ? 'Y' : ''}</td><td>${esc(b.check_service_code || '')}</td></tr>`))
+    : '<p class="ccre-hint">No SIR Reference lines for this rule.</p>';
+  const rules = t.rules.length ? table(['Import row', 'B2B/B2C', 'Value band', 'Other Logic'], t.rules.map((r) => `<tr><td>${r.row_no}</td><td>${esc(r.shipment_type || '')}</td>
+      <td>${esc(r.min_value ?? '…')} – ${esc(r.max_value ?? '…')} ${esc(r.currency || '')}</td><td class="ccre-mono"><small>${esc(r.other_logic || '—')}</small></td></tr>`)) : '';
+  $('ref-result').innerHTML = `<div class="ccre-sanity-banner ${t.can_raise ? 'ccre-sanity-banner--ok' : 'ccre-sanity-banner--bad'}"><b>${esc(t.country)} · ${esc(t.group)}:</b> ${esc(t.verdict)}</div>
+    <div class="ccre-chain">${chain}</div>
+    <h4>When — the M2C Import rule(s)</h4>${rules || '<p class="ccre-hint">No Import rule.</p>'}
+    <h4>What — the definition(s) and their fields</h4>${defs || '<p class="ccre-hint">No definition on either side.</p>'}
+    <h4>Which fields are asked — SIR Reference</h4>${binds}`;
+}

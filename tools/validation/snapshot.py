@@ -80,10 +80,8 @@ def load_snapshot(
             workbook_version = snap.rule_set.source_version
 
     if package_version is None:
-        latest = session.execute(
-            select(ConfigPackage).order_by(ConfigPackage.ingested_at.desc()).limit(1)
-        ).scalar_one_or_none()
-        package_version = latest.version if latest else ""
+        from tools.core.packages import active_package_version
+        package_version = active_package_version(session) or ""
     snap.package_version = package_version or ""
 
     if package_version:

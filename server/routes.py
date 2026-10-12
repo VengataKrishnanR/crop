@@ -94,11 +94,8 @@ def _get_case(session: Session, case_id: str) -> OnboardingCase:
 
 
 def _current_package(session: Session) -> Optional[str]:
-    """The most recently ingested package version -- what CCRE is assumed to hold."""
-    row = session.execute(
-        select(ConfigPackage.version).order_by(ConfigPackage.ingested_at.desc()).limit(1)
-    ).scalar_one_or_none()
-    return row
+    from tools.core.packages import active_package_version
+    return active_package_version(session)
 
 
 def _package_complete(session: Session, rule_set_id: str) -> bool:

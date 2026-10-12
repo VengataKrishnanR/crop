@@ -106,9 +106,8 @@ def get_requirement_definition(sir_id: str) -> dict[str, Any]:
         positions that drive payload generation.
     """
     with session_scope() as session:
-        version = session.execute(
-            select(ConfigPackage.version).order_by(ConfigPackage.ingested_at.desc()).limit(1)
-        ).scalar_one_or_none()
+        from tools.core.packages import active_package_version
+        version = active_package_version(session)
         sir = session.execute(
             select(SirDef).where(SirDef.id == sir_id, SirDef.package_version == version)
         ).scalar_one_or_none()

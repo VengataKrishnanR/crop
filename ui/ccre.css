@@ -335,3 +335,13 @@ del { background: #fee2e2; padding: 0 3px; }
 .ccre-sanity-sub { margin: 6px 0; }
 .ccre-waiver { padding: 6px 10px; background: #f5f3ff; border-radius: 6px; font-size: 13px; }
 .ccre-next--back { background: #fff7ed; border-color: #fed7aa; border-left-color: #f97316; }
+
+/* ── Reference / beta files ── */
+.ccre-chain { display: grid; gap: 8px; margin: 10px 0; }
+.ccre-chain-step { display: grid; grid-template-columns: 36px 1fr; gap: 12px; padding: 10px 12px; border: 1px solid var(--color-border);
+  border-left: 5px solid #cbd5e1; border-radius: 8px; background: #fff; }
+.ccre-chain-step--ok { border-left-color: var(--green); }
+.ccre-chain-step--missing { border-left-color: var(--red); background: #fffafa; }
+.ccre-small-text { font-size: 12px; color: #444; word-break: break-all; }
+.ccre-pkg-review { max-height: 65vh; overflow-y: auto; }
+.ccre-dialog__card:has(.ccre-pkg-review) { width: min(900px, 94vw); max-width: min(900px, 94vw); }

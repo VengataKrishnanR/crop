@@ -75,6 +75,9 @@ def test_a_deliberate_difference_can_be_accepted_and_revoked(client: TestClient,
     w = client.post(f"/api/onboardings/{case_id}/sanity/waivers", headers=CONSULTANT, json={
         "item_key": "requirement_match", "reason": "Row 38 is the live DE row; requirement only adds POA scope"})
     assert w.status_code == 200, w.text
+    pkg = client.post(f"/api/onboardings/{case_id}/sanity/waivers", headers=CONSULTANT, json={
+        "item_key": "package", "reason": "Newer DEPOA definition requested from Support", "reference": "INC1"})
+    assert pkg.status_code == 200, pkg.text
     s = _sanity(client, case_id)
     assert s["ready"] and s["latest_run"]["status"] == "PASS" and s["latest_run"]["current"]
     assert client.post(f"/api/onboardings/{case_id}/sanity/waivers", headers=CONSULTANT, json={

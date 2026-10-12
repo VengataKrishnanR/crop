@@ -32,6 +32,7 @@
         <nav class="ccre-nav" id="nav">
           <button class="ccre-nav__item ccre-nav__item--active" data-view="onboardings">Onboardings</button>
           <button class="ccre-nav__item" data-view="kpis" data-internal>KPIs</button>
+          <button class="ccre-nav__item" data-view="reference" data-internal>Reference</button>
           <button class="ccre-nav__item" data-view="admin" data-admin>Admin</button>
         </nav>
       </div>
@@ -97,8 +98,32 @@
       <div id="kpi-detail"></div>
     </main>
 
+    <!-- ── Reference: how M2C rules reach the config package ── -->
+    <main id="view-reference" class="ccre-page" hidden>
+      <h2>Reference — M2C rules and the config package</h2>
+      <p class="ccre-hint">The M2C workbook says <b>when</b> to ask (Import rules); the config package (beta file) says <b>what</b> to ask (group → definition → fields and where they go in the shipment message). Pick a country and a requirement group to see every link, and whether CCRE can raise it with the active package.</p>
+      <div id="ref-active" class="ccre-gap"></div>
+      <div class="ccre-row ccre-wrap ccre-gap">
+        <select id="ref-country" class="dhl-select" style="max-width:220px"></select>
+        <select id="ref-group" class="dhl-select" style="max-width:320px"></select>
+        <button id="ref-trace" class="dhl-btn dhl-btn--primary">Trace</button>
+      </div>
+      <div id="ref-result"></div>
+      <h3 class="ccre-section-gap">Workbook vs active package, by country</h3>
+      <div id="ref-drift"></div>
+    </main>
+
     <!-- ── Admin ── -->
     <main id="view-admin" class="ccre-page" hidden>
+      <h2>Beta files (config packages)</h2>
+      <p class="ccre-hint">Upload the sir-configuration .zip Support delivers. It is reviewed automatically (structure, consistency, comparison with the M2C workbook and with the active package) and loaded under its own version. Nothing changes until you <b>activate</b> it — then every check in the platform uses it.</p>
+      <div class="ccre-card">
+        <div class="ccre-row ccre-wrap ccre-gap"><input id="pkg-file" type="file" accept=".zip" class="dhl-input" style="max-width:420px">
+          <button id="pkg-upload" class="dhl-btn dhl-btn--primary">Upload and review</button></div>
+        <div id="pkg-active" class="ccre-gap"></div>
+        <div id="pkg-list"></div>
+      </div>
+
       <h2>Users and roles</h2>
       <p class="ccre-hint">Add the PM, CCRE consultants, the CCRE team and business users. Business users only see the countries assigned to them, and only the business steps.</p>
       <form id="user-form" class="ccre-user-form">

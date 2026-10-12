@@ -212,7 +212,10 @@ def test_sanity_checklist_explains_each_item(client: TestClient, loaded: None) -
     assert before["explanation"] and before["ready"] is False and before["in_stage"] is False
     items = {i["key"]: i for i in before["items"]}
     assert list(items) == ["rows", "requirement_match", "rules", "package", "dmg", "changes"]
-    assert items["rows"]["status"] == "pass" and items["package"]["status"] == "pass"
+    assert items["rows"]["status"] == "pass"
+    # DE row 38 is bound to a newer DEPOA definition than the 2.10.4 package ships.
+    assert items["package"]["status"] == "fail" and items["package"]["findings"][0]["definition"] == "DEPOA"
+    assert items["package"]["fix"]["action"] == "package_request" and items["package"]["waivable"]
     assert items["requirement_match"]["status"] == "fail"          # DE row 38 differs from the requirement
     assert items["requirement_match"]["findings"][0]["row"] == 38
     assert items["dmg"]["status"] == "fail" and items["dmg"]["fix"]["action"] == "send_back"
