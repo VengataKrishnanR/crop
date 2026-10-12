@@ -1538,13 +1538,14 @@ async function renderTestCases(el) {
     <div class="ccre-row ccre-wrap ccre-gap">
       ${canGenerate ? '<button id="tc-gen" class="dhl-btn dhl-btn--ghost">&#129514; Generate test cases (AI)</button>' : ''}
       ${canAdd ? '<button id="tc-add" class="dhl-btn dhl-btn--primary">+ Add scenario</button>' : ''}
+      ${canAdd ? '<button id="tc-sample" class="dhl-btn dhl-btn--ghost" title="Add one complete test case built from the M2C row">&#129514; Add a sample test case</button>' : ''}
       ${(ccreDecides || bizDecides) && pending ? `<button id="tc-all" class="dhl-btn dhl-btn--ghost ccre-act--approve">&#10003; Approve all ${pending} waiting</button>` : ''}
     </div>
     <div id="tc-add-box" class="ccre-card ccre-gap" hidden>
       <label class="ccre-field-label">Describe the scenario in plain words — it is converted into a test case and goes through review</label>
       <textarea id="tc-scenario" class="dhl-textarea ccre-small" placeholder="e.g. A consumer parcel to Germany, duty paid (DDP), worth 80 EUR, must ask for the Power of Attorney."></textarea>
       <button id="tc-convert" class="dhl-btn dhl-btn--primary ccre-gap">Convert to test case</button>
-      <button id="tc-sample" type="button" class="dhl-btn dhl-btn--ghost ccre-gap">&#129514; Use a sample scenario</button>
+
     </div>
     ${table(isBusiness() ? ['Test', 'What is tested', 'Expected outcome', 'Status', 'Decision']
       : ['Test', 'Source', 'Kind', 'What is tested', 'Inputs', 'Expected', 'Status', 'Decision'], cases.map((c) => `<tr>
@@ -1562,12 +1563,11 @@ async function renderTestCases(el) {
     await refreshCase();
   });
   if ($('tc-add')) $('tc-add').onclick = () => { $('tc-add-box').hidden = !$('tc-add-box').hidden; $('tc-scenario').focus(); };
-  if ($('tc-sample')) $('tc-sample').onclick = () => {
-    const ctry = (S.overview && S.overview.country) || 'the country';
-    $('tc-scenario').value = `A B2C shipment to ${ctry} with a declared value of 200 EUR and service code DD must not raise the requirement; `
-      + 'the same shipment without DD must raise it.';
-    $('tc-scenario').focus();
-  };
+  if ($('tc-sample')) $('tc-sample').onclick = () => run('Sample test case', async () => {
+    const tc = await api('POST', `/api/onboardings/${S.caseId}/uat/test-cases/sample`);
+    toast(`Sample test case ${tc.test_id} added — review it like any other row.`);
+    await refreshCase();
+  });
   if ($('tc-convert')) $('tc-convert').onclick = () => run('Convert scenario', async () => {
     const text = $('tc-scenario').value.trim();
     if (text.length < 5) throw new Error('Describe the scenario first.');

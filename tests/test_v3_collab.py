@@ -303,3 +303,22 @@ def test_mail_settings_and_log(client: TestClient, outbox: Path) -> None:
     assert log[0]["kind"] == "TEST"
     assert client.get("/api/admin/mail", headers=TEAM).status_code == 403
     assert client.put("/api/admin/mail", json={"security": "bogus", "from_address": "a@b.cd"}).status_code == 400
+
+
+def test_sample_test_case_is_complete_and_goes_through_review(client: TestClient, loaded: None) -> None:
+    case_id = _to_rule_config(client)
+    resp = client.post(f"/api/onboardings/{case_id}/uat/test-cases/sample", headers=TEAM)
+    assert resp.status_code == 200, resp.text
+    tc = resp.json()
+    assert tc["test_id"] == "SAMPLE-DE-POA-01" and tc["status"] == "DRAFT" and tc["kind"] == "positive"
+    assert tc["expected_requirement"] == "POA" and tc["expected_case_created"] is True
+    again = client.post(f"/api/onboardings/{case_id}/uat/test-cases/sample", headers=TEAM).json()
+    assert again["test_id"] == "SAMPLE-DE-POA-02"
+    rows = client.get(f"/api/onboardings/{case_id}/uat/test-cases", headers=TEAM).json()
+    sample = next(r for r in rows if r["test_id"] == "SAMPLE-DE-POA-01")
+    fields = {c["field"] for c in sample["input_conditions"]}
+    assert {"destination_country", "shipment_type"} <= fields
+    assert sample["validation_criteria"] and sample["rule_coverage"]
+    # Business users may only add during their review; PMs never.
+    assert client.post(f"/api/onboardings/{case_id}/uat/test-cases/sample", headers=BUSINESS).status_code == 409
+    assert client.post(f"/api/onboardings/{case_id}/uat/test-cases/sample", headers=PM).status_code == 403
