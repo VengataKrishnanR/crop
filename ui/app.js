@@ -804,9 +804,9 @@ async function renderTimeline(el) {
   if (isBusiness() && !tl) return businessWaiting(el, 'The delivery timeline will appear here once the PM approves it.');
   const planning = state() === 'TIMELINE_PLANNING';
   const editable = !isBusiness() && ['TIMELINE_PLANNING', 'TIMELINE_REVIEW'].includes(state())
-    && hasRole('CCRE_CONSULTANT', 'PM', 'ADMIN');
+    && hasRole('PM', 'ADMIN');
   let html = '<h3>Delivery timeline</h3>';
-  if (planning && hasRole('CCRE_CONSULTANT', 'PM', 'ADMIN')) {
+  if (planning && hasRole('PM', 'ADMIN')) {
     const prev = (tl && tl.answers) || {};
     html += `<form id="tl-form" class="ccre-card"><strong>PM questionnaire</strong>
       <p class="ccre-hint">The AI plans the seven milestones from these answers; the PM approves the plan before it is shown to the business team.</p>
@@ -840,7 +840,7 @@ async function renderTimeline(el) {
   } else if (!planning) {
     html += '<p class="ccre-hint">The timeline is planned after the CCRE consultant approves the requirement.</p>';
   }
-  if (tl && tl.status === 'DRAFT') html = nextStep('submit_timeline', 'review the plan, then send it to the PM for approval.') + html;
+  if (tl && tl.status === 'DRAFT') html = nextStep('approve_timeline', 'check the plan; approving publishes it to the business and starts rule configuration.') + html;
   el.innerHTML = html;
   wireNextStep(el);
   if ($('tl-form')) {

@@ -72,7 +72,6 @@ def _onboard_to_uat_execution(client: TestClient) -> str:
     assert all(m["start"] != "2026-12-25" for m in tl.json()["milestones"])
     # Business cannot see a draft timeline …
     assert client.get(f"/api/onboardings/{case_id}/timeline", headers=BUSINESS).json() is None
-    _go(client, case_id, "submit_timeline", CONSULTANT)
     _go(client, case_id, "approve_timeline", PM)
     # … but sees the approved one.
     published = client.get(f"/api/onboardings/{case_id}/timeline", headers=BUSINESS).json()

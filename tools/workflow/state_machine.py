@@ -101,14 +101,16 @@ TRANSITIONS: tuple[Transition, ...] = (
     _t(State.REQUIREMENT_REVIEW, State.INTAKE, {Role.CCRE_CONSULTANT},
        "return_requirement", "Reject requirement", kind="reject"),
 
-    # ── 2. Timeline — AI from PM answers, PM approves, published ───────────
-    # The CCRE consultant plans and submits the timeline; the PM reviews and approves or rejects it.
-    _t(State.TIMELINE_PLANNING, State.TIMELINE_REVIEW, {Role.CCRE_CONSULTANT},
-       "submit_timeline", "Submit timeline for PM approval", requires_timeline=True),
+    # ── 2. Timeline — owned by the PM: answers the questionnaire, plans (AI), edits, approves ──
+    # The CCRE consultant's review (can the rule be configured in CCRE?) is the requirement
+    # approval above; the timeline needs no hand-off. Approving publishes it to the business.
+    _t(State.TIMELINE_PLANNING, State.RULE_CONFIG, {Role.PM},
+       "approve_timeline", "Approve and publish timeline", requires_timeline=True, kind="approve"),
+    # Onboardings that reached "with PM for approval" under the earlier flow can still finish.
     _t(State.TIMELINE_REVIEW, State.RULE_CONFIG, {Role.PM},
-       "approve_timeline", "Approve timeline (publish)", requires_timeline=True, kind="approve"),
+       "approve_timeline", "Approve and publish timeline", requires_timeline=True, kind="approve"),
     _t(State.TIMELINE_REVIEW, State.TIMELINE_PLANNING, {Role.PM},
-       "return_timeline", "Reject timeline", kind="reject"),
+       "return_timeline", "Back to planning", kind="reject"),
 
     # ── 3/4. Rule config + DMG → sanity check (CCRE approves) ───────────────
     _t(State.RULE_CONFIG, State.SANITY_CHECK, {Role.CCRE_TEAM},
@@ -198,8 +200,8 @@ STAGES: tuple[Stage, ...] = (
 STATE_LABELS: dict[State, str] = {
     State.INTAKE: "Capturing requirement",
     State.REQUIREMENT_REVIEW: "Requirement with CCRE consultant",
-    State.TIMELINE_PLANNING: "Timeline being planned",
-    State.TIMELINE_REVIEW: "Timeline with PM for approval",
+    State.TIMELINE_PLANNING: "Timeline being planned by the PM",
+    State.TIMELINE_REVIEW: "Timeline waiting for PM approval",
     State.RULE_CONFIG: "Rule configuration + DMG changes",
     State.SANITY_CHECK: "Sanity check",
     State.UAT_TC_PREP: "Preparing UAT test cases",
