@@ -11,6 +11,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from conftest import FULL_M2C
+
 pytestmark = pytest.mark.e2e_positive
 
 BUSINESS = {"X-CCRE-Role": "BUSINESS"}
@@ -47,7 +49,7 @@ def _onboard_to_uat_execution(client: TestClient) -> str:
     assert case.json()["state"] == "INTAKE" and case.json()["code"].startswith("ONB-")
 
     # 1. Intake by form + NLP (business team)
-    form = client.post(f"/api/onboardings/{case_id}/intake/form", headers=BUSINESS, json={
+    form = client.post(f"/api/onboardings/{case_id}/intake/form", headers=BUSINESS, json={"m2c": FULL_M2C,
         "description": "DE consumer shipments must provide a Power of Attorney when the incoterm is DDP.",
         "shipment_type": "B2C", "requirement_groups": ["POA"], "requested_rtp": "2027-03-31",
         "business_owner": "Anna Schmidt"})
@@ -213,25 +215,37 @@ def test_failed_uat_loops_back_to_rule_config(client: TestClient, loaded: None) 
     assert kpis["summary"]["defects_found_by_ccre"] >= 1
 
 
-def test_intake_by_chatbot(client: TestClient) -> None:
+def test_intake_by_chatbot_asks_every_m2c_column(client: TestClient) -> None:
     case_id = client.post("/api/onboardings", json={"ctry_cd": "BG", "title": "BG IOSS"},
                           headers=BUSINESS).json()["id"]
-    replies = []
-    for message in ["Hello, we need a new requirement for BG", "B2C only", "IOSS",
-                    "when SDT is present and the service code is not DD", "2027-01-31", "Maria Petrova"]:
-        resp = client.post(f"/api/onboardings/{case_id}/intake/chat", json={"message": message},
-                           headers=BUSINESS)
+    first = client.post(f"/api/onboardings/{case_id}/intake/chat", headers=BUSINESS, json={
+        "message": "BG consumer shipments must provide IOSS when SDT is present and no DD, "
+                   "declared value above 150 EUR"}).json()
+    assert not first["complete"]
+    understood = first["criteria"]
+    assert understood["shipment_type"] == "B2C" and understood["requirement_groups"] == ["IOSS"]
+    assert understood["min_value"] == {"op": ">", "value": 150.0} and understood["currency"] == "EUR"
+    assert first["missing"][0]["field"] == "region"
+    # Each reply asks the next missing column and says what is accepted.
+    asked = [first["missing"][0]["field"]]
+    replies = [first]
+    for answer in ["EU", "31-13-2026", "15-11-2026", "no expiry", "all products", "none", "none", "none"]:
+        resp = client.post(f"/api/onboardings/{case_id}/intake/chat", json={"message": answer}, headers=BUSINESS)
         assert resp.status_code == 200, resp.text
         replies.append(resp.json())
-    assert not replies[0]["complete"]
-    assert replies[-1]["complete"]
-    req = replies[-1]["requirement"]
+        if replies[-1]["missing"]:
+            asked.append(replies[-1]["missing"][0]["field"])
+    assert asked[:4] == ["region", "effective_date", "effective_date", "expiry_date"]   # bad date asked again
+    assert "Accepted:" in replies[1]["reply"]
+    last = replies[-1]
+    assert last["complete"], last["reply"]
+    req = last["requirement"]
     assert req["mode"] == "CHAT"
-    assert req["structured"]["requirement_groups"] == ["IOSS"]
-    assert req["structured"]["business_owner"] == "Maria Petrova"
-
-    history = client.get(f"/api/onboardings/{case_id}/intake", headers=BUSINESS).json()
-    assert len(history["messages"]) == 12
+    m2c = req["structured"]["m2c"]
+    assert m2c["region"] == "EU" and m2c["effective_date"] == "2026-11-15" and m2c["expiry_date"] == "N/A"
+    row = req["structured"]["m2c_row"]
+    assert row["min_value"] == 150.01 and row["max_value"] is None      # '> 150' as the workbook writes it
+    assert "matchCiMask" in row["other_logic"]
     overview = client.get(f"/api/onboardings/{case_id}", headers=BUSINESS).json()
     submit = next(a for a in overview["actions"] if a["name"] == "submit_requirement")
     assert submit["allowed"]

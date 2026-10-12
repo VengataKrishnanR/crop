@@ -14,7 +14,7 @@ const S = {
   caseId: null,
   overview: null,
   viewStage: null,     // stage key being viewed
-  intakeTab: 'chat',
+  intakeTab: 'form',
   devRole: 'ADMIN',
   busy: false,
 };
@@ -223,7 +223,7 @@ $('new-form').onsubmit = (e) => {
       ctry_cd: $('new-country').value.trim().toUpperCase(), title: $('new-title').value.trim() });
     $('new-form').hidden = true;
     $('new-country').value = ''; $('new-title').value = '';
-    S.intakeTab = 'chat';
+    S.intakeTab = 'form';
     await loadCases(created.id);
   });
 };
@@ -395,63 +395,203 @@ function businessWaiting(el, text) {
 }
 
 // ── 1. Intake ────────────────────────────────────────────────
+// The M2C criteria of a requirement, as a table (used wherever the requirement is shown).
+function m2cTable(r) {
+  const view = r.m2c_view || [];
+  if (!view.length) return '<p class="ccre-hint">No M2C criteria captured (requirement from before the M2C intake).</p>';
+  const chk = r.m2c_check || {};
+  const missing = new Set((chk.missing || []).map((m) => m.field));
+  const errors = chk.errors || {};
+  const warnings = chk.warnings || {};
+  const row = r.m2c_row || {};
+  const m2cVal = { min_value: row.min_value, max_value: row.max_value, min_weight: row.min_weight, max_weight: row.max_weight };
+  return `<div class="ccre-table-wrap"><table class="dhl-table ccre-m2c-table"><thead><tr><th>M2C column</th><th>Requirement</th><th>Written in M2C as</th><th></th></tr></thead><tbody>
+    ${view.map((v) => {
+      const st = errors[v.key] ? ['ccre-st--err', errors[v.key]] : missing.has(v.key) ? ['ccre-st--err', 'Missing'] : warnings[v.key] ? ['ccre-st--warn', warnings[v.key]] : ['ccre-st--ok', '✓'];
+      const asM2c = v.key in m2cVal ? (m2cVal[v.key] ?? '—') : '';
+      return `<tr><td><b>${esc(v.label)}</b></td><td class="${v.key === 'other_logic' ? 'ccre-mono' : ''}">${esc(v.value)}</td>
+        <td>${esc(asM2c)}</td><td><span class="ccre-st ${st[0]}">${esc(st[1])}</span></td></tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+
 function requirementCard(req) {
   if (!req) return '<p class="ccre-hint">No requirement captured yet.</p>';
   const r = req.structured || {};
+  const chk = r.m2c_check || {};
+  const status = !r.m2c_view ? '' : chk.complete
+    ? '<span class="ccre-st ccre-st--ok">&#10003; Complete — ready to submit</span>'
+    : `<span class="ccre-st ccre-st--err">${(chk.missing || []).length} missing · ${Object.keys(chk.errors || {}).length} not accepted</span>`;
   return `<div class="ccre-card">
     <div class="ccre-row ccre-space"><strong>Requirement v${req.version}</strong>
-      <span class="dhl-val-chip">${esc(req.mode === 'CHAT' ? 'from chat' : 'from form + NLP')}</span></div>
+      <span>${status} <span class="dhl-val-chip">${esc(req.mode === 'CHAT' ? 'from chat' : 'from form + NLP')}</span></span></div>
     ${r.summary ? `<p>${esc(r.summary)}</p>` : ''}
-    ${kv([['Country', r.country_code], ['Shipment type', r.shipment_type], ['Direction', r.direction],
-      ['Requirement groups', (r.requirement_groups || []).join(', ')], ['Requested go-live', r.requested_rtp],
-      ['Business owner', r.business_owner], ['Confidence', r.confidence]])}
-    <h4>Conditions</h4>${list((r.conditions || []).map(cond))}
+    <h4>M2C criteria</h4>${m2cTable(r)}
+    ${kv([['Requested go-live', r.requested_rtp], ['Business owner', r.business_owner]])}
     ${(r.ambiguities || []).length ? `<h4>Ambiguities</h4>${list(r.ambiguities, 'ccre-warn')}` : ''}
-    ${(r.missing_information || []).length ? `<h4>Missing information</h4>${list(r.missing_information, 'ccre-warn')}` : ''}
-    <p class="ccre-hint">Captured by ${esc(req.created_by)}</p></div>`;
+    <p class="ccre-hint">Captured by ${esc(req.created_by)}${req.text ? ` · <details class="ccre-details ccre-inline"><summary>original text</summary><pre class="ccre-pre">${esc(req.text)}</pre></details>` : ''}</p></div>`;
+}
+
+const isoToDmy = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v.split('-').reverse().join('-') : (v || ''));
+
+// One form control per M2C column, with its "accepted values" help.
+function m2cField(f, cur, opts) {
+  const v = cur[f.key];
+  const na = v === 'N/A';
+  const help = `<details class="ccre-accept"><summary>&#9432; Accepted values</summary><div>${esc(f.accepted)}</div></details>`;
+  const req = f.required ? ' *' : '';
+  const noneBox = (label) => `<label class="ccre-tick ccre-none"><input type="checkbox" data-na="${f.key}" ${na ? 'checked' : ''}> ${esc(label)}</label>`;
+  let control = '';
+  if (f.key === 'country') {
+    control = `<input class="dhl-input" value="${esc(opts.country)}" disabled>`;
+  } else if (f.kind === 'choice') {
+    control = `<select class="dhl-select" data-f="${f.key}"><option value="">— choose —</option>${(f.options || []).map((o) =>
+      `<option ${o === v ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+    if (!f.required) control += noneBox('Not applicable');
+  } else if (f.kind === 'currency') {
+    control = `<input class="dhl-input" data-f="${f.key}" list="dl-currency" maxlength="3" placeholder="EUR" value="${esc(na ? '' : v || '')}">
+      <datalist id="dl-currency">${(f.options || []).map((o) => `<option>${esc(o)}</option>`).join('')}</datalist>${noneBox('Not applicable')}`;
+  } else if (f.kind === 'date') {
+    control = `<input class="dhl-input" data-f="${f.key}" placeholder="DD-MM-YYYY" value="${esc(na ? '' : isoToDmy(v))}">
+      ${f.required ? '' : noneBox('No expiry')}`;
+  } else if (f.kind === 'multi') {
+    const sel = new Set(Array.isArray(v) ? v : []);
+    const extra = Array.isArray(v) ? v.filter((x) => !(f.options || []).includes(x)) : [];
+    control = `<div class="ccre-codes" data-multi="${f.key}">${(f.options || []).map((o) =>
+      `<label class="ccre-code"><input type="checkbox" value="${esc(o)}" ${sel.has(o) ? 'checked' : ''}> ${esc(o)}</label>`).join('')}</div>
+      <input class="dhl-input" data-extra="${f.key}" placeholder="Other codes, comma-separated" value="${esc(extra.join(', '))}">
+      ${noneBox('All products')}`;
+  } else if (f.kind === 'bound') {
+    const b = v && typeof v === 'object' ? v : {};
+    control = `<div class="ccre-bound"><select class="dhl-select" data-op="${f.key}">${(f.ops || []).map((o) =>
+      `<option ${o === b.op ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>
+      <input class="dhl-input" type="number" step="any" min="0" data-f="${f.key}" value="${b.value ?? ''}" placeholder="${f.unit === 'kg' ? 'kg' : 'amount'}">
+      </div><div class="ccre-hint" data-m2c="${f.key}"></div>${noneBox(f.side === 'min' ? 'No minimum' : 'No maximum')}`;
+  } else if (f.kind === 'text') {
+    control = `<textarea class="dhl-textarea ccre-small ccre-mono" data-f="${f.key}" placeholder='e.g. SDT present and no DD — or !serviceCodeList.contains("DD")'>${esc(na ? '' : v || '')}</textarea>${noneBox('No other condition')}`;
+  } else if (f.kind === 'groups') {
+    control = `<input class="dhl-input" data-f="${f.key}" list="dl-groups" placeholder="IOSS, POAB" value="${esc(Array.isArray(v) ? v.join(', ') : v || '')}">
+      <datalist id="dl-groups">${(f.options || []).map((o) => `<option>${esc(o)}</option>`).join('')}</datalist>`;
+  }
+  const wide = ['multi', 'text'].includes(f.kind) ? ' ccre-span2' : '';
+  return `<div class="ccre-m2c-field${wide}" id="mf-${f.key}"><label class="ccre-field-label">${esc(f.label)}${req}</label>${control}${help}<div class="ccre-field-msg" id="fm-${f.key}"></div></div>`;
+}
+
+function collectM2c(box, fields) {
+  const out = {};
+  fields.forEach((f) => {
+    if (f.key === 'country') return;
+    const naBox = box.querySelector(`[data-na="${f.key}"]`);
+    if (naBox && naBox.checked) { out[f.key] = 'N/A'; return; }
+    if (f.kind === 'multi') {
+      const codes = [...box.querySelectorAll(`[data-multi="${f.key}"] input:checked`)].map((i) => i.value);
+      const extra = (box.querySelector(`[data-extra="${f.key}"]`).value || '').split(/[,;\s]+/).map((x) => x.trim().toUpperCase()).filter(Boolean);
+      const all = [...new Set([...codes, ...extra])];
+      if (all.length) out[f.key] = all;
+      return;
+    }
+    const el = box.querySelector(`[data-f="${f.key}"]`);
+    const val = el ? el.value.trim() : '';
+    if (!val) return;
+    if (f.kind === 'bound') out[f.key] = { op: box.querySelector(`[data-op="${f.key}"]`).value, value: Number(val) };
+    else if (f.kind === 'groups') out[f.key] = val.split(/[,;\s]+/).map((x) => x.trim().toUpperCase()).filter(Boolean);
+    else out[f.key] = val;
+  });
+  return out;
+}
+
+function showCheck(box, res) {
+  box.querySelectorAll('.ccre-field-msg').forEach((m) => { m.innerHTML = ''; });
+  box.querySelectorAll('.ccre-m2c-field').forEach((m) => m.classList.remove('is-err', 'is-missing'));
+  Object.entries(res.errors || {}).forEach(([k, msg]) => {
+    if ($(`fm-${k}`)) { $(`fm-${k}`).innerHTML = `<span class="ccre-err">&#10005; ${esc(msg)}</span>`; $(`mf-${k}`).classList.add('is-err'); }
+  });
+  Object.entries(res.warnings || {}).forEach(([k, msg]) => {
+    if ($(`fm-${k}`) && !(res.errors || {})[k]) $(`fm-${k}`).innerHTML = `<span class="ccre-warn-text">! ${esc(msg)}</span>`;
+  });
+  (res.missing || []).forEach((m) => {
+    if ($(`fm-${m.field}`) && !$(`fm-${m.field}`).innerHTML) { $(`fm-${m.field}`).innerHTML = `<span class="ccre-err">Needed: ${esc(m.question)}</span>`; $(`mf-${m.field}`).classList.add('is-missing'); }
+  });
+  const row = res.m2c_row || {};
+  ['min_value', 'max_value', 'min_weight', 'max_weight'].forEach((k) => {
+    const hint = box.querySelector(`[data-m2c="${k}"]`);
+    if (hint) hint.textContent = row[k] != null ? `Written in M2C as ${row[k]}` : '';
+  });
+  const n = (res.missing || []).length + Object.keys(res.errors || {}).length;
+  $('m2c-status').innerHTML = n ? `<span class="ccre-st ccre-st--err">${(res.missing || []).length} missing · ${Object.keys(res.errors || {}).length} not accepted</span>`
+    : '<span class="ccre-st ccre-st--ok">&#10003; All M2C columns answered</span>';
+}
+
+function fillM2c(box, fields, crit) {
+  // Fill only what is still empty — never overwrite what the user typed.
+  const current = collectM2c(box, fields);
+  fields.forEach((f) => {
+    const v = crit[f.key];
+    if (v === undefined || v === null || f.key === 'country' || current[f.key] !== undefined) return;
+    if (v === 'N/A') { const na = box.querySelector(`[data-na="${f.key}"]`); if (na) na.checked = true; return; }
+    if (f.kind === 'multi') {
+      v.forEach((code) => {
+        const cb = box.querySelector(`[data-multi="${f.key}"] input[value="${code}"]`);
+        if (cb) cb.checked = true;
+        else { const ex = box.querySelector(`[data-extra="${f.key}"]`); ex.value = [ex.value, code].filter(Boolean).join(', '); }
+      });
+    } else if (f.kind === 'bound') {
+      box.querySelector(`[data-op="${f.key}"]`).value = v.op;
+      box.querySelector(`[data-f="${f.key}"]`).value = v.value;
+    } else {
+      const el = box.querySelector(`[data-f="${f.key}"]`);
+      if (el) el.value = f.kind === 'date' ? isoToDmy(v) : Array.isArray(v) ? v.join(', ') : v;
+    }
+  });
 }
 
 async function renderIntake(el) {
-  const data = await api('GET', `/api/onboardings/${S.caseId}/intake`);
   const editable = state() === 'INTAKE' && hasRole('BUSINESS', 'CCRE_TEAM', 'CCRE_CONSULTANT', 'ADMIN');
+  const [data, spec] = await Promise.all([api('GET', `/api/onboardings/${S.caseId}/intake`),
+    editable ? api('GET', `/api/onboardings/${S.caseId}/intake/fields`) : Promise.resolve(null)]);
   const reviewNote = state() === 'REQUIREMENT_REVIEW'
     ? '<div class="dhl-gate__notice">The requirement is with the CCRE consultant for approval.</div>' : '';
+  S.intakeTab = S.intakeTab || 'form';
   let input = '';
   if (editable) {
-    input = `<div class="ccre-subtabs">
-        <button class="dhl-tab ${S.intakeTab === 'chat' ? 'dhl-tab--active' : ''}" data-tab="chat">&#128172; Chat</button>
+    input = `<p class="ccre-hint">The CCRE team needs these M2C columns for every requirement: Region · Country · B2B/B2C · Effective date · Expiry · Network product code · DV/IV · Currency · Min/Max value · Min/Max weight · Other logic. Use the form, or describe it and let NLP fill the form, or answer the chat — anything missing is asked for.</p>
+      <div class="ccre-subtabs">
         <button class="dhl-tab ${S.intakeTab === 'form' ? 'dhl-tab--active' : ''}" data-tab="form">&#128221; Form + NLP</button>
+        <button class="dhl-tab ${S.intakeTab === 'chat' ? 'dhl-tab--active' : ''}" data-tab="chat">&#128172; Chat</button>
       </div>`;
     if (S.intakeTab === 'chat') {
       input += `<div class="ccre-intake-chat" id="intake-chat">${data.messages.length ? data.messages.map((m) =>
         `<div class="ccre-bubble ccre-bubble--${m.role}">${esc(m.text)}</div>`).join('')
-        : '<div class="ccre-bubble ccre-bubble--assistant">Hi! Tell me about the customs requirement you need — which country and what should be requested. I will ask a few questions.</div>'}</div>
+        : '<div class="ccre-bubble ccre-bubble--assistant">Hi! Describe the customs requirement in your own words — who it applies to, what must be provided, from when, and any value, weight or other condition. I will ask for anything the M2C still needs, one question at a time.</div>'}</div>
         <div class="ccre-row ccre-gap"><textarea id="intake-msg" class="dhl-textarea ccre-small" placeholder="Type your answer…"></textarea>
         <button id="intake-send" class="dhl-btn dhl-btn--primary">Send</button></div>`;
     } else {
-      input += `<form id="intake-form" class="ccre-card">
-        <label class="ccre-field-label">Describe the requirement in your own words</label>
-        <textarea name="description" class="dhl-textarea ccre-req" required placeholder="e.g. Consumer parcels must provide the IOSS number when SDT is present and the shipment is not duty-paid (DD)."></textarea>
-        <div class="ccre-grid2 ccre-gap">
-          <div><label class="ccre-field-label">Shipment type</label><select name="shipment_type" class="dhl-input">
-            <option value="">— not sure —</option><option>B2C</option><option>B2B</option><option>B2B/B2C</option></select></div>
-          <div><label class="ccre-field-label">Requirement / document codes</label><input name="groups" class="dhl-input" placeholder="IOSS, POAB"></div>
-          <div><label class="ccre-field-label">Requested go-live</label><input name="requested_rtp" type="date" class="dhl-input"></div>
-          <div><label class="ccre-field-label">Business owner</label><input name="business_owner" class="dhl-input"></div>
-          <div><label class="ccre-field-label">Value threshold</label><input name="value_threshold" type="number" step="0.01" class="dhl-input"></div>
-          <div><label class="ccre-field-label">Currency</label><input name="currency" class="dhl-input" maxlength="3" placeholder="EUR"></div>
+      const cur = spec.current || {};
+      const prev = (data.requirement || {}).structured || {};
+      input += `<form id="intake-form" class="ccre-card" novalidate>
+        <label class="ccre-field-label">Describe the requirement in your own words (optional — NLP fills the fields below)</label>
+        <textarea name="description" class="dhl-textarea ccre-req" placeholder="e.g. BG consumer shipments must provide IOSS when SDT is present and no DD, declared value above 150 EUR, effective 15-11-2026, no expiry, all products.">${esc((data.requirement || {}).text || '')}</textarea>
+        <div class="ccre-row ccre-wrap ccre-gap"><button type="button" id="intake-nlp" class="dhl-btn dhl-btn--ghost">&#10024; Fill the fields from my text (NLP)</button><span id="m2c-status"></span></div>
+        <h4>M2C criteria</h4>
+        <div class="ccre-m2c-grid">${spec.fields.map((f) => m2cField(f, cur, spec.options)).join('')}</div>
+        <h4>Other details</h4>
+        <div class="ccre-grid2">
+          <div><label class="ccre-field-label">Requested go-live</label><input name="requested_rtp" type="date" class="dhl-input" value="${esc(prev.requested_rtp || '')}"></div>
+          <div><label class="ccre-field-label">Business owner</label><input name="business_owner" class="dhl-input" value="${esc(prev.business_owner || '')}"></div>
         </div>
-        <button class="dhl-btn dhl-btn--primary ccre-gap" type="submit">Convert with NLP</button></form>`;
+        <div class="ccre-row ccre-wrap ccre-gap">
+          <button type="button" id="intake-check" class="dhl-btn dhl-btn--ghost">Check</button>
+          <button class="dhl-btn dhl-btn--primary" type="submit">Save requirement</button></div></form>`;
     }
   }
-  const next = data.requirement ? nextStep('submit_requirement', 'the requirement is captured — send it to the CCRE consultant for approval.') : '';
+  const next = data.requirement ? nextStep('submit_requirement', 'the requirement is complete — send it to the CCRE consultant for approval.') : '';
   el.innerHTML = `<h3>Requirement intake</h3>${reviewNote}${next}${input}<h4>Captured requirement</h4>${requirementCard(data.requirement)}`;
   wireNextStep(el);
-  const chatBox = $('intake-chat');
-  if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
   el.querySelectorAll('.ccre-subtabs .dhl-tab').forEach((b) => {
     b.onclick = () => { S.intakeTab = b.dataset.tab; renderStage(); };
   });
+
+  const chatBox = $('intake-chat');
+  if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
   const send = () => run('Intake chat', async () => {
     const msg = $('intake-msg').value.trim();
     if (!msg) return;
@@ -464,23 +604,46 @@ async function renderIntake(el) {
     $('intake-msg').onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
     $('intake-msg').focus();
   }
-  if ($('intake-form')) {
-    $('intake-form').onsubmit = (e) => {
-      e.preventDefault();
-      const f = new FormData(e.target);
-      run('Form intake', async () => {
-        await api('POST', `/api/onboardings/${S.caseId}/intake/form`, {
-          description: f.get('description'), shipment_type: f.get('shipment_type') || null,
-          requirement_groups: String(f.get('groups') || '').split(/[,\s]+/).filter(Boolean),
-          requested_rtp: f.get('requested_rtp') || null, business_owner: f.get('business_owner') || null,
-          value_threshold: f.get('value_threshold') ? Number(f.get('value_threshold')) : null,
-          currency: f.get('currency') || null,
-        });
-        toast('Requirement captured — review it and submit.');
-        await refreshCase();
+
+  const form = $('intake-form');
+  if (!form) return;
+  const fields = spec.fields;
+  // "None" boxes disable their inputs.
+  const syncNa = () => form.querySelectorAll('[data-na]').forEach((cb) => {
+    const wrap = $(`mf-${cb.dataset.na}`);
+    wrap.querySelectorAll('input:not([data-na]),select,textarea').forEach((i) => { i.disabled = cb.checked; });
+  });
+  form.querySelectorAll('[data-na]').forEach((cb) => { cb.onchange = syncNa; });
+  syncNa();
+  const check = async (text) => {
+    const res = await api('POST', `/api/onboardings/${S.caseId}/intake/extract`, { text: text || '', m2c: collectM2c(form, fields) });
+    showCheck(form, res);
+    return res;
+  };
+  if (data.requirement && (data.requirement.structured || {}).m2c_check) run('Check', () => check(''));
+  $('intake-nlp').onclick = () => run('NLP', async () => {
+    const text = form.description.value.trim();
+    if (!text) { toast('Write the requirement first.', true); return; }
+    const res = await api('POST', `/api/onboardings/${S.caseId}/intake/extract`, { text, m2c: {} });
+    fillM2c(form, fields, res.criteria);
+    syncNa();
+    const after = await check('');
+    toast(after.missing.length ? `Filled from your text — ${after.missing.length} still to answer (marked in red).` : 'All M2C columns filled from your text — check and save.');
+  });
+  $('intake-check').onclick = () => run('Check', () => check(''));
+  form.onsubmit = (e) => {
+    e.preventDefault();
+    run('Save requirement', async () => {
+      const f = new FormData(form);
+      const res = await api('POST', `/api/onboardings/${S.caseId}/intake/form`, {
+        description: f.get('description') || '', m2c: collectM2c(form, fields),
+        requested_rtp: f.get('requested_rtp') || null, business_owner: f.get('business_owner') || null,
       });
-    };
-  }
+      toast(res.check.complete ? 'Requirement saved and complete — submit it for approval.'
+        : `Saved — ${res.check.missing.length} column(s) still missing, ${Object.keys(res.check.errors).length} not accepted.`, !res.check.complete);
+      await refreshCase();
+    });
+  };
 }
 
 // ── 2. Timeline ──────────────────────────────────────────────
@@ -631,7 +794,8 @@ async function rcRows(body, panel) {
   let html = '';
   if (ws.editable) {
     html += `<div class="ccre-row ccre-wrap ccre-gap">
-      <button id="rc-add" class="dhl-btn dhl-btn--primary">+ Add row</button>
+      <button id="rc-from-req" class="dhl-btn dhl-btn--primary">&#8681; Rows from the requirement</button>
+      <button id="rc-add" class="dhl-btn dhl-btn--ghost">+ Add row</button>
       <input id="m2c-notes" class="dhl-input ccre-grow" placeholder="Notes for the AI (optional)">
       <button id="m2c-draft" class="dhl-btn dhl-btn--ghost">&#9998; Propose rows from the requirement (AI)</button></div>`;
   }
@@ -664,6 +828,14 @@ async function rcRows(body, panel) {
     : '<p class="ccre-hint">No rows for this country yet — add one, or let the AI propose rows from the approved requirement.</p>';
   body.innerHTML = html;
 
+  if ($('rc-from-req')) {
+    $('rc-from-req').onclick = () => run('Rows from requirement', async () => {
+      const rows = await api('POST', `/api/onboardings/${S.caseId}/rule-config/rows/from-requirement`);
+      S.rcOpen = rows.length ? rows[0].id : null;
+      toast(`${rows.length} row(s) created from the requirement's M2C criteria — bind the requirement definitions next.`);
+      await renderRuleConfig(panel);
+    });
+  }
   if ($('rc-add')) {
     $('rc-add').onclick = () => run('Add row', async () => {
       const row = await api('POST', `/api/onboardings/${S.caseId}/rule-config/rows`, {

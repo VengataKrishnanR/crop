@@ -26,7 +26,7 @@ Then, still as admin, scroll to **UAT execution endpoints**: preset *CRMS catego
 | # | Who | Where | Do |
 |---|---|---|---|
 | 1 | Business | Onboardings → **+ New** | Country `DE`, title *POA for DDP shipments* |
-| 2 | Business | 1. Requirement → **Form + NLP** (or **Chat**) | *DE consumer shipments must provide a Power of Attorney when the incoterm is DDP*, codes `POA` → **Convert with NLP** → **Submit requirement for review** |
+| 2 | Business | 1. Requirement → **Form + NLP** | Type *DE consumer shipments must provide POA when the incoterm is DDP, effective 15-11-2026, no expiry, all products, any value, any weight* → **Fill the fields from my text (NLP)** → answer any field outlined in red (each has **ⓘ Accepted values**) → **Save requirement** → **Submit requirement for approval** |
 | 3 | CCRE consultant | Action bar | **Approve requirement** |
 | 4 | CCRE consultant | 2. Timeline | Answer the questionnaire → **Generate timeline** → **Submit timeline for PM approval** |
 | 4a | PM | 2. Timeline | Review → **Approve** (published to the business) or **Reject** with the reason |

@@ -6,6 +6,8 @@ import dataclasses
 import pytest
 from fastapi.testclient import TestClient
 
+from conftest import FULL_M2C
+
 pytestmark = pytest.mark.api
 
 ADMIN_EMAIL, ADMIN_PASSWORD = "admin@ccre.local", "ChangeMe123!"
@@ -124,7 +126,7 @@ def test_role_comes_from_the_account_not_the_request(secured: TestClient) -> Non
     admin = _login(secured, ADMIN_EMAIL, ADMIN_PASSWORD)
     biz = _make_user(secured, admin, "bg@dhl.test", "BUSINESS", ["BG"])
     case_id = secured.post("/api/onboardings", json={"ctry_cd": "BG", "title": "BG"}, headers=biz).json()["id"]
-    secured.post(f"/api/onboardings/{case_id}/intake/form", headers=biz, json={
+    secured.post(f"/api/onboardings/{case_id}/intake/form", headers=biz, json={"m2c": FULL_M2C,
         "description": "BG needs IOSS when SDT is present", "requirement_groups": ["IOSS"]})
     secured.post(f"/api/onboardings/{case_id}/transition", json={"name": "submit_requirement"}, headers=biz)
     spoofed = {**biz, "X-CCRE-Role": "CCRE_CONSULTANT"}

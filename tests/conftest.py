@@ -34,7 +34,8 @@ from tools.core.models import (
     RuleSet, SirAttribute, SirDef, SirgDef,
 )
 
-REFERENCE = Path(__file__).resolve().parents[2] / "Reference"
+# CCRE_REFERENCE_DIR points the tests at copies (e.g. while the workbook is open in Excel, which locks it).
+REFERENCE = Path(os.environ["CCRE_REFERENCE_DIR"]) if os.environ.get("CCRE_REFERENCE_DIR") else Path(__file__).resolve().parents[2] / "Reference"
 
 
 @pytest.fixture
@@ -226,3 +227,11 @@ def _agent_tool_schema() -> None:
     from tools.core.db import init_db
 
     init_db()
+
+
+#: A complete set of M2C criteria for requirement intake (the submit gate needs every column).
+FULL_M2C = {
+    "region": "EU", "shipment_type": "B2C", "effective_date": "15-11-2026", "expiry_date": "N/A",
+    "network_product_codes": "N/A", "min_value": "N/A", "max_value": "N/A",
+    "min_weight": "N/A", "max_weight": "N/A", "other_logic": "N/A",
+}
