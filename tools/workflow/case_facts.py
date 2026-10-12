@@ -154,9 +154,9 @@ def gate_context(session: Session, case: OnboardingCase) -> GateContext:
             ctx.requirement_gaps = ["the M2C criteria (region, B2B/B2C, dates, product codes, value, weight, "
                                     "other logic)"]
         else:
-            from tools.intake_fields import FIELD_BY_KEY
+            from tools.intake_fields import LABELS
             ctx.requirement_gaps = [m["label"] for m in chk.get("missing", [])] + [
-                f"{FIELD_BY_KEY[k]['label']} ({v})" for k, v in (chk.get("errors") or {}).items()]
+                f"{LABELS.get(k, k)} ({v})" for k, v in (chk.get("errors") or {}).items()]
     ctx.has_timeline = current_timeline(session, case.id) is not None
 
     rule_set = case_rule_set(session, case)

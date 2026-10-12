@@ -431,117 +431,220 @@ function requirementCard(req) {
     <p class="ccre-hint">Captured by ${esc(req.created_by)}${req.text ? ` · <details class="ccre-details ccre-inline"><summary>original text</summary><pre class="ccre-pre">${esc(req.text)}</pre></details>` : ''}</p></div>`;
 }
 
-const isoToDmy = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v.split('-').reverse().join('-') : (v || ''));
+// ── Pick-lists: choose from the list; "Other…" only when the value is not there ──
+const OTHER = '__other';
 
-// One form control per M2C column, with its "accepted values" help.
-function m2cField(f, cur, opts) {
-  const v = cur[f.key];
-  const na = v === 'N/A';
-  const help = `<details class="ccre-accept"><summary>&#9432; Accepted values</summary><div>${esc(f.accepted)}</div></details>`;
-  const req = f.required ? ' *' : '';
-  const noneBox = (label) => `<label class="ccre-tick ccre-none"><input type="checkbox" data-na="${f.key}" ${na ? 'checked' : ''}> ${esc(label)}</label>`;
-  let control = '';
-  if (f.key === 'country') {
-    control = `<input class="dhl-input" value="${esc(opts.country)}" disabled>`;
-  } else if (f.kind === 'choice') {
-    control = `<select class="dhl-select" data-f="${f.key}"><option value="">— choose —</option>${(f.options || []).map((o) =>
-      `<option ${o === v ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
-    if (!f.required) control += noneBox('Not applicable');
-  } else if (f.kind === 'currency') {
-    control = `<input class="dhl-input" data-f="${f.key}" list="dl-currency" maxlength="3" placeholder="EUR" value="${esc(na ? '' : v || '')}">
-      <datalist id="dl-currency">${(f.options || []).map((o) => `<option>${esc(o)}</option>`).join('')}</datalist>${noneBox('Not applicable')}`;
-  } else if (f.kind === 'date') {
-    control = `<input class="dhl-input" data-f="${f.key}" placeholder="DD-MM-YYYY" value="${esc(na ? '' : isoToDmy(v))}">
-      ${f.required ? '' : noneBox('No expiry')}`;
-  } else if (f.kind === 'multi') {
-    const sel = new Set(Array.isArray(v) ? v : []);
-    const extra = Array.isArray(v) ? v.filter((x) => !(f.options || []).includes(x)) : [];
-    control = `<div class="ccre-codes" data-multi="${f.key}">${(f.options || []).map((o) =>
-      `<label class="ccre-code"><input type="checkbox" value="${esc(o)}" ${sel.has(o) ? 'checked' : ''}> ${esc(o)}</label>`).join('')}</div>
-      <input class="dhl-input" data-extra="${f.key}" placeholder="Other codes, comma-separated" value="${esc(extra.join(', '))}">
-      ${noneBox('All products')}`;
-  } else if (f.kind === 'bound') {
-    const b = v && typeof v === 'object' ? v : {};
-    control = `<div class="ccre-bound"><select class="dhl-select" data-op="${f.key}">${(f.ops || []).map((o) =>
-      `<option ${o === b.op ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>
-      <input class="dhl-input" type="number" step="any" min="0" data-f="${f.key}" value="${b.value ?? ''}" placeholder="${f.unit === 'kg' ? 'kg' : 'amount'}">
-      </div><div class="ccre-hint" data-m2c="${f.key}"></div>${noneBox(f.side === 'min' ? 'No minimum' : 'No maximum')}`;
-  } else if (f.kind === 'text') {
-    control = `<textarea class="dhl-textarea ccre-small ccre-mono" data-f="${f.key}" placeholder='e.g. SDT present and no DD — or !serviceCodeList.contains("DD")'>${esc(na ? '' : v || '')}</textarea>${noneBox('No other condition')}`;
-  } else if (f.kind === 'groups') {
-    control = `<input class="dhl-input" data-f="${f.key}" list="dl-groups" placeholder="IOSS, POAB" value="${esc(Array.isArray(v) ? v.join(', ') : v || '')}">
-      <datalist id="dl-groups">${(f.options || []).map((o) => `<option>${esc(o)}</option>`).join('')}</datalist>`;
-  }
-  const wide = ['multi', 'text'].includes(f.kind) ? ' ccre-span2' : '';
-  return `<div class="ccre-m2c-field${wide}" id="mf-${f.key}"><label class="ccre-field-label">${esc(f.label)}${req}</label>${control}${help}<div class="ccre-field-msg" id="fm-${f.key}"></div></div>`;
+function pickHtml(key, options, value, { blank = '— choose —', allowOther = true, cls = '' } = {}) {
+  const opts = options || [];
+  const isOther = value && !opts.includes(value);
+  return `<span class="ccre-pick ${cls}" data-pick="${esc(key)}">
+    <select class="dhl-select">${blank !== null ? `<option value="">${esc(blank)}</option>` : ''}${opts.map((o) =>
+      `<option ${o === value ? 'selected' : ''}>${esc(o)}</option>`).join('')}${allowOther ? `<option value="${OTHER}" ${isOther ? 'selected' : ''}>Other… (type it)</option>` : ''}</select>
+    <input class="dhl-input ccre-pick-other" placeholder="Type the value" value="${esc(isOther ? value : '')}" ${isOther ? '' : 'hidden'}></span>`;
 }
 
-function collectM2c(box, fields) {
-  const out = {};
-  fields.forEach((f) => {
-    if (f.key === 'country') return;
-    const naBox = box.querySelector(`[data-na="${f.key}"]`);
-    if (naBox && naBox.checked) { out[f.key] = 'N/A'; return; }
-    if (f.kind === 'multi') {
-      const codes = [...box.querySelectorAll(`[data-multi="${f.key}"] input:checked`)].map((i) => i.value);
-      const extra = (box.querySelector(`[data-extra="${f.key}"]`).value || '').split(/[,;\s]+/).map((x) => x.trim().toUpperCase()).filter(Boolean);
-      const all = [...new Set([...codes, ...extra])];
-      if (all.length) out[f.key] = all;
-      return;
-    }
-    const el = box.querySelector(`[data-f="${f.key}"]`);
-    const val = el ? el.value.trim() : '';
-    if (!val) return;
-    if (f.kind === 'bound') out[f.key] = { op: box.querySelector(`[data-op="${f.key}"]`).value, value: Number(val) };
-    else if (f.kind === 'groups') out[f.key] = val.split(/[,;\s]+/).map((x) => x.trim().toUpperCase()).filter(Boolean);
-    else out[f.key] = val;
-  });
-  return out;
+function pickValue(wrap) {
+  if (!wrap) return '';
+  const sel = wrap.querySelector('select');
+  if (sel.value === OTHER) return wrap.querySelector('.ccre-pick-other').value.trim().toUpperCase();
+  return sel.value;
 }
 
-function showCheck(box, res) {
-  box.querySelectorAll('.ccre-field-msg').forEach((m) => { m.innerHTML = ''; });
-  box.querySelectorAll('.ccre-m2c-field').forEach((m) => m.classList.remove('is-err', 'is-missing'));
-  Object.entries(res.errors || {}).forEach(([k, msg]) => {
-    if ($(`fm-${k}`)) { $(`fm-${k}`).innerHTML = `<span class="ccre-err">&#10005; ${esc(msg)}</span>`; $(`mf-${k}`).classList.add('is-err'); }
+function wirePicks(root) {
+  root.querySelectorAll('.ccre-pick').forEach((w) => {
+    const sel = w.querySelector('select');
+    const other = w.querySelector('.ccre-pick-other');
+    sel.addEventListener('change', () => { other.hidden = sel.value !== OTHER; if (!other.hidden) other.focus(); });
   });
-  Object.entries(res.warnings || {}).forEach(([k, msg]) => {
-    if ($(`fm-${k}`) && !(res.errors || {})[k]) $(`fm-${k}`).innerHTML = `<span class="ccre-warn-text">! ${esc(msg)}</span>`;
-  });
-  (res.missing || []).forEach((m) => {
-    if ($(`fm-${m.field}`) && !$(`fm-${m.field}`).innerHTML) { $(`fm-${m.field}`).innerHTML = `<span class="ccre-err">Needed: ${esc(m.question)}</span>`; $(`mf-${m.field}`).classList.add('is-missing'); }
-  });
-  const row = res.m2c_row || {};
-  ['min_value', 'max_value', 'min_weight', 'max_weight'].forEach((k) => {
-    const hint = box.querySelector(`[data-m2c="${k}"]`);
-    if (hint) hint.textContent = row[k] != null ? `Written in M2C as ${row[k]}` : '';
-  });
-  const n = (res.missing || []).length + Object.keys(res.errors || {}).length;
-  $('m2c-status').innerHTML = n ? `<span class="ccre-st ccre-st--err">${(res.missing || []).length} missing · ${Object.keys(res.errors || {}).length} not accepted</span>`
-    : '<span class="ccre-st ccre-st--ok">&#10003; All M2C columns answered</span>';
 }
 
-function fillM2c(box, fields, crit) {
-  // Fill only what is still empty — never overwrite what the user typed.
-  const current = collectM2c(box, fields);
-  fields.forEach((f) => {
-    const v = crit[f.key];
-    if (v === undefined || v === null || f.key === 'country' || current[f.key] !== undefined) return;
-    if (v === 'N/A') { const na = box.querySelector(`[data-na="${f.key}"]`); if (na) na.checked = true; return; }
-    if (f.kind === 'multi') {
-      v.forEach((code) => {
-        const cb = box.querySelector(`[data-multi="${f.key}"] input[value="${code}"]`);
-        if (cb) cb.checked = true;
-        else { const ex = box.querySelector(`[data-extra="${f.key}"]`); ex.value = [ex.value, code].filter(Boolean).join(', '); }
+// Several values: chips + a pick-list to add more.
+function multiHtml(key, options, values) {
+  return `<div class="ccre-multi" data-multi="${esc(key)}" data-values='${esc(JSON.stringify(values || []))}'>
+    <div class="ccre-chips"></div>
+    <div class="ccre-row ccre-multi-add">${pickHtml(`${key}__add`, options, '', { blank: '+ add…' })}
+      <button type="button" class="dhl-btn dhl-btn--ghost ccre-small-btn" data-multi-add>Add</button></div></div>`;
+}
+
+function multiValues(wrap) {
+  try { return JSON.parse(wrap.dataset.values || '[]'); } catch { return []; }
+}
+
+function wireMulti(root, onChange) {
+  root.querySelectorAll('.ccre-multi').forEach((w) => {
+    const draw = () => {
+      const vals = multiValues(w);
+      w.querySelector('.ccre-chips').innerHTML = vals.length ? vals.map((v, i) =>
+        `<span class="ccre-chip">${esc(v)}<button type="button" data-rm="${i}" title="Remove">&times;</button></span>`).join('')
+        : '<span class="ccre-hint">Nothing chosen yet</span>';
+      w.querySelectorAll('[data-rm]').forEach((b) => {
+        b.onclick = () => { const v = multiValues(w); v.splice(+b.dataset.rm, 1); w.dataset.values = JSON.stringify(v); draw(); if (onChange) onChange(w, v); };
       });
-    } else if (f.kind === 'bound') {
-      box.querySelector(`[data-op="${f.key}"]`).value = v.op;
-      box.querySelector(`[data-f="${f.key}"]`).value = v.value;
-    } else {
-      const el = box.querySelector(`[data-f="${f.key}"]`);
-      if (el) el.value = f.kind === 'date' ? isoToDmy(v) : Array.isArray(v) ? v.join(', ') : v;
+    };
+    const add = () => {
+      const pick = w.querySelector('.ccre-pick');
+      const raw = pickValue(pick);
+      if (!raw) return;
+      const v = multiValues(w);
+      raw.split(/[,;\s]+/).map((x) => x.trim().toUpperCase()).filter(Boolean).forEach((x) => { if (!v.includes(x)) v.push(x); });
+      w.dataset.values = JSON.stringify(v);
+      pick.querySelector('select').value = '';
+      pick.querySelector('.ccre-pick-other').value = '';
+      pick.querySelector('.ccre-pick-other').hidden = true;
+      draw();
+      if (onChange) onChange(w, v);
+    };
+    w.querySelector('[data-multi-add]').onclick = add;
+    // Choosing from the list adds straight away; "Other…" waits for the typed value + Add.
+    if (!w.dataset.wired) {
+      w.dataset.wired = '1';
+      w.querySelector('.ccre-pick select').addEventListener('change', (e) => { if (e.target.value && e.target.value !== OTHER) add(); });
+    }
+    w.querySelector('.ccre-pick-other').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
+    draw();
+  });
+}
+
+// ── The condition builder (value, weight, Other Logic) ───────
+function condRowHtml(row, gi, ri, spec) {
+  const f = spec.fields.find((x) => x.key === row.field) || spec.fields[0];
+  const ops = f.ops.map(([k, l]) => `<option value="${k}" ${k === row.op ? 'selected' : ''}>${esc(l)}</option>`).join('');
+  const id = `c${gi}_${ri}`;
+  let value = '';
+  if (f.kind === 'number') {
+    const cur = f.unit === 'currency' ? pickHtml(`${id}_cur`, spec.currencies, row.currency || spec.defaultCurrency || '', { blank: 'currency', cls: 'ccre-pick--cur' }) : '<span class="ccre-unit">kg</span>';
+    value = `<input type="number" step="any" min="0" class="dhl-input ccre-num" data-v="value" value="${row.value ?? ''}" placeholder="0.00">
+      ${row.op === 'between' ? `<span class="ccre-and">and</span><input type="number" step="any" min="0" class="dhl-input ccre-num" data-v="value2" value="${row.value2 ?? ''}" placeholder="0.00">` : ''}${cur}`;
+  } else if (f.kind === 'list') {
+    value = multiHtml(id, spec.options[f.source] || [], row.values || []);
+  } else if (f.kind === 'one') {
+    value = pickHtml(`${id}_one`, spec.options[f.source] || [], (row.values || [])[0] || '');
+  } else if (!(f.key === 'hs_code' && row.op === 'blank')) {
+    value = `<input class="dhl-input ccre-grow ${f.key === 'custom' ? 'ccre-mono' : ''}" data-v="text" value="${esc((row.values || [])[0] || '')}" placeholder="${f.key === 'custom' ? 'expression, e.g. !serviceCodeList.contains(&quot;DD&quot;)' : 'HS code'}">`;
+  }
+  return `<div class="ccre-cond-row" data-g="${gi}" data-r="${ri}">
+    <span class="ccre-cond-join">${ri > 0 ? 'or' : ''}</span>
+    <select class="dhl-select ccre-cond-field" data-k="field">${spec.fields.map((x) => `<option value="${x.key}" ${x.key === f.key ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</select>
+    <select class="dhl-select ccre-cond-op" data-k="op">${ops}</select>
+    <span class="ccre-cond-value">${value}</span>
+    <span class="ccre-cond-btns"><button type="button" class="dhl-btn dhl-btn--ghost ccre-small-btn" data-k="and">AND</button>
+    <button type="button" class="dhl-btn dhl-btn--ghost ccre-small-btn" data-k="or">OR</button>
+    <button type="button" class="ccre-x" data-k="del" title="Remove">&#10005;</button></span></div>`;
+}
+
+function newCondRow(spec, field) {
+  const f = spec.fields.find((x) => x.key === field) || spec.fields[0];
+  return { field: f.key, op: f.ops[0][0], values: [], currency: f.unit === 'currency' ? spec.defaultCurrency || '' : undefined };
+}
+
+function renderBuilder(box, spec, onChange) {
+  const groups = S.cond || [];
+  box.innerHTML = `<div class="ccre-cond-head">${groups.length ? 'All of these conditions must be met' : 'No conditions yet'}</div>
+    ${groups.map((g, gi) => `<div class="ccre-cond-group">${g.map((r, ri) => condRowHtml(r, gi, ri, spec)).join('')}</div>`).join('')}
+    <div class="ccre-row ccre-wrap ccre-gap">
+      <button type="button" class="dhl-btn dhl-btn--ghost" data-add-cond>+ Add condition</button>
+      ${groups.length ? '' : `<label class="ccre-tick"><input type="checkbox" id="cond-none" ${S.condNone ? 'checked' : ''}> No conditions — it applies to every ${esc('shipment')} of this type, at any value and weight</label>`}
+    </div>
+    <div class="ccre-hint" id="cond-preview"></div><div class="ccre-field-msg" id="fm-conditions"></div>`;
+  wirePicks(box);
+  const rowOf = (el) => { const r = el.closest('.ccre-cond-row'); return [+r.dataset.g, +r.dataset.r]; };
+  const redraw = () => { renderBuilder(box, spec, onChange); onChange(); };
+  box.querySelector('[data-add-cond]').onclick = () => { S.cond = [...groups, [newCondRow(spec)]]; S.condNone = false; redraw(); };
+  if ($('cond-none')) $('cond-none').onchange = (e) => { S.condNone = e.target.checked; onChange(); };
+  box.querySelectorAll('.ccre-cond-row').forEach((rowEl) => {
+    const [gi, ri] = rowOf(rowEl);
+    const row = groups[gi][ri];
+    rowEl.querySelector('[data-k=field]').onchange = (e) => { groups[gi][ri] = newCondRow(spec, e.target.value); redraw(); };
+    rowEl.querySelector('[data-k=op]').onchange = (e) => { row.op = e.target.value; redraw(); };
+    rowEl.querySelector('[data-k=and]').onclick = () => { groups.splice(gi + 1, 0, [newCondRow(spec)]); redraw(); };
+    rowEl.querySelector('[data-k=or]').onclick = () => { groups[gi].splice(ri + 1, 0, newCondRow(spec, row.field)); redraw(); };
+    rowEl.querySelector('[data-k=del]').onclick = () => {
+      groups[gi].splice(ri, 1);
+      if (!groups[gi].length) groups.splice(gi, 1);
+      redraw();
+    };
+    rowEl.querySelectorAll('[data-v]').forEach((inp) => {
+      inp.oninput = () => {
+        if (inp.dataset.v === 'text') row.values = inp.value.trim() ? [inp.value.trim()] : [];
+        else row[inp.dataset.v] = inp.value === '' ? null : Number(inp.value);
+        onChange();
+      };
+    });
+    const cur = rowEl.querySelector('.ccre-pick--cur');
+    if (cur) {
+      const upd = () => { row.currency = pickValue(cur); onChange(); };
+      cur.querySelector('select').addEventListener('change', upd);
+      cur.querySelector('.ccre-pick-other').oninput = upd;
+    }
+    const one = rowEl.querySelector('.ccre-cond-value > .ccre-pick');
+    if (one && !cur) {
+      const upd = () => { const v = pickValue(one); row.values = v ? [v] : []; onChange(); };
+      one.querySelector('select').addEventListener('change', upd);
+      one.querySelector('.ccre-pick-other').oninput = upd;
     }
   });
+  wireMulti(box, (w, vals) => {
+    const [gi, ri] = rowOf(w);
+    groups[gi][ri].values = vals;
+    onChange();
+  });
+}
+
+// ── Requirement intake ───────────────────────────────────────
+function collectIntake(form) {
+  const m = {};
+  const pick = (k) => pickValue(form.querySelector(`[data-pick="${k}"]`));
+  if (pick('region')) m.region = pick('region');
+  if (form.shipment_type.value) m.shipment_type = form.shipment_type.value;
+  if (form.effective_date.value) m.effective_date = form.effective_date.value;
+  if (form.no_expiry.checked) m.expiry_date = 'N/A'; else if (form.expiry_date.value) m.expiry_date = form.expiry_date.value;
+  const npc = multiValues(form.querySelector('[data-multi="network_product_codes"]'));
+  if (form.all_products.checked) m.network_product_codes = 'N/A'; else if (npc.length) m.network_product_codes = npc;
+  const groups = multiValues(form.querySelector('[data-multi="requirement_groups"]'));
+  if (groups.length) m.requirement_groups = groups;
+  const rows = (S.cond || []).map((g) => g.filter((r) => r.field)).filter((g) => g.length);
+  if (rows.length || S.condNone) m.conditions = rows;
+  return m;
+}
+
+function showIntakeCheck(form, res, showMissing = true) {
+  form.querySelectorAll('.ccre-field-msg').forEach((x) => { x.innerHTML = ''; });
+  form.querySelectorAll('.ccre-m2c-field').forEach((x) => x.classList.remove('is-err', 'is-missing'));
+  const condKeys = new Set(['min_value', 'max_value', 'min_weight', 'max_weight', 'value_basis', 'currency', 'other_logic']);
+  const put = (k, html, cls) => {
+    const key = condKeys.has(k) ? 'conditions' : k;
+    const box = $(`fm-${key}`);
+    if (!box) return;
+    if (!box.innerHTML.includes(html)) box.innerHTML += `<div>${html}</div>`;
+    if (cls && $(`mf-${key}`)) $(`mf-${key}`).classList.add(cls);
+  };
+  Object.entries(res.errors || {}).forEach(([k, msg]) => put(k, `<span class="ccre-err">&#10005; ${esc(msg)}</span>`, 'is-err'));
+  Object.entries(res.warnings || {}).forEach(([k, msg]) => put(k, `<span class="ccre-warn-text">! ${esc(msg)}</span>`));
+  // A fresh form is not shouted at: "needed" marks appear once the user starts.
+  if (!showMissing) res = { ...res, missing: [] };
+  const missingCond = (res.missing || []).filter((m) => condKeys.has(m.field));
+  (res.missing || []).filter((m) => !condKeys.has(m.field)).forEach((m) => put(m.field, `<span class="ccre-err">Needed — ${esc(m.question)}</span>`, 'is-missing'));
+  if (missingCond.length) put('conditions', '<span class="ccre-err">Needed — add the conditions (value, weight, other logic), or tick “No conditions”.</span>', 'is-missing');
+  const row = res.m2c_row || {};
+  const bits = [];
+  if (row.min_value != null) bits.push(`Min value ${row.min_value}`);
+  if (row.max_value != null) bits.push(`Max value ${row.max_value}`);
+  if (row.value_basis) bits.push(row.value_basis);
+  if (row.currency) bits.push(row.currency);
+  if (row.min_weight != null) bits.push(`Min weight ${row.min_weight} kg`);
+  if (row.max_weight != null) bits.push(`Max weight ${row.max_weight} kg`);
+  if (row.other_logic) bits.push(`Other Logic: ${row.other_logic}`);
+  if ($('cond-preview')) $('cond-preview').innerHTML = bits.length ? `<b>Written in the M2C as:</b> <span class="ccre-mono">${esc(bits.join(' · '))}</span>` : '';
+  const n = (res.missing || []).length + Object.keys(res.errors || {}).length;
+  $('m2c-status').innerHTML = n ? `<span class="ccre-st ccre-st--err">${(res.missing || []).length} to answer · ${Object.keys(res.errors || {}).length} not accepted</span>`
+    : '<span class="ccre-st ccre-st--ok">&#10003; Complete</span>';
+}
+
+function intakeFieldCard(key, label, required, accepted, control, wide) {
+  return `<div class="ccre-m2c-field${wide ? ' ccre-span2' : ''}" id="mf-${key}">
+    <label class="ccre-field-label">${esc(label)}${required ? ' *' : ''}</label>${control}
+    <details class="ccre-accept"><summary>&#9432; Accepted values</summary><div>${esc(accepted)}</div></details>
+    <div class="ccre-field-msg" id="fm-${key}"></div></div>`;
 }
 
 async function renderIntake(el) {
@@ -552,10 +655,10 @@ async function renderIntake(el) {
     ? '<div class="dhl-gate__notice">The requirement is with the CCRE consultant for approval.</div>' : '';
   S.intakeTab = S.intakeTab || 'form';
   let input = '';
+  let condSpec = null;
   if (editable) {
-    input = `<p class="ccre-hint">The CCRE team needs these M2C columns for every requirement: Region · Country · B2B/B2C · Effective date · Expiry · Network product code · DV/IV · Currency · Min/Max value · Min/Max weight · Other logic. Use the form, or describe it and let NLP fill the form, or answer the chat — anything missing is asked for.</p>
-      <div class="ccre-subtabs">
-        <button class="dhl-tab ${S.intakeTab === 'form' ? 'dhl-tab--active' : ''}" data-tab="form">&#128221; Form + NLP</button>
+    input = `<div class="ccre-subtabs">
+        <button class="dhl-tab ${S.intakeTab === 'form' ? 'dhl-tab--active' : ''}" data-tab="form">&#128221; Requirement form</button>
         <button class="dhl-tab ${S.intakeTab === 'chat' ? 'dhl-tab--active' : ''}" data-tab="chat">&#128172; Chat</button>
       </div>`;
     if (S.intakeTab === 'chat') {
@@ -566,20 +669,43 @@ async function renderIntake(el) {
         <button id="intake-send" class="dhl-btn dhl-btn--primary">Send</button></div>`;
     } else {
       const cur = spec.current || {};
+      const opts = spec.options;
+      const fs = Object.fromEntries(spec.fields.map((f) => [f.key, f]));
       const prev = (data.requirement || {}).structured || {};
+      condSpec = { fields: spec.conditions.fields, options: spec.conditions.options,
+        currencies: opts.currency_all, defaultCurrency: (opts.currency || []).includes('EUR') ? 'EUR' : '' };
+      if (S.condCase !== S.caseId) { S.cond = JSON.parse(JSON.stringify(cur.conditions || [])); S.condNone = Array.isArray(cur.conditions) && !cur.conditions.length && !!data.requirement; S.condCase = S.caseId; }
+      const npcNa = cur.network_product_codes === 'N/A';
       input += `<form id="intake-form" class="ccre-card" novalidate>
-        <label class="ccre-field-label">Describe the requirement in your own words (optional — NLP fills the fields below)</label>
-        <textarea name="description" class="dhl-textarea ccre-req" placeholder="e.g. BG consumer shipments must provide IOSS when SDT is present and no DD, declared value above 150 EUR, effective 15-11-2026, no expiry, all products.">${esc((data.requirement || {}).text || '')}</textarea>
-        <div class="ccre-row ccre-wrap ccre-gap"><button type="button" id="intake-nlp" class="dhl-btn dhl-btn--ghost">&#10024; Fill the fields from my text (NLP)</button><span id="m2c-status"></span></div>
-        <h4>M2C criteria</h4>
-        <div class="ccre-m2c-grid">${spec.fields.map((f) => m2cField(f, cur, spec.options)).join('')}</div>
+        <details class="ccre-details" ${data.requirement ? '' : 'open'}><summary>&#10024; Optional: describe it in your own words and let NLP fill the form</summary>
+          <textarea name="description" class="dhl-textarea ccre-req" placeholder="e.g. BG consumer shipments must provide IOSS when SDT is present and no DD, declared value above 150 EUR, effective 15-11-2026, no expiry, all products.">${esc((data.requirement || {}).text || '')}</textarea>
+          <button type="button" id="intake-nlp" class="dhl-btn dhl-btn--ghost ccre-gap">Fill the form from my text</button></details>
+        <div class="ccre-row ccre-space ccre-gap"><h4>Who and when</h4><span id="m2c-status"></span></div>
+        <div class="ccre-m2c-grid">
+          ${intakeFieldCard('region', fs.region.label, true, fs.region.accepted, pickHtml('region', opts.region, cur.region || opts.region_default || ''))}
+          ${intakeFieldCard('country', fs.country.label, true, fs.country.accepted, `<input class="dhl-input" value="${esc(opts.country)}" disabled>`)}
+          ${intakeFieldCard('shipment_type', fs.shipment_type.label, true, fs.shipment_type.accepted,
+            `<select name="shipment_type" class="dhl-select"><option value="">— choose —</option>${opts.shipment_type.map((o) => `<option ${o === cur.shipment_type ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`)}
+          ${intakeFieldCard('effective_date', 'Effective date', true, fs.effective_date.accepted,
+            `<input type="date" name="effective_date" class="dhl-input" value="${esc(cur.effective_date && cur.effective_date !== 'N/A' ? cur.effective_date : '')}">`)}
+          ${intakeFieldCard('expiry_date', 'Date of expiry', false, fs.expiry_date.accepted,
+            `<input type="date" name="expiry_date" class="dhl-input" value="${esc(cur.expiry_date && cur.expiry_date !== 'N/A' ? cur.expiry_date : '')}">
+             <label class="ccre-tick ccre-none"><input type="checkbox" name="no_expiry" ${cur.expiry_date === 'N/A' ? 'checked' : ''}> No expiry</label>`)}
+          ${intakeFieldCard('requirement_groups', 'Requirement to raise (group)', true, fs.requirement_groups.accepted,
+            multiHtml('requirement_groups', opts.requirement_groups, Array.isArray(cur.requirement_groups) ? cur.requirement_groups : []))}
+          ${intakeFieldCard('network_product_codes', fs.network_product_codes.label, false, fs.network_product_codes.accepted,
+            `${multiHtml('network_product_codes', opts.network_product_codes, Array.isArray(cur.network_product_codes) ? cur.network_product_codes : [])}
+             <label class="ccre-tick ccre-none"><input type="checkbox" name="all_products" ${npcNa ? 'checked' : ''}> All products</label>`, true)}
+        </div>
+        <h4>Conditions</h4>
+        <p class="ccre-hint">Value, weight and any other condition. Pick a field, an operator and the value — <b>AND</b> adds a condition that must also hold, <b>OR</b> an alternative to that row. Value and weight limits become the M2C Min/Max columns; the rest becomes Other Logic.</p>
+        <div class="ccre-m2c-field ccre-cond" id="mf-conditions"><div id="cond-builder"></div></div>
         <h4>Other details</h4>
         <div class="ccre-grid2">
           <div><label class="ccre-field-label">Requested go-live</label><input name="requested_rtp" type="date" class="dhl-input" value="${esc(prev.requested_rtp || '')}"></div>
           <div><label class="ccre-field-label">Business owner</label><input name="business_owner" class="dhl-input" value="${esc(prev.business_owner || '')}"></div>
         </div>
         <div class="ccre-row ccre-wrap ccre-gap">
-          <button type="button" id="intake-check" class="dhl-btn dhl-btn--ghost">Check</button>
           <button class="dhl-btn dhl-btn--primary" type="submit">Save requirement</button></div></form>`;
     }
   }
@@ -607,40 +733,65 @@ async function renderIntake(el) {
 
   const form = $('intake-form');
   if (!form) return;
-  const fields = spec.fields;
-  // "None" boxes disable their inputs.
-  const syncNa = () => form.querySelectorAll('[data-na]').forEach((cb) => {
-    const wrap = $(`mf-${cb.dataset.na}`);
-    wrap.querySelectorAll('input:not([data-na]),select,textarea').forEach((i) => { i.disabled = cb.checked; });
-  });
-  form.querySelectorAll('[data-na]').forEach((cb) => { cb.onchange = syncNa; });
-  syncNa();
-  const check = async (text) => {
-    const res = await api('POST', `/api/onboardings/${S.caseId}/intake/extract`, { text: text || '', m2c: collectM2c(form, fields) });
-    showCheck(form, res);
-    return res;
+  let timer = null;
+  let touched = !!data.requirement;
+  const check = () => api('POST', `/api/onboardings/${S.caseId}/intake/extract`, { text: '', m2c: collectIntake(form) })
+    .then((res) => showIntakeCheck(form, res, touched)).catch(() => {});
+  const later = () => { touched = true; clearTimeout(timer); timer = setTimeout(check, 400); };
+  wirePicks(form);
+  wireMulti(form.querySelector('.ccre-m2c-grid'), later);
+  renderBuilder($('cond-builder'), condSpec, later);
+  const syncBoxes = () => {
+    form.expiry_date.disabled = form.no_expiry.checked;
+    form.querySelectorAll('[data-multi="network_product_codes"] select, [data-multi="network_product_codes"] button, [data-multi="network_product_codes"] input')
+      .forEach((x) => { x.disabled = form.all_products.checked; });
   };
-  if (data.requirement && (data.requirement.structured || {}).m2c_check) run('Check', () => check(''));
+  form.addEventListener('change', () => { syncBoxes(); later(); });
+  syncBoxes();
+  check();
+
   $('intake-nlp').onclick = () => run('NLP', async () => {
     const text = form.description.value.trim();
     if (!text) { toast('Write the requirement first.', true); return; }
     const res = await api('POST', `/api/onboardings/${S.caseId}/intake/extract`, { text, m2c: {} });
-    fillM2c(form, fields, res.criteria);
-    syncNa();
-    const after = await check('');
-    toast(after.missing.length ? `Filled from your text — ${after.missing.length} still to answer (marked in red).` : 'All M2C columns filled from your text — check and save.');
+    const c = res.criteria;
+    // Fill only what is still empty — never overwrite a choice already made.
+    const setPick = (key, v) => {
+      const w = form.querySelector(`[data-pick="${key}"]`);
+      if (!w || pickValue(w) || !v || v === 'N/A') return;
+      const sel = w.querySelector('select');
+      if ([...sel.options].some((o) => o.value === v)) sel.value = v; else { sel.value = OTHER; w.querySelector('.ccre-pick-other').hidden = false; w.querySelector('.ccre-pick-other').value = v; }
+    };
+    setPick('region', c.region);
+    if (!form.shipment_type.value && c.shipment_type) form.shipment_type.value = c.shipment_type;
+    if (!form.effective_date.value && c.effective_date && c.effective_date !== 'N/A') form.effective_date.value = c.effective_date;
+    if (c.expiry_date === 'N/A') form.no_expiry.checked = true; else if (!form.expiry_date.value && c.expiry_date) form.expiry_date.value = c.expiry_date;
+    if (c.network_product_codes === 'N/A') form.all_products.checked = true;
+    const setMulti = (key, vals) => {
+      const w = form.querySelector(`[data-multi="${key}"]`);
+      if (!Array.isArray(vals) || multiValues(w).length) return;
+      w.dataset.values = JSON.stringify(vals);
+    };
+    setMulti('network_product_codes', c.network_product_codes);
+    setMulti('requirement_groups', c.requirement_groups);
+    wireMulti(form.querySelector('.ccre-m2c-grid'), later);
+    if (!(S.cond || []).length && (res.conditions || []).length) S.cond = res.conditions;
+    renderBuilder($('cond-builder'), condSpec, later);
+    syncBoxes();
+    touched = true;
+    await check();
+    toast('Form filled from your text — check the fields marked in red.');
   });
-  $('intake-check').onclick = () => run('Check', () => check(''));
   form.onsubmit = (e) => {
     e.preventDefault();
     run('Save requirement', async () => {
-      const f = new FormData(form);
       const res = await api('POST', `/api/onboardings/${S.caseId}/intake/form`, {
-        description: f.get('description') || '', m2c: collectM2c(form, fields),
-        requested_rtp: f.get('requested_rtp') || null, business_owner: f.get('business_owner') || null,
+        description: form.description.value || '', m2c: collectIntake(form),
+        requested_rtp: form.requested_rtp.value || null, business_owner: form.business_owner.value || null,
       });
+      S.condCase = null;
       toast(res.check.complete ? 'Requirement saved and complete — submit it for approval.'
-        : `Saved — ${res.check.missing.length} column(s) still missing, ${Object.keys(res.check.errors).length} not accepted.`, !res.check.complete);
+        : `Saved — ${res.check.missing.length} to answer, ${Object.keys(res.check.errors).length} not accepted.`, !res.check.complete);
       await refreshCase();
     });
   };

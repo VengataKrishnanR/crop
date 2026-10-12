@@ -438,6 +438,15 @@ def _is_num_bound(v: Any) -> bool:
 
 def normalise(criteria: dict[str, Any], options: dict[str, Any]) -> dict[str, Any]:
     c = {k: v for k, v in (criteria or {}).items() if k in FIELD_BY_KEY and v not in (None, "", [])}
+    if isinstance((criteria or {}).get("conditions"), list):
+        # The condition builder decides value, weight and Other Logic; anything it
+        # does not set does not apply.
+        c["conditions"] = criteria["conditions"]
+        derived, builder_errors = from_conditions(criteria["conditions"])
+        for key in ("min_value", "max_value", "min_weight", "max_weight", "value_basis", "currency", "other_logic"):
+            c[key] = derived.get(key, NA)
+        if builder_errors:
+            c["_builder_errors"] = builder_errors
     c["country"] = options.get("country") or c.get("country")
     for key in ("region", "shipment_type", "value_basis", "currency"):
         if isinstance(c.get(key), str) and c[key] != NA:
@@ -477,6 +486,8 @@ def check(criteria: dict[str, Any], options: dict[str, Any]) -> dict[str, Any]:
     c = normalise(criteria, options)
     errors: dict[str, str] = {}
     warnings: dict[str, str] = {}
+    if c.get("_builder_errors"):
+        errors["conditions"] = " ".join(c.pop("_builder_errors"))
 
     if c.get("region") not in (None, NA) and options.get("region") and c["region"] not in options["region"]:
         errors["region"] = f"'{c['region']}' is not a region in the workbook ({', '.join(options['region'])})."
@@ -624,3 +635,189 @@ def describe(c: dict[str, Any]) -> list[tuple[str, str]]:
                 return v
         return str(v)
     return [(f["label"], show(f["key"])) for f in FIELDS]
+
+
+
+# --------------------------------------------------------------------------- #
+# the condition builder (value, weight and Other Logic as rows: field · operator · value)
+# --------------------------------------------------------------------------- #
+#
+# ``criteria["conditions"]`` is a list of groups. Rows inside a group are joined
+# with OR; groups are joined with AND ("all of these conditions must be met").
+# Each row: {"field", "op", "values": [...], "value", "value2", "currency"}.
+
+ISO_COUNTRIES = (
+    "AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY "
+    "BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM "
+    "FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU IC ID IE IL IM IN IO IQ IR IS "
+    "IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM "
+    "MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS "
+    "PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK "
+    "TL TM TN TO TR TT TV TW TZ UA UG UK UM US UY UZ VA VC VE VG VI VN VU WF WS XK YE YT ZA ZM ZW"
+).split()
+INCOTERMS = ("DDP", "DAP", "DPU", "EXW", "FCA", "CPT", "CIP", "FAS", "FOB", "CFR", "CIF", "DDU")
+BASE_SERVICE_CODES = ("DD", "DS", "DE", "DT", "DU")
+
+NUM_OPS = [("gt", "is greater than"), ("ge", "is at least (≥)"), ("lt", "is less than"),
+           ("le", "is at most (≤)"), ("eq", "is equal to"), ("between", "is between")]
+CONDITION_FIELDS: list[dict[str, Any]] = [
+    {"key": "declared_value", "label": "Declared value", "kind": "number", "unit": "currency", "ops": NUM_OPS},
+    {"key": "intrinsic_value", "label": "Intrinsic value", "kind": "number", "unit": "currency", "ops": NUM_OPS},
+    {"key": "weight", "label": "Shipment weight (kg)", "kind": "number", "unit": "kg", "ops": NUM_OPS},
+    {"key": "service_code", "label": "Service code", "kind": "list", "source": "service_codes",
+     "ops": [("any", "contains any of"), ("none", "does not contain")]},
+    {"key": "incoterm", "label": "Incoterm", "kind": "list", "source": "incoterms",
+     "ops": [("any", "is one of"), ("none", "is not one of")]},
+    {"key": "origin_country", "label": "Origin country", "kind": "list", "source": "countries",
+     "ops": [("any", "is one of"), ("none", "is not one of")]},
+    {"key": "short_code", "label": "Short code (e.g. SDT)", "kind": "one", "source": "short_codes",
+     "ops": [("present", "is present (has a value)"), ("blank", "is blank")]},
+    {"key": "hs_code", "label": "Inbound HS code", "kind": "text",
+     "ops": [("blank", "is blank"), ("equals", "equals")]},
+    {"key": "custom", "label": "Custom expression (CCRE)", "kind": "text", "ops": [("expr", "is")]},
+]
+COND_BY_KEY = {f["key"]: f for f in CONDITION_FIELDS}
+LABELS = {**{f["key"]: f["label"] for f in FIELDS}, "conditions": "Conditions"}
+
+
+def condition_options(session) -> dict[str, list[str]]:
+    from sqlalchemy import select
+
+    from tools.core.models import ExpressionTemplate, Rule
+    texts = [t for t in list(session.execute(select(Rule.other_logic)).scalars())
+             + list(session.execute(select(ExpressionTemplate.expression)).scalars()) if t]
+    blob = "\n".join(texts)
+    services = sorted(set(BASE_SERVICE_CODES) | set(re.findall(r'serviceCodeList\.contains\("([A-Z0-9]+)"\)', blob)))
+    shorts = sorted({"SDT"} | set(re.findall(r"shortCode[|,]==[|,]([A-Za-z0-9]+)", blob)))
+    found = set(re.findall(r'incoterm\w*\.contains\("([A-Z]+)"\)', blob, re.I)) - set(INCOTERMS)
+    return {"service_codes": services, "short_codes": shorts, "incoterms": list(INCOTERMS) + sorted(found),
+            "countries": list(ISO_COUNTRIES)}
+
+
+def _row_clause(row: dict[str, Any]) -> str:
+    """One non-numeric builder row as Other Logic (reusing the rule-config builder)."""
+    from tools.ruleconfig import _clause
+    field, op = row.get("field"), row.get("op")
+    vals = row.get("values") or ([row["value"]] if row.get("value") not in (None, "") else [])
+    if field in ("service_code", "incoterm", "origin_country"):
+        mapped = {"service_code": ("has any of", "has none of"), "incoterm": ("is one of", "is none of"),
+                  "origin_country": ("is one of", "is none of")}[field]
+        return _clause({"type": field, "op": mapped[0] if op == "any" else mapped[1], "values": vals})
+    if field == "short_code":
+        return _clause({"type": "short_code", "op": "is blank" if op == "blank" else "is present (has a value)",
+                        "values": vals[:1]})
+    if field == "hs_code":
+        return _clause({"type": "hs_code", "op": "is blank" if op == "blank" else "equals", "values": vals})
+    if field == "custom":
+        return _clause({"type": "raw", "values": " ".join(str(v) for v in vals)})
+    raise ValueError(f"Unknown condition field: {field}")
+
+
+def from_conditions(groups: list) -> tuple[dict[str, Any], list[str]]:
+    """Builder rows → the M2C columns (min/max value and weight, DV/IV, currency, Other Logic)."""
+    out: dict[str, Any] = {}
+    errors: list[str] = []
+    logic_groups: list[str] = []
+    for group in groups or []:
+        rows = [r for r in (group or []) if isinstance(r, dict) and r.get("field")]
+        if not rows:
+            continue
+        numeric = [r for r in rows if COND_BY_KEY.get(r["field"], {}).get("kind") == "number"]
+        if numeric and len(rows) > 1:
+            errors.append("Value and weight limits cannot be joined with OR — the M2C has one minimum and one "
+                          "maximum per row. Join them with AND (or ask the CCRE team for a second row).")
+            continue
+        if numeric:
+            r = numeric[0]
+            spec = COND_BY_KEY[r["field"]]
+            try:
+                a = float(r.get("value"))
+                b = float(r["value2"]) if r.get("op") == "between" else None
+            except (TypeError, ValueError, KeyError):
+                errors.append(f"{spec['label']}: enter a number" + (" in both boxes." if r.get("op") == "between" else "."))
+                continue
+            if a < 0 or (b is not None and b < 0):
+                errors.append(f"{spec['label']}: must be 0 or more.")
+                continue
+            kind = "weight" if r["field"] == "weight" else "value"
+            lo, hi = f"min_{kind}", f"max_{kind}"
+            bounds = {"gt": {lo: {"op": ">", "value": a}}, "ge": {lo: {"op": ">=", "value": a}},
+                      "lt": {hi: {"op": "<", "value": a}}, "le": {hi: {"op": "<=", "value": a}},
+                      "eq": {lo: {"op": ">=", "value": a}, hi: {"op": "<=", "value": a}},
+                      "between": {lo: {"op": ">=", "value": a}, hi: {"op": "<=", "value": b if b is not None else a}},
+                      }.get(r.get("op"))
+            if bounds is None:
+                errors.append(f"{spec['label']}: choose an operator.")
+                continue
+            if r.get("op") == "between" and b is not None and b < a:
+                errors.append(f"{spec['label']}: the second number must not be below the first.")
+                continue
+            for key, bound in bounds.items():
+                if key in out:
+                    side = "minimum" if key.startswith("min") else "maximum"
+                    errors.append(f"{spec['label']}: two {side} limits given — keep one per side.")
+                out[key] = bound
+            if kind == "value":
+                basis = "DV" if r["field"] == "declared_value" else "IV"
+                if out.get("value_basis", basis) != basis:
+                    errors.append("Use either declared value or intrinsic value, not both.")
+                out["value_basis"] = basis
+                cur = str(r.get("currency") or "").strip().upper()
+                if not cur:
+                    errors.append(f"{spec['label']}: choose the currency.")
+                elif out.get("currency", cur) != cur:
+                    errors.append("All value limits must use the same currency.")
+                else:
+                    out["currency"] = cur
+            continue
+        parts = []
+        for r in rows:
+            spec = COND_BY_KEY.get(r["field"])
+            if spec is None:
+                errors.append(f"Unknown condition '{r['field']}'.")
+                continue
+            vals = r.get("values") or ([r["value"]] if r.get("value") not in (None, "") else [])
+            needs_value = not (r["field"] == "hs_code" and r.get("op") == "blank")
+            if needs_value and not vals:
+                errors.append(f"{spec['label']}: choose a value.")
+                continue
+            try:
+                text = _row_clause(r)
+            except ValueError as exc:
+                errors.append(f"{spec['label']}: {exc}")
+                continue
+            parts.append(f"({text})" if (" && " in text or " || " in text) and len(rows) > 1 else text)
+        if parts:
+            logic_groups.append(" || ".join(parts))
+    if logic_groups:
+        multi = len(logic_groups) > 1
+        out["other_logic"] = " && ".join(f"({g})" if multi and " || " in g else g for g in logic_groups)
+    return out, errors
+
+
+def to_conditions(c: dict[str, Any], text: str = "") -> list[list[dict[str, Any]]]:
+    """Criteria (e.g. read from text by NLP) as builder rows, so the form can show them."""
+    groups: list[list[dict[str, Any]]] = []
+    ops = {">": "gt", ">=": "ge", "<": "lt", "<=": "le", "=": "eq"}
+    for kind in ("value", "weight"):
+        lo, hi = c.get(f"min_{kind}"), c.get(f"max_{kind}")
+        field = "weight" if kind == "weight" else ("intrinsic_value" if c.get("value_basis") == "IV" else "declared_value")
+        cur = c.get("currency") if c.get("currency") not in (None, NA) and kind == "value" else None
+        if _is_num_bound(lo) and _is_num_bound(hi) and lo["op"] == ">=" and hi["op"] == "<=":
+            groups.append([{"field": field, "op": "between", "value": lo["value"], "value2": hi["value"],
+                            "currency": cur}])
+            continue
+        for b in (lo, hi):
+            if _is_num_bound(b):
+                groups.append([{"field": field, "op": ops.get(b["op"], "ge"), "value": b["value"], "currency": cur}])
+    reverse = {"service_code": {"has any of": "any", "has none of": "none"},
+               "incoterm": {"is one of": "any", "is none of": "none"},
+               "origin_country": {"is one of": "any", "is none of": "none"},
+               "short_code": {"is present (has a value)": "present", "is blank": "blank"}}
+    clauses = conditions_in(text) if text else []
+    for cl in clauses:
+        groups.append([{"field": cl["type"], "op": reverse.get(cl["type"], {}).get(cl["op"], "any"),
+                        "values": [v.strip() for v in str(cl["values"]).split(",") if v.strip()]}])
+    if not clauses and c.get("other_logic") not in (None, NA):
+        groups.append([{"field": "custom", "op": "expr", "values": [c["other_logic"]]}])
+    return groups
