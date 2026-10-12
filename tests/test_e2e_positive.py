@@ -49,7 +49,9 @@ def _onboard_to_uat_execution(client: TestClient) -> str:
     assert case.json()["state"] == "INTAKE" and case.json()["code"].startswith("ONB-")
 
     # 1. Intake by form + NLP (business team)
-    form = client.post(f"/api/onboardings/{case_id}/intake/form", headers=BUSINESS, json={"m2c": FULL_M2C,
+    # The DDP condition comes from the condition builder (incoterm is one of DDP).
+    m2c = {**FULL_M2C, "conditions": [[{"field": "incoterm", "op": "any", "values": ["DDP"]}]]}
+    form = client.post(f"/api/onboardings/{case_id}/intake/form", headers=BUSINESS, json={"m2c": m2c,
         "description": "DE consumer shipments must provide a Power of Attorney when the incoterm is DDP.",
         "shipment_type": "B2C", "requirement_groups": ["POA"], "requested_rtp": "2027-03-31",
         "business_owner": "Anna Schmidt"})
@@ -92,6 +94,7 @@ def _onboard_to_uat_execution(client: TestClient) -> str:
     early = client.post(f"/api/onboardings/{case_id}/uat/test-cases/generate", json={}, headers=TEAM)
     assert early.status_code == 200, early.text
 
+    align_rows(client, case_id)
     complete_dmg(client, case_id)
     _go(client, case_id, "request_sanity_check", TEAM)
     sanity = client.get(f"/api/onboardings/{case_id}/sanity", headers=TEAM).json()
@@ -114,6 +117,17 @@ def _onboard_to_uat_execution(client: TestClient) -> str:
     approve_rows(client, case_id, BUSINESS)
     _go(client, case_id, "business_approve_test_cases", BUSINESS)
     return case_id
+
+
+def align_rows(client: TestClient, case_id: str) -> None:
+    """CCRE team: make the rows for the requirement's groups say what the requirement says."""
+    req = client.get(f"/api/onboardings/{case_id}/intake", headers=TEAM).json()["requirement"]["structured"]
+    groups = set((req.get("m2c") or {}).get("requirement_groups") or req.get("requirement_groups") or [])
+    for row in client.get(f"/api/onboardings/{case_id}/rule-config", headers=TEAM).json()["rows"]:
+        if row["sirg_cd"] in groups:
+            resp = client.post(f"/api/onboardings/{case_id}/rule-config/rows/{row['id']}/align-requirement",
+                               headers=TEAM)
+            assert resp.status_code == 200, resp.text
 
 
 def complete_dmg(client: TestClient, case_id: str) -> None:

@@ -676,3 +676,48 @@ class DmgTask(Base):
     notification_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     sent_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
     updated_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+# --------------------------------------------------------------------------- #
+# Sanity check -- evidence that the configuration was checked before UAT
+# --------------------------------------------------------------------------- #
+
+class SanityRun(Base):
+    """One run of the sanity checklist against the onboarding's configuration.
+
+    ``fingerprint`` identifies exactly what was checked (M2C rows and bindings,
+    requirement version, DMG status, package version, waivers). Approving the
+    sanity check needs a passing run whose fingerprint still matches -- so any
+    change after the run means it must run again.
+    """
+
+    __tablename__ = "sanity_run"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    case_id: Mapped[str] = mapped_column(String(36), ForeignKey("onboarding_case.id"), index=True)
+    rule_set_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    cycle: Mapped[int] = mapped_column(Integer, default=1)
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(8))           # PASS | FAIL
+    passed: Mapped[int] = mapped_column(Integer, default=0)
+    failed: Mapped[int] = mapped_column(Integer, default=0)
+    waived: Mapped[int] = mapped_column(Integer, default=0)
+    items: Mapped[Any] = mapped_column(JSON, default=list)  # the checklist as shown, with findings
+    run_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now, index=True)
+
+
+class SanityWaiver(Base):
+    """A check accepted as an exception, with the reason (e.g. the Support ticket for a package gap)."""
+
+    __tablename__ = "sanity_waiver"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    case_id: Mapped[str] = mapped_column(String(36), ForeignKey("onboarding_case.id"), index=True)
+    item_key: Mapped[str] = mapped_column(String(32))        # only waivable checks: package, requirement_match
+    reason: Mapped[str] = mapped_column(Text)
+    reference: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)   # ticket / email ref
+    waived_by: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
+    revoked_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    revoked_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)

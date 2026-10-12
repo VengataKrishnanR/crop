@@ -133,6 +133,29 @@ In **Rule configuration**, **Rows from the requirement** creates one M2C row per
 
 ---
 
+## Sanity check (step 4)
+
+Six plain checks, **run automatically** when the onboarding enters the stage:
+
+| # | Check | When it fails |
+|---|---|---|
+| 1 | The M2C rows are complete | The rows with errors and what is wrong |
+| 2 | The M2C rows match the approved requirement | Per requirement group: the row, then field by field, what the requirement says vs what the M2C says |
+| 3 | The rules pass validation | The 16 checks (package checks excluded), with row numbers |
+| 4 | The config package can raise every requirement | The missing mappings, plus **Download the package request** for Support |
+| 5 | The DMG email task is completed | Its status |
+| 6 | What changes in the M2C | Information for the reviewer: new / changed / removed rows |
+
+- **Approve** needs a passing run of the current configuration. If anything changes after the run, it must run again.
+- **Send back to rule config** fills in the reason from the failed checks, e.g. *"row 38 (POA) differs in Effective date, …"*.
+- A **package gap** (Support ticket raised) or a **deliberate difference** from the requirement can be **accepted as an exception** by a CCRE consultant, with a reason and a reference. Everything else must be fixed.
+- Every run is saved, with a history and a **Report (.xlsx)**.
+- The same checks show as a **pre-check** in Rule configuration → Validate & download, and **Align with the requirement** fixes check 2 in one click.
+
+How the data is stored: see [docs/DATABASE.md](docs/DATABASE.md).
+
+---
+
 ## Rule configuration workspace
 
 Step 3 is where the M2C is actually built. The draft starts as the country's live rows from the loaded workbook, and every edit is checked immediately.

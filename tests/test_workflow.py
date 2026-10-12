@@ -112,15 +112,13 @@ def test_requirement_must_exist_before_submission() -> None:
     assert workflow.gate_reasons(t, GateContext(has_requirement=True)) == []
 
 
-def test_sanity_needs_clean_validation_and_complete_package() -> None:
+def test_sanity_needs_a_passing_current_run_and_the_dmg_task() -> None:
     t = workflow.find_transition(State.SANITY_CHECK, "sanity_passed")
-    assert any("not been run" in r for r in workflow.gate_reasons(t, GateContext(has_rule_set=True)))
-    blocked = workflow.gate_reasons(t, GateContext(has_rule_set=True, report=_dirty(), package_complete=True))
-    assert any("blocking finding" in r for r in blocked)
-    no_pkg = workflow.gate_reasons(t, GateContext(has_rule_set=True, report=_clean(), package_complete=False))
-    assert any("package" in r for r in no_pkg)
-    assert workflow.gate_reasons(t, GateContext(has_rule_set=True, report=_clean(), package_complete=True,
-                                                dmg_complete=True)) == []
+    gap = workflow.gate_reasons(t, GateContext(has_rule_set=True, dmg_complete=True,
+                                               sanity_gap="Run the sanity check first."))
+    assert gap == ["Run the sanity check first."]
+    assert workflow.gate_reasons(t, GateContext(has_rule_set=True, dmg_complete=True)) == []
+    assert any("DMG" in r for r in workflow.gate_reasons(t, GateContext(has_rule_set=True)))
 
 
 def test_results_need_complete_execution_and_passing_tests() -> None:

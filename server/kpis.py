@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from tools.core.db import get_session
 from tools.core.models import (
-    AuditEvent, Milestone, OnboardingCase, Rule, Timeline, UatRun, UatTestCase, ValidationRun,
+    AuditEvent, Milestone, OnboardingCase, Rule, SanityRun, Timeline, UatRun, UatTestCase, ValidationRun,
 )
 from tools.timeline.planning import working_days_between
 from tools.workflow import STATE_LABELS, State, stage_of
@@ -98,10 +98,17 @@ def compute_kpis(session: Session) -> dict[str, Any]:
             lead_times.append(_days(completed_at - _naive(case.created_at)))
         cycles.append(1 + corrections)
 
-        first_validation = session.execute(
+        # First time right: the first sanity check run passed (older onboardings: the first validation run).
+        first_sanity = session.execute(
+            select(SanityRun).where(SanityRun.case_id == case.id)
+            .order_by(SanityRun.created_at).limit(1)).scalar_one_or_none()
+        first_validation = None if first_sanity else session.execute(
             select(ValidationRun).where(ValidationRun.case_id == case.id)
             .order_by(ValidationRun.at).limit(1)).scalar_one_or_none()
-        if first_validation is not None:
+        if first_sanity is not None:
+            ftr_total += 1
+            ftr_hits += int(first_sanity.status == "PASS")
+        elif first_validation is not None:
             ftr_total += 1
             ftr_hits += int(first_validation.blocker_count == 0)
 
@@ -174,7 +181,7 @@ def compute_kpis(session: Session) -> dict[str, Any]:
             "avg_lead_time_days": "Calendar days from onboarding created to completed (completed onboardings only).",
             "schedule_on_time_pct": "Share of finished milestones that ended on or before the approved plan.",
             "avg_milestone_slip_working_days": "Average working days a finished milestone ended after plan (negative = early).",
-            "m2c_first_time_right_pct": "Share of onboardings whose first M2C validation had no blockers.",
+            "m2c_first_time_right_pct": "Share of onboardings whose first sanity check run passed.",
             "avg_correction_cycles": "UAT cycles per onboarding (1 = no M2C correction needed).",
             "first_run_pass_rate_pct": "Test cases passing in each onboarding's first UAT run.",
             "rule_coverage_pct": "M2C rules referenced by at least one non-rejected UAT test case.",
