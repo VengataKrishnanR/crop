@@ -89,6 +89,24 @@ Without any endpoint the run uses a built-in **mock CCRE** (offline demo). Your 
 
 ---
 
+## Rule configuration workspace
+
+Step 3 is where the M2C is actually built. The draft starts as the country's live rows from the loaded workbook, and every edit is checked immediately.
+
+| Sub-tab | What it does |
+|---|---|
+| **Rules (Import + SIR Reference)** | One line per Import row with a status: ✓ OK · ! to check · ⚠ package gap · ✕ error. **Edit** opens the row: every Import column (lists come from the workbook's Validation tab), **Other Logic** typed, picked from the workbook palette, or built from choices (service code, incoterm, origin country, short code such as SDT, HS code) and checked by the validator's grammar, plus the row's **requirement definitions**: search the config package, bind, and set *waived to validate* / *waived if whitelisted* / *only if service code* / the attributes. Add, duplicate and remove rows; or let the AI propose rows from the approved requirement and accept them. |
+| **Changes vs workbook** | New, changed (field by field: old → new) and removed rows compared with the workbook. |
+| **Package coverage** | The Technical SIR / Technical SIRG view: is every group and definition the draft uses shipped by the config package and mapped for the country? Gaps → **Package request (.csv)** for Support, in the package's own mapping format. |
+| **DMG email** | The DMG email task (unchanged from v3). |
+| **Validate & download** | Full validation, and **Download M2C (.xlsx)**: the country's M2C in the workbook layout (Import, Export, SIR Reference, Technical SIR, Technical SIRG, Other Logic, Validation) plus a Changes tab. Document references are the workbook's `CONCATENATE` formula and SIR Reference positions are generated `IF(Import!P<n>…)` formulas, so they always point at the right row. |
+
+**Errors** (e.g. min value above max, expiry before effective date, unparseable Other Logic, no requirement group) **block "Submit rule config + DMG for sanity check"**. **Package gaps** do not block submitting, because Support fixes them in the package; they are gated at the sanity check. Rows are editable only while the onboarding is in Rule configuration and only by the CCRE team / consultant; every edit is on the audit trail.
+
+**Who submits:** the **business** submits its requirement (the CCRE consultant approves or rejects it); the **CCRE consultant** prepares and submits the timeline (the PM approves or returns it).
+
+---
+
 ## Roles (Admin panel)
 
 | Role | Does |
@@ -106,9 +124,9 @@ Without any endpoint the run uses a built-in **mock CCRE** (offline demo). Your 
 ## The lifecycle
 
 ```
-1  Requirement intake      Business / CCRE: chatbot or form + NLP     → CCRE consultant approves / rejects
-2  Timeline                AI plans from PM questionnaire              → PM approves (published) / rejects
-3  Rule config + DMG       CCRE team: M2C draft + AI conversion; DMG email prepared → reviewed → sent
+1  Requirement intake      Business: chatbot or form + NLP, submits   → CCRE consultant approves / rejects
+2  Timeline                CCRE consultant plans (AI) and submits     → PM approves (published) / rejects
+3  Rule config + DMG       CCRE team: M2C workspace (rows, bindings, changes, coverage, .xlsx); DMG email
 4  Sanity check            Checklist: M2C valid · package complete · DMG done → CCRE approves / rejects
 5  UAT test case prep      AI rows + "+ scenario" (NLP); may start during step 3
 6  UAT test case review    Each row approved/rejected: CCRE team first → then business team

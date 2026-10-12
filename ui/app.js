@@ -112,7 +112,12 @@ function dialog(title, bodyHtml, okLabel = 'OK') {
     $('dialog-form').onsubmit = (e) => {
       e.preventDefault();
       const values = {};
-      $('dialog-body').querySelectorAll('[name]').forEach((f) => { values[f.name] = f.value; });
+      $('dialog-body').querySelectorAll('[name]').forEach((f) => {
+        if (f.type !== 'checkbox') { values[f.name] = f.value; return; }
+        // A tick box without a value is yes/no; a group of boxes with values gives the ticked values.
+        if (f.hasAttribute('value')) { (values[f.name] = values[f.name] || []); if (f.checked) values[f.name].push(f.value); }
+        else values[f.name] = f.checked;
+      });
       done(values);
     };
     $('dialog-cancel').onclick = () => done(null);
@@ -226,6 +231,7 @@ $('new-form').onsubmit = (e) => {
 // ── case workspace ───────────────────────────────────────────
 async function openCase(id, keepStage) {
   const changed = id !== S.caseId;
+  if (S.caseId !== id) { S.rcOpen = null; S.rcTab = null; }
   S.caseId = id;
   S.overview = await api('GET', `/api/onboardings/${id}`);
   if (changed || !keepStage) S.viewStage = S.overview.stage;
@@ -328,25 +334,43 @@ function renderActions() {
     </div>`;
   }).join('');
   $('actions').querySelectorAll('[data-act]').forEach((b) => {
-    b.onclick = () => run('Action', async () => {
-      const name = b.dataset.act;
-      let comment = null;
-      if (b.dataset.kind === 'reject') {
-        const v = await dialog(b.textContent.trim(), `<label class="ccre-field-label">Reason for rejecting (required — shared with the team and kept on the audit trail)</label>
-          <textarea class="dhl-textarea ccre-small" name="comment" required></textarea>`, 'Reject');
-        if (!v) return;
-        comment = v.comment;
-      } else if (b.dataset.kind === 'approve') {
-        const v = await dialog(b.textContent.trim(), `<label class="ccre-field-label">Comment (optional)</label>
-          <textarea class="dhl-textarea ccre-small" name="comment"></textarea>`, 'Approve');
-        if (!v) return;
-        comment = v.comment || null;
-      }
-      await api('POST', `/api/onboardings/${S.caseId}/transition`, { name, comment });
-      toast(`Done: ${b.textContent.trim()}`);
-      S.viewStage = null;
-      await refreshCase();
-    });
+    b.onclick = () => doTransition(b.dataset.act, b.dataset.kind, b.textContent.trim());
+  });
+}
+
+function doTransition(name, kind, label) {
+  return run('Action', async () => {
+    let comment = null;
+    if (kind === 'reject') {
+      const v = await dialog(label, `<label class="ccre-field-label">Reason for rejecting (required — shared with the team and kept on the audit trail)</label>
+        <textarea class="dhl-textarea ccre-small" name="comment" required></textarea>`, 'Reject');
+      if (!v) return;
+      comment = v.comment;
+    } else if (kind === 'approve') {
+      const v = await dialog(label, `<label class="ccre-field-label">Comment (optional)</label>
+        <textarea class="dhl-textarea ccre-small" name="comment"></textarea>`, 'Approve');
+      if (!v) return;
+      comment = v.comment || null;
+    }
+    await api('POST', `/api/onboardings/${S.caseId}/transition`, { name, comment });
+    toast(`Done: ${label}`);
+    S.viewStage = null;
+    await refreshCase();
+  });
+}
+
+// A "next step" call-out inside a stage panel, for the person who owns that step.
+function nextStep(name, text) {
+  const a = (S.overview.actions || []).find((x) => x.name === name && x.mine);
+  if (!a) return '';
+  return `<div class="ccre-next"><div><strong>Next step:</strong> ${esc(text)}
+      ${a.allowed ? '' : `<div class="ccre-hint">${esc(a.blocked_by.join(' '))}</div>`}</div>
+    <button class="dhl-btn dhl-btn--primary" data-next="${esc(a.name)}" data-kind="${esc(a.kind)}" ${a.allowed ? '' : 'disabled'}>${esc(a.label)}</button></div>`;
+}
+
+function wireNextStep(el) {
+  el.querySelectorAll('[data-next]').forEach((b) => {
+    b.onclick = () => doTransition(b.dataset.next, b.dataset.kind, b.textContent.trim());
   });
 }
 
@@ -420,7 +444,9 @@ async function renderIntake(el) {
         <button class="dhl-btn dhl-btn--primary ccre-gap" type="submit">Convert with NLP</button></form>`;
     }
   }
-  el.innerHTML = `<h3>Requirement intake</h3>${reviewNote}${input}<h4>Captured requirement</h4>${requirementCard(data.requirement)}`;
+  const next = data.requirement ? nextStep('submit_requirement', 'the requirement is captured — send it to the CCRE consultant for approval.') : '';
+  el.innerHTML = `<h3>Requirement intake</h3>${reviewNote}${next}${input}<h4>Captured requirement</h4>${requirementCard(data.requirement)}`;
+  wireNextStep(el);
   const chatBox = $('intake-chat');
   if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
   el.querySelectorAll('.ccre-subtabs .dhl-tab').forEach((b) => {
@@ -463,9 +489,9 @@ async function renderTimeline(el) {
   if (isBusiness() && !tl) return businessWaiting(el, 'The delivery timeline will appear here once the PM approves it.');
   const planning = state() === 'TIMELINE_PLANNING';
   const editable = !isBusiness() && ['TIMELINE_PLANNING', 'TIMELINE_REVIEW'].includes(state())
-    && hasRole('PM', 'CCRE_TEAM', 'ADMIN');
+    && hasRole('CCRE_CONSULTANT', 'PM', 'ADMIN');
   let html = '<h3>Delivery timeline</h3>';
-  if (planning && hasRole('PM', 'CCRE_TEAM', 'ADMIN')) {
+  if (planning && hasRole('CCRE_CONSULTANT', 'PM', 'ADMIN')) {
     const prev = (tl && tl.answers) || {};
     html += `<form id="tl-form" class="ccre-card"><strong>PM questionnaire</strong>
       <p class="ccre-hint">The AI plans the seven milestones from these answers; the PM approves the plan before it is shown to the business team.</p>
@@ -499,7 +525,9 @@ async function renderTimeline(el) {
   } else if (!planning) {
     html += '<p class="ccre-hint">The timeline is planned after the CCRE consultant approves the requirement.</p>';
   }
+  if (tl && tl.status === 'DRAFT') html = nextStep('submit_timeline', 'review the plan, then send it to the PM for approval.') + html;
   el.innerHTML = html;
+  wireNextStep(el);
   if ($('tl-form')) {
     $('tl-form').onsubmit = (e) => {
       e.preventDefault();
@@ -537,17 +565,28 @@ function findingsHtml(rep) {
       ${f.evidence ? `<div class="ccre-finding__evidence">${esc(f.evidence)}</div>` : ''}</li>`).join('')}</ul>`;
 }
 
+// ── Rule configuration workspace ─────────────────────────────
+// Sub-tabs: the Import rows (with their bindings = SIR Reference), changes vs the
+// workbook, package coverage (Technical SIR/SIRG), the DMG email and the M2C download.
+const RC_TABS = [
+  ['rows', 'Rules (Import + SIR Reference)'], ['changes', 'Changes vs workbook'],
+  ['coverage', 'Package coverage'], ['dmg', 'DMG email'], ['download', 'Validate & download'],
+];
+const RC_STATUS = {
+  ok: ['ccre-st--ok', '&#10003; OK'], warning: ['ccre-st--warn', '! Check'],
+  package: ['ccre-st--pkg', '&#9888; Package gap'], error: ['ccre-st--err', '&#10005; Error'],
+};
+
 async function renderRuleConfig(el) {
   if (isBusiness()) return businessWaiting(el, 'The CCRE team is configuring the rules and DMG changes for your requirement.');
-  const m = await api('GET', `/api/onboardings/${S.caseId}/m2c`);
-  const canEdit = state() === 'RULE_CONFIG' && hasRole(...CCRE);
-  let html = '<h3>Rule config + DMG changes (M2C draft)</h3>';
-  if (!m.rule_set) {
-    html += canEdit
-      ? '<p>Start the M2C draft. It is seeded with this country\'s existing workbook rows.</p><button id="m2c-start" class="dhl-btn dhl-btn--primary">Start M2C draft</button>'
-      : '<p class="ccre-hint">The M2C draft starts when the onboarding reaches rule configuration.</p>';
-    html += '<h4>DMG changes</h4>' + await dmgSection();
-    el.innerHTML = html;
+  const canStart = state() === 'RULE_CONFIG' && hasRole(...CCRE);
+  const ws = await api('GET', `/api/onboardings/${S.caseId}/rule-config`);
+  if (!ws.draft) {
+    el.innerHTML = `<h3>Rule configuration + DMG</h3>
+      ${canStart ? `<div class="ccre-next"><div><strong>Next step:</strong> start the M2C draft. It is seeded with ${esc(ws.country)}'s existing rows from the loaded workbook, so you edit what is live instead of retyping it.</div>
+        <button id="m2c-start" class="dhl-btn dhl-btn--primary">Start M2C draft</button></div>`
+        : '<p class="ccre-hint">The M2C draft starts when the onboarding reaches rule configuration.</p>'}
+      <h4>DMG changes</h4>${await dmgSection()}`;
     wireDmg(el);
     if ($('m2c-start')) {
       $('m2c-start').onclick = () => run('Start M2C', async () => {
@@ -558,49 +597,320 @@ async function renderRuleConfig(el) {
     }
     return;
   }
-  const proposals = m.proposals.filter((p) => p.status === 'PROPOSED');
-  html += `<p class="ccre-hint">${esc(m.note)}</p>
-    <div class="ccre-row ccre-wrap ccre-gap">
-      ${canEdit ? '<input id="m2c-notes" class="dhl-input" placeholder="Notes for the AI drafter (optional)"><button id="m2c-draft" class="dhl-btn dhl-btn--primary">&#9998; Convert requirement to M2C (AI)</button>' : ''}
-      <button id="m2c-validate" class="dhl-btn dhl-btn--ghost">&#9989; Validate</button>
+  S.rc = ws;
+  S.rcTab = S.rcTab || 'rows';
+  const s = ws.summary;
+  el.innerHTML = `<div class="ccre-row ccre-space ccre-wrap"><h3>Rule configuration + DMG — ${esc(ws.draft.label || ws.draft.version)}</h3>
+      <span class="ccre-hint">Workbook ${esc(ws.draft.source_version || '—')} · config package ${esc(ws.package_version || '—')}${ws.editable ? '' : ' · <strong>read only</strong>'}</span></div>
+    ${nextStep('request_sanity_check', 'when every row is free of errors and the DMG email task is completed, send the configuration to the sanity check.')}
+    <div class="ccre-rc-summary">
+      <div><b>${s.rows}</b><span>rows for ${esc(ws.country)}</span></div>
+      <div class="ccre-st--ok"><b>${s.ok}</b><span>OK</span></div>
+      <div class="ccre-st--warn"><b>${s.warning}</b><span>to check</span></div>
+      <div class="ccre-st--pkg"><b>${s.package}</b><span>package gaps</span></div>
+      <div class="ccre-st--err"><b>${s.error}</b><span>errors (block submit)</span></div>
     </div>
-    ${proposals.map((p) => `<div class="dhl-gate dhl-gate--show ccre-gap">
+    <div class="ccre-subtabs">${RC_TABS.map(([k, l]) => `<button class="dhl-tab ${S.rcTab === k ? 'dhl-tab--active' : ''}" data-rctab="${k}">${esc(l)}</button>`).join('')}</div>
+    <div id="rc-body"></div>`;
+  wireNextStep(el);
+  el.querySelectorAll('[data-rctab]').forEach((b) => { b.onclick = () => { S.rcTab = b.dataset.rctab; renderRuleConfig(el); }; });
+  const body = $('rc-body');
+  if (S.rcTab === 'rows') return rcRows(body, el);
+  if (S.rcTab === 'changes') return rcChanges(body);
+  if (S.rcTab === 'coverage') return rcCoverage(body);
+  if (S.rcTab === 'dmg') { body.innerHTML = await dmgSection(); wireDmg(body); return; }
+  return rcDownload(body);
+}
+
+const rcBand = (lo, hi, unit) => (lo == null && hi == null ? '—' : `${lo ?? '…'} – ${hi ?? '…'}${unit ? ' ' + unit : ''}`);
+
+async function rcRows(body, panel) {
+  const ws = S.rc;
+  const m = await api('GET', `/api/onboardings/${S.caseId}/m2c`);
+  const proposals = (m.proposals || []).filter((p) => p.status === 'PROPOSED');
+  let html = '';
+  if (ws.editable) {
+    html += `<div class="ccre-row ccre-wrap ccre-gap">
+      <button id="rc-add" class="dhl-btn dhl-btn--primary">+ Add row</button>
+      <input id="m2c-notes" class="dhl-input ccre-grow" placeholder="Notes for the AI (optional)">
+      <button id="m2c-draft" class="dhl-btn dhl-btn--ghost">&#9998; Propose rows from the requirement (AI)</button></div>`;
+  }
+  html += proposals.map((p) => `<div class="dhl-gate dhl-gate--show ccre-gap">
       <div class="dhl-gate__head"><span class="dhl-gate__title">AI proposal — ${esc(p.rationale || '')}</span>
       <span class="dhl-val-chip dhl-val-chip--warn">not applied</span></div>
-      ${table(['Country', 'Group', 'Shipment', 'Value band', 'Other Logic', 'Rationale'], (p.payload.rules || []).map((r) =>
-        `<tr><td>${esc(r.ctry_cd)}</td><td>${esc(r.sirg_cd || '—')}</td><td>${esc(r.shipment_type || '—')}</td>
-         <td>${esc(r.min_value ?? '—')}–${esc(r.max_value ?? '—')}</td><td class="ccre-mono">${esc(r.other_logic || '—')}</td><td>${esc(r.rationale || '')}</td></tr>`))}
+      ${table(['Group', 'Shipment', 'Value band', 'Other Logic', 'Why'], (p.payload.rules || []).map((r) =>
+        `<tr><td>${esc(r.sirg_cd || '—')}</td><td>${esc(r.shipment_type || '—')}</td>
+         <td>${esc(rcBand(r.min_value, r.max_value, r.currency))}</td><td class="ccre-mono">${esc(r.other_logic || '—')}</td><td>${esc(r.rationale || '')}</td></tr>`))}
       ${(p.payload.open_questions || []).length ? `<h4>Open questions</h4>${list(p.payload.open_questions, 'ccre-warn')}` : ''}
-      ${canEdit ? `<div class="dhl-gate__actions"><button class="dhl-btn dhl-btn--primary" data-accept="${esc(p.id)}">&#10003; Accept into M2C</button>
-        <button class="dhl-btn dhl-btn--ghost" data-reject="${esc(p.id)}">&#10006; Reject</button></div>` : ''}
-    </div>`).join('')}
-    <h4>M2C rows — ${esc(m.rule_set.label || m.rule_set.version)}</h4>
-    ${table(['Row', 'Group', 'Shipment', 'Currency', 'Value band', 'Other Logic', 'Definitions'], m.rules.map((r) => `<tr>
-      <td>${esc(r.row_no ?? '')}</td><td>${esc(r.sirg_cd || '—')}</td><td>${esc(r.shipment_type || '—')}</td><td>${esc(r.currency || '—')}</td>
-      <td>${esc(r.min_value ?? '—')}–${esc(r.max_value ?? '—')}</td><td class="ccre-mono">${esc(r.other_logic || '—')}</td>
-      <td>${esc(r.bindings.map((b) => b.cmpt_nm || b.sir_id || '').filter(Boolean).join(', ') || '—')}</td></tr>`))}
-    <div id="m2c-report"></div>
-    <h4>DMG changes</h4>${await dmgSection()}`;
-  el.innerHTML = html;
-  wireDmg(el);
+      ${ws.editable ? `<div class="dhl-gate__actions"><button class="dhl-btn dhl-btn--primary" data-accept="${esc(p.id)}">&#10003; Add these rows</button>
+        <button class="dhl-btn dhl-btn--ghost" data-reject="${esc(p.id)}">&#10006; Discard</button></div>` : ''}
+    </div>`).join('');
+  html += ws.rows.length ? `<div class="ccre-table-wrap"><table class="dhl-table ccre-rc-table"><thead><tr>
+      <th>Row</th><th>Status</th><th>Group (SIRG)</th><th>B2B/B2C</th><th>Value band</th><th>Weight</th><th>Valid</th>
+      <th>Other Logic</th><th>Requirement definitions (SIR Reference)</th><th></th></tr></thead><tbody>
+      ${ws.rows.map((r) => {
+        const [cls, label] = RC_STATUS[r.status];
+        return `<tr class="${S.rcOpen === r.id ? 'is-open' : ''}">
+          <td>${r.row_no ?? '<em>new</em>'}</td><td><span class="ccre-st ${cls}">${label}</span></td>
+          <td>${esc(r.sirg_cd || '—')}</td><td>${esc(r.shipment_type || '—')}</td>
+          <td>${esc(rcBand(r.min_value, r.max_value, r.currency))}${r.value_basis ? ` <small>(${esc(r.value_basis)})</small>` : ''}</td>
+          <td>${esc(rcBand(r.min_weight, r.max_weight, 'kg'))}</td>
+          <td><small>${esc(r.effective_date || '…')} → ${esc(r.expiry_date || '…')}</small></td>
+          <td class="ccre-mono ccre-clip" title="${esc(r.other_logic || '')}">${esc(r.other_logic || '—')}</td>
+          <td>${r.bindings.length ? r.bindings.map((b) => `<span class="ccre-tag" title="${esc(b.sir_id)}">${esc(b.cmpt_nm || b.sir_name || b.sir_id.slice(0, 8))}${b.waived_to_validate ? ' · waived' : ''}</span>`).join(' ') : '—'}</td>
+          <td><button class="dhl-btn dhl-btn--ghost ccre-small-btn" data-open="${esc(r.id)}">${S.rcOpen === r.id ? 'Close' : (ws.editable ? 'Edit' : 'View')}</button></td></tr>
+          ${S.rcOpen === r.id ? `<tr class="ccre-rc-editor-row"><td colspan="10"><div id="rc-editor"></div></td></tr>` : ''}`;
+      }).join('')}</tbody></table></div>`
+    : '<p class="ccre-hint">No rows for this country yet — add one, or let the AI propose rows from the approved requirement.</p>';
+  body.innerHTML = html;
+
+  if ($('rc-add')) {
+    $('rc-add').onclick = () => run('Add row', async () => {
+      const row = await api('POST', `/api/onboardings/${S.caseId}/rule-config/rows`, {
+        region: (ws.rows[0] || {}).region || null, shipment_type: 'B2C',
+        sirg_cd: ws.options.groups_mapped_for_country[0] || null });
+      S.rcOpen = row.id;
+      toast('Row added — fill it in below.');
+      await renderRuleConfig(panel);
+    });
+  }
   if ($('m2c-draft')) {
     $('m2c-draft').onclick = () => run('AI draft', async () => {
       await api('POST', `/api/onboardings/${S.caseId}/m2c/draft`, { notes: $('m2c-notes').value });
-      toast('AI proposal staged — review it below.');
-      await renderStage();
+      toast('AI proposal ready — review it above the rows.');
+      await renderRuleConfig(panel);
     });
   }
+  const decide = (id, accept) => run(accept ? 'Accept' : 'Discard', async () => {
+    const res = await api('POST', `/api/proposals/${id}/decide`, { accept, actor: S.me.name, rule_set_id: ws.draft.id });
+    toast(accept ? `${res.rules_created.length} row(s) added.` : 'Proposal discarded.');
+    await renderRuleConfig(panel);
+  });
+  body.querySelectorAll('[data-accept]').forEach((b) => { b.onclick = () => decide(b.dataset.accept, true); });
+  body.querySelectorAll('[data-reject]').forEach((b) => { b.onclick = () => decide(b.dataset.reject, false); });
+  body.querySelectorAll('[data-open]').forEach((b) => {
+    b.onclick = () => { S.rcOpen = S.rcOpen === b.dataset.open ? null : b.dataset.open; renderRuleConfig(panel); };
+  });
+  const open = ws.rows.find((r) => r.id === S.rcOpen);
+  if (open) rcEditor($('rc-editor'), open, panel);
+}
+
+function rcSelect(id, values, current, ro, blank = true) {
+  const vals = [...new Set([...(values || []), ...(current ? [current] : [])])];
+  return `<select id="${id}" class="dhl-select" ${ro}>${blank ? '<option value="">—</option>' : ''}${vals.map((v) => `<option ${v === current ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select>`;
+}
+
+function rcEditor(box, r, panel) {
+  const ws = S.rc;
+  const ro = ws.editable ? '' : 'disabled';
+  const p = ws.options.permitted;
+  const issues = r.issues.length ? `<ul class="ccre-issues">${r.issues.map((i) => `<li class="ccre-issue--${i.level}"><b>${esc(ws.options.fields[i.field] || ({ bindings: 'Requirement definitions', doc_reference: 'Document Reference' })[i.field] || i.field || '')}</b> ${esc(i.message)}</li>`).join('')}</ul>`
+    : '<p class="ccre-ok">&#10003; No problems found in this row.</p>';
+  const groups = [...ws.options.groups_mapped_for_country, ...ws.options.all_groups.filter((g) => !ws.options.groups_mapped_for_country.includes(g))];
+  const num = (id, v) => `<input id="${id}" type="number" step="any" class="dhl-input" value="${v ?? ''}" ${ro}>`;
+  box.innerHTML = `<div class="ccre-rc-editor">
+    ${issues}
+    <h4>Import row ${r.row_no ? `(workbook row ${r.row_no})` : '(new)'}</h4>
+    <div class="ccre-grid4">
+      <div><label class="ccre-field-label">Region</label>${rcSelect('rf-region', p.region, r.region, ro)}</div>
+      <div><label class="ccre-field-label">B2B/B2C</label>${rcSelect('rf-shipment_type', p.shipment_type, r.shipment_type, ro)}</div>
+      <div><label class="ccre-field-label">Requirement group (SIRG) *</label>${rcSelect('rf-sirg_cd', groups, r.sirg_cd, ro)}
+        <small class="ccre-hint">Groups mapped for ${esc(ws.country)} are listed first.</small></div>
+      <div><label class="ccre-field-label">Network product codes</label><input id="rf-network_product_codes" class="dhl-input" value="${esc(r.network_product_codes || '')}" ${ro}></div>
+      <div><label class="ccre-field-label">Value basis (DV/IV)</label>${rcSelect('rf-value_basis', p.value_basis, r.value_basis, ro)}</div>
+      <div><label class="ccre-field-label">Currency</label>${rcSelect('rf-currency', p.currency, r.currency, ro)}</div>
+      <div><label class="ccre-field-label">Min value (&ge;)</label>${num('rf-min_value', r.min_value)}</div>
+      <div><label class="ccre-field-label">Max value (&le;)</label>${num('rf-max_value', r.max_value)}</div>
+      <div><label class="ccre-field-label">Min weight kg (&ge;)</label>${num('rf-min_weight', r.min_weight)}</div>
+      <div><label class="ccre-field-label">Max weight kg (&le;)</label>${num('rf-max_weight', r.max_weight)}</div>
+      <div><label class="ccre-field-label">Effective date</label><input id="rf-effective_date" type="date" class="dhl-input" value="${esc(r.effective_date || '')}" ${ro}></div>
+      <div><label class="ccre-field-label">Expiry date</label><input id="rf-expiry_date" type="date" class="dhl-input" value="${esc(r.expiry_date || '')}" ${ro}></div>
+      <div><label class="ccre-field-label">Country hold code</label><input id="rf-country_hold_cd" class="dhl-input" value="${esc(r.country_hold_cd || '')}" ${ro}></div>
+      <div><label class="ccre-field-label">Global hold code</label><input id="rf-global_hold_cd" class="dhl-input" value="${esc(r.global_hold_cd || '')}" ${ro}></div>
+      <div class="ccre-span2"><label class="ccre-field-label">Document Reference (generated)</label><input class="dhl-input ccre-mono" value="${esc(r.document_reference)}" disabled></div>
+    </div>
+    <label class="ccre-field-label">Other Logic (condition)</label>
+    <textarea id="rf-other_logic" class="dhl-textarea ccre-mono ccre-small" ${ro}>${esc(r.other_logic || '')}</textarea>
+    ${ws.editable ? `<details class="ccre-details"><summary>Build the condition from choices</summary><div id="rc-builder"></div></details>` : ''}
+    ${ws.editable ? `<div class="ccre-row ccre-wrap ccre-gap">
+      <button id="rf-save" class="dhl-btn dhl-btn--primary">Save row</button>
+      <button id="rf-dup" class="dhl-btn dhl-btn--ghost">Duplicate row</button>
+      <button id="rf-del" class="dhl-btn dhl-btn--ghost ccre-act--reject">Remove row</button></div>` : ''}
+    <h4>Requirement definitions for this row (SIR Reference)</h4>
+    ${r.bindings.length ? table(['Definition', 'Group', 'Waived to validate', 'Waived if whitelisted', 'Only if service code', 'Attributes', ''],
+      r.bindings.map((b) => `<tr><td><b>${esc(b.cmpt_nm || b.sir_name || '—')}</b><br><small class="ccre-mono">${esc(b.sir_id)}</small></td>
+        <td>${esc(b.sirg_cd || r.sirg_cd || '—')}</td><td>${b.waived_to_validate ? 'Yes' : 'No'}</td><td>${b.waived_if_whitelisted ? 'Yes' : 'No'}</td>
+        <td>${esc(b.check_service_code || '—')}</td><td>${b.attribute_ids.length || 'all'}</td>
+        <td>${ws.editable ? `<button class="dhl-btn dhl-btn--ghost ccre-small-btn" data-unbind="${esc(b.id)}">Remove</button>` : ''}</td></tr>`))
+      : '<p class="ccre-hint">No definition bound — the row would trigger the group without saying which documents are required.</p>'}
+    ${ws.editable ? `<details class="ccre-details" ${r.bindings.length ? '' : 'open'}><summary>+ Bind a requirement definition</summary>
+      <div class="ccre-row ccre-wrap ccre-gap"><input id="bd-q" class="dhl-input ccre-grow" placeholder="Search by name or component, e.g. POA, invoice">
+        <button id="bd-search" class="dhl-btn dhl-btn--ghost">Search</button></div>
+      <div id="bd-results"></div></details>` : ''}
+  </div>`;
+  if (!ws.editable) return;
+
+  const val = (id) => { const v = $(id).value.trim(); return v === '' ? null : v; };
+  const numv = (id) => { const v = $(id).value.trim(); return v === '' ? null : Number(v); };
+  $('rf-save').onclick = () => run('Save row', async () => {
+    const payload = {};
+    ['region', 'shipment_type', 'sirg_cd', 'network_product_codes', 'value_basis', 'currency', 'effective_date',
+      'expiry_date', 'country_hold_cd', 'global_hold_cd', 'other_logic'].forEach((f) => { payload[f] = val(`rf-${f}`); });
+    ['min_value', 'max_value', 'min_weight', 'max_weight'].forEach((f) => { payload[f] = numv(`rf-${f}`); });
+    const res = await api('PUT', `/api/onboardings/${S.caseId}/rule-config/rows/${r.id}`, payload);
+    toast(res.status === 'error' ? 'Saved — the row still has errors.' : 'Row saved.', res.status === 'error');
+    await renderRuleConfig(panel);
+  });
+  $('rf-dup').onclick = () => run('Duplicate', async () => {
+    const res = await api('POST', `/api/onboardings/${S.caseId}/rule-config/rows/${r.id}/duplicate`);
+    S.rcOpen = res.id;
+    toast('Row duplicated — the copy is open.');
+    await renderRuleConfig(panel);
+  });
+  $('rf-del').onclick = () => run('Remove', async () => {
+    const ok = await dialog('Remove this row?', `<p>Row ${esc(r.row_no ?? '(new)')} — ${esc(r.sirg_cd || '')} ${esc(r.shipment_type || '')}. It will show as <b>removed</b> in the changes and the M2C download.</p>`, 'Remove');
+    if (!ok) return;
+    await api('DELETE', `/api/onboardings/${S.caseId}/rule-config/rows/${r.id}`);
+    S.rcOpen = null;
+    toast('Row removed.');
+    await renderRuleConfig(panel);
+  });
+  box.querySelectorAll('[data-unbind]').forEach((b) => {
+    b.onclick = () => run('Remove binding', async () => {
+      await api('DELETE', `/api/onboardings/${S.caseId}/rule-config/rows/${r.id}/bindings/${b.dataset.unbind}`);
+      await renderRuleConfig(panel);
+    });
+  });
+  rcBuilder($('rc-builder'));
+  const search = () => run('Search', async () => {
+    const group = $('rf-sirg_cd').value;
+    const defs = await api('GET', `/api/onboardings/${S.caseId}/rule-config/definitions?q=${encodeURIComponent($('bd-q').value)}&group=${encodeURIComponent(group)}`);
+    $('bd-results').innerHTML = defs.length ? table(['Definition', 'Component', 'Mapped', ''], defs.map((d) => `<tr>
+        <td><b>${esc(d.name || '—')}</b><br><small class="ccre-mono">${esc(d.sir_id)}</small></td><td>${esc(d.cmpt_nm || '—')}</td>
+        <td>${d.mapped_in_group ? `<span class="ccre-st ccre-st--ok">in ${esc(group)} for ${esc(ws.country)}</span>` : d.mapped_for_country ? `<span class="ccre-st ccre-st--warn">other group</span>` : '<span class="ccre-st ccre-st--pkg">not mapped</span>'}</td>
+        <td><button class="dhl-btn dhl-btn--ghost ccre-small-btn" data-bind="${esc(d.sir_id)}" data-name="${esc(d.name || d.cmpt_nm || '')}">Bind…</button></td></tr>`))
+      : '<p class="ccre-hint">Nothing found in the config package.</p>';
+    $('bd-results').querySelectorAll('[data-bind]').forEach((b) => { b.onclick = () => rcBind(r, b.dataset.bind, b.dataset.name, panel); });
+  });
+  $('bd-search').onclick = search;
+  $('bd-q').onkeydown = (e) => { if (e.key === 'Enter') search(); };
+}
+
+async function rcBind(r, sirId, name, panel) {
+  const attrs = await api('GET', `/api/onboardings/${S.caseId}/rule-config/definitions/${sirId}/attributes`);
+  const v = await dialog(`Bind ${name}`, `
+    <label class="ccre-tick"><input type="checkbox" name="waived_to_validate"> Waived to validate (always create the case, no SIR validation)</label>
+    <label class="ccre-tick"><input type="checkbox" name="waived_if_whitelisted"> Waived if whitelisted</label>
+    <label class="ccre-field-label">Only if service code (optional)</label><input class="dhl-input" name="check_service_code" placeholder="e.g. DD">
+    <label class="ccre-field-label">Attributes to require (none ticked = the whole definition)</label>
+    <div class="ccre-attr-list">${attrs.map((a) => `<label class="ccre-tick"><input type="checkbox" name="att" value="${esc(a.att_id)}">
+      ${esc(a.name || a.att_id)} ${a.mandatory ? '<small>(mandatory)</small>' : ''}
+      ${a.message_positions.length ? `<small class="ccre-mono">→ ${esc(a.message_positions[0])}</small>` : ''}</label>`).join('') || '<p class="ccre-hint">No attributes listed.</p>'}</div>`, 'Bind');
+  if (!v) return;
+  await run('Bind', async () => {
+    await api('POST', `/api/onboardings/${S.caseId}/rule-config/rows/${r.id}/bindings`, {
+      sir_id: sirId, waived_to_validate: !!v.waived_to_validate, waived_if_whitelisted: !!v.waived_if_whitelisted,
+      check_service_code: v.check_service_code || null, attribute_ids: v.att || [] });
+    toast(`${name} bound to the row.`);
+    await renderRuleConfig(panel);
+  });
+}
+
+function rcBuilder(box) {
+  if (!box) return;
+  const types = S.rc.options.builder;
+  const clauseHtml = () => `<div class="ccre-clause ccre-row ccre-wrap">
+      <select class="dhl-select" data-k="type">${Object.entries(types).map(([k, t]) => `<option value="${k}">${esc(t.label)}</option>`).join('')}<option value="raw">Custom expression</option></select>
+      <select class="dhl-select" data-k="op"></select>
+      <input class="dhl-input ccre-grow" data-k="values">
+      <button class="dhl-btn dhl-btn--ghost ccre-small-btn" data-k="del">&#10005;</button></div>`;
+  box.innerHTML = `<p class="ccre-hint">Each line is one condition. The result is checked by the same grammar the validator uses.</p>
+    <div id="cb-lines">${clauseHtml()}</div>
+    <div class="ccre-row ccre-wrap ccre-gap"><button id="cb-more" class="dhl-btn dhl-btn--ghost ccre-small-btn">+ condition</button>
+      <label>Combine with <select id="cb-join" class="dhl-select"><option value="and">AND (all must hold)</option><option value="or">OR (any may hold)</option></select></label>
+      <button id="cb-build" class="dhl-btn dhl-btn--ghost">Preview</button><button id="cb-use" class="dhl-btn dhl-btn--primary" disabled>Use as Other Logic</button></div>
+    <div id="cb-out"></div>
+    <details class="ccre-details"><summary>Or pick from the workbook's Other Logic palette</summary><div id="cb-palette"></div></details>`;
+  const wire = (line) => {
+    const type = line.querySelector('[data-k=type]');
+    const op = line.querySelector('[data-k=op]');
+    const values = line.querySelector('[data-k=values]');
+    const sync = () => {
+      const t = types[type.value];
+      op.innerHTML = t ? t.ops.map((o) => `<option>${esc(o)}</option>`).join('') : '<option>as written</option>';
+      values.placeholder = t ? t.values : 'e.g. !serviceCodeList.contains("DD")';
+    };
+    type.onchange = sync; sync();
+    line.querySelector('[data-k=del]').onclick = () => { line.remove(); };
+  };
+  box.querySelectorAll('.ccre-clause').forEach(wire);
+  $('cb-more').onclick = () => { $('cb-lines').insertAdjacentHTML('beforeend', clauseHtml()); wire($('cb-lines').lastElementChild); };
+  let built = null;
+  $('cb-build').onclick = () => run('Preview', async () => {
+    const clauses = [...box.querySelectorAll('.ccre-clause')].map((l) => ({
+      type: l.querySelector('[data-k=type]').value, op: l.querySelector('[data-k=op]').value,
+      values: l.querySelector('[data-k=values]').value }));
+    const res = await api('POST', `/api/onboardings/${S.caseId}/rule-config/condition`, { clauses, joiner: $('cb-join').value });
+    built = res.expression;
+    $('cb-out').innerHTML = `<pre class="ccre-pre">${esc(res.expression)}</pre>
+      ${res.errors.length ? list(res.errors, 'ccre-inline-error') : '<p class="ccre-ok">&#10003; Valid condition.</p>'}${res.warnings.length ? list(res.warnings, 'ccre-warn') : ''}`;
+    $('cb-use').disabled = !!res.errors.length;
+  });
+  $('cb-use').onclick = () => { if (built !== null) { $('rf-other_logic').value = built; toast('Condition copied into Other Logic — save the row to keep it.'); } };
+  box.closest('details').addEventListener('toggle', async (e) => {
+    if (!e.target.open || $('cb-palette').dataset.loaded) return;
+    const pal = await api('GET', `/api/onboardings/${S.caseId}/rule-config/palette`);
+    $('cb-palette').dataset.loaded = '1';
+    $('cb-palette').innerHTML = pal.map((p, i) => `<div class="ccre-row ccre-space ccre-pal">
+      <code class="ccre-mono ccre-clip" title="${esc(p.expression)}">${esc(p.expression)}</code>
+      ${p.ok ? `<button class="dhl-btn dhl-btn--ghost ccre-small-btn" data-pal="${i}">Use</button>` : `<span class="ccre-st ccre-st--err" title="${esc(p.problems.join(' '))}">has errors</span>`}</div>`).join('');
+    $('cb-palette').querySelectorAll('[data-pal]').forEach((b) => { b.onclick = () => { $('rf-other_logic').value = pal[+b.dataset.pal].expression; toast('Palette condition copied — save the row to keep it.'); }; });
+  });
+}
+
+async function rcChanges(body) {
+  const ch = await api('GET', `/api/onboardings/${S.caseId}/rule-config/changes`);
+  const label = (f) => ch.labels[f] || (f === 'bindings' ? 'Requirement definitions' : f);
+  const c = ch.counts;
+  body.innerHTML = `<p class="ccre-hint">The draft compared with ${esc(S.rc.country)}'s rows in workbook ${esc(ch.baseline || '—')}. This is exactly what will change in the M2C.</p>
+    <div class="ccre-row ccre-wrap ccre-gap"><span class="ccre-st ccre-st--ok">${c.NEW} new</span><span class="ccre-st ccre-st--warn">${c.CHANGED} changed</span>
+      <span class="ccre-st ccre-st--err">${c.REMOVED} removed</span><span class="ccre-st">${c.UNCHANGED} unchanged</span></div>
+    ${ch.items.filter((i) => i.status !== 'UNCHANGED').length ? table(['Change', 'Row', 'Group', 'What changed'], ch.items.filter((i) => i.status !== 'UNCHANGED').map((i) => `<tr>
+      <td><span class="ccre-st ${i.status === 'NEW' ? 'ccre-st--ok' : i.status === 'CHANGED' ? 'ccre-st--warn' : 'ccre-st--err'}">${i.status.toLowerCase()}</span></td>
+      <td>${esc(i.row_no ?? 'new')}</td><td>${esc(i.row.sirg_cd || '—')}</td>
+      <td>${i.status === 'CHANGED' ? Object.entries(i.fields).map(([f, d]) => `<div><b>${esc(label(f))}</b>: <del>${esc(d.from ?? '—')}</del> → <ins>${esc(d.to ?? '—')}</ins></div>`).join('')
+        : i.status === 'NEW' ? `${esc(i.row.shipment_type || '')} ${esc(rcBand(i.row.min_value, i.row.max_value, i.row.currency))} <span class="ccre-mono">${esc(i.row.other_logic || '')}</span>`
+        : 'Whole row removed from the M2C'}</td></tr>`))
+      : '<p class="ccre-ok">No changes yet — the draft matches the workbook.</p>'}`;
+}
+
+async function rcCoverage(body) {
+  const cov = await api('GET', `/api/onboardings/${S.caseId}/rule-config/coverage`);
+  const yn = (ok) => (ok ? '<span class="ccre-st ccre-st--ok">&#10003;</span>' : '<span class="ccre-st ccre-st--err">&#10005;</span>');
+  body.innerHTML = `<p class="ccre-hint">CCRE can only raise a requirement the config package (${esc(cov.package_version || '—')}) ships and maps for ${esc(S.rc.country)} — the <b>Technical SIR</b> and <b>Technical SIRG</b> tabs. Gaps are requested from Support; the sanity check will not pass until the package covers them.</p>
+    ${cov.complete ? '<p class="ccre-ok">&#10003; The package covers everything this draft needs.</p>'
+      : `<div class="ccre-next"><div><strong>${cov.support_request.length} mapping(s) missing.</strong> Download the request and send it to Support (it is in the package's mapping CSV format).</div>
+        <button id="cov-csv" class="dhl-btn dhl-btn--primary">&#8681; Package request (.csv)</button></div>`}
+    ${cov.items.length ? table(['Group (SIRG)', 'Definition (SIR)', 'Group in package', 'Definition shipped', `Mapped for ${esc(S.rc.country)}`],
+      cov.items.map((i) => `<tr><td><b>${esc(i.sirg_cd)}</b><br><small class="ccre-mono">${esc(i.sirg_id || '—')}</small></td>
+        <td>${esc(i.cmpt_nm || i.sir_name || '—')}<br><small class="ccre-mono">${esc(i.sir_id || '(none bound)')}</small></td>
+        <td>${yn(i.sirg_in_package)}</td><td>${i.sir_id ? yn(i.sir_in_package) : '—'}</td><td>${i.sir_id ? yn(i.mapped_for_country) : yn(i.group_mapped_for_country)}</td></tr>`))
+      : '<p class="ccre-hint">No groups used yet.</p>'}`;
+  if ($('cov-csv')) $('cov-csv').onclick = () => run('Download', () => download(`/api/onboardings/${S.caseId}/rule-config/coverage.csv`, 'package_request.csv'));
+}
+
+async function rcDownload(body) {
+  body.innerHTML = `<div class="ccre-grid2">
+    <div class="ccre-card"><h4>M2C workbook</h4><p class="ccre-hint">${esc(S.rc.country)}'s M2C generated from this draft in the workbook's own layout: Import, Export, SIR Reference, Technical SIR, Technical SIRG, Other Logic, Validation — plus a <b>Changes</b> tab. Document references and SIR Reference positions are generated formulas, so they always point at the right row.</p>
+      <button id="dl-m2c" class="dhl-btn dhl-btn--primary">&#8681; Download M2C (.xlsx)</button></div>
+    <div class="ccre-card"><h4>Full validation</h4><p class="ccre-hint">All 16 deterministic checks across the M2C and the config package — the same run the sanity check uses.</p>
+      <button id="m2c-validate" class="dhl-btn dhl-btn--ghost">&#9989; Run validation</button></div></div>
+    <div id="m2c-report"></div>`;
+  $('dl-m2c').onclick = () => run('Download', () => download(`/api/onboardings/${S.caseId}/rule-config/m2c.xlsx`, 'M2C.xlsx'));
   $('m2c-validate').onclick = () => run('Validate', async () => {
     const rep = await api('POST', `/api/onboardings/${S.caseId}/m2c/validate`);
     $('m2c-report').innerHTML = `<h4>Validation</h4>${findingsHtml(rep)}`;
   });
-  const decide = (id, accept) => run(accept ? 'Accept' : 'Reject', async () => {
-    const res = await api('POST', `/api/proposals/${id}/decide`, { accept, actor: S.me.name, rule_set_id: m.rule_set.id });
-    toast(accept ? `${res.rules_created.length} row(s) written; validation ran.` : 'Proposal rejected.');
-    await refreshCase();
-  });
-  el.querySelectorAll('[data-accept]').forEach((b) => { b.onclick = () => decide(b.dataset.accept, true); });
-  el.querySelectorAll('[data-reject]').forEach((b) => { b.onclick = () => decide(b.dataset.reject, false); });
 }
 
 // ── DMG email task (inside rule config) ──────────────────────

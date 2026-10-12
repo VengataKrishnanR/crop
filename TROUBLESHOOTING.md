@@ -21,6 +21,11 @@
 | DMG: “Set the DMG recipients … first” | The template has no To address | Rule config → DMG email template and recipients → To → Save template |
 | “Submit rule config” is blocked by DMG | The DMG task is not completed | Approve and send the DMG email, or have a CCRE consultant mark it not required |
 | Test cases cannot be approved as a stage | Some rows still need a decision | Approve / Reject every row (or **Approve all waiting**) |
+| “N M2C row(s) still have errors” | A row has an authoring error | Rule config → Rules: rows marked ✕ Error — open, fix, Save row |
+| Row is “⚠ Package gap” | The config package does not ship / map the group or definition for the country | Rule config → Package coverage → **Package request (.csv)** to Support; load the new package when it arrives |
+| “Rows can only be edited while … Rule configuration” | The onboarding moved on | Reject back to rule configuration (sanity check or UAT review) to correct |
+| Consultant cannot submit the requirement | Only the business submits its own requirement | The business user clicks **Submit requirement for approval** |
+| PM cannot submit the timeline | The consultant submits; the PM approves | The CCRE consultant clicks **Submit timeline for PM approval** |
 | An action button is greyed out | A gate is not met | The reason is printed under the button (e.g. validation blockers, no test results) |
 | Endpoint **Test** says “Not reachable” | No route to the host | Connect to the DHL VPN; for `*.dhl.com` the corporate proxy is bypassed automatically |
 | Endpoint **Test** returns HTTP 401/403 | Wrong or expired key | Admin → Edit → enter the key again → Update endpoint |

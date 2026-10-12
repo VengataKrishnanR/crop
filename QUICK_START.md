@@ -28,9 +28,11 @@ Then, still as admin, scroll to **UAT execution endpoints**: preset *CRMS catego
 | 1 | Business | Onboardings → **+ New** | Country `DE`, title *POA for DDP shipments* |
 | 2 | Business | 1. Requirement → **Form + NLP** (or **Chat**) | *DE consumer shipments must provide a Power of Attorney when the incoterm is DDP*, codes `POA` → **Convert with NLP** → **Submit requirement for review** |
 | 3 | CCRE consultant | Action bar | **Approve requirement** |
-| 4 | PM | 2. Timeline | Answer the questionnaire → **Generate timeline** → **Submit timeline** → **Approve and publish timeline** |
+| 4 | CCRE consultant | 2. Timeline | Answer the questionnaire → **Generate timeline** → **Submit timeline for PM approval** |
+| 4a | PM | 2. Timeline | Review → **Approve** (published to the business) or **Reject** with the reason |
 | 5 | Business | 2. Timeline | Sees the approved plan |
 | 6 | CCRE team | 3. Rule config + DMG | **Start M2C draft** (copies DE's workbook row) → optionally **Convert requirement to M2C (AI)** and accept or reject the proposal |
+| 6+ | CCRE team | 3. → Rules | **Edit** a row: fix what the row's checks say, build Other Logic from choices, bind requirement definitions; check **Changes vs workbook** and **Package coverage** (download the package request if there are gaps); **Validate & download** → M2C .xlsx |
 | 6a | CCRE team | 3. → *DMG email template and recipients* | Paste your DMG template (use the `{{placeholders}}` shown), set **To / Cc** → **Save template** (once) |
 | 6b | CCRE team | 3. → DMG email | **Prepare DMG email from template** → check / edit → **Submit for CCRE review** |
 | 6c | CCRE consultant | 3. → DMG email | **Approve and send** (or **Reject** with the reason) → “Task completed” |

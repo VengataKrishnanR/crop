@@ -155,6 +155,8 @@ def gate_context(session: Session, case: OnboardingCase) -> GateContext:
         ctx.report, _ = validate_rule_set(session, rule_set.id, case_id=case.id, persist=False)
         snapshot = load_snapshot(session, rule_set_id=rule_set.id)
         ctx.package_complete = run_checks(snapshot, only=_PACKAGE_CHECKS).is_clean
+        from tools.ruleconfig import draft_row_errors
+        ctx.rows_with_errors = draft_row_errors(session, case, rule_set)
 
     counts = dict(session.execute(
         select(UatTestCase.status, func.count()).where(UatTestCase.case_id == case.id)

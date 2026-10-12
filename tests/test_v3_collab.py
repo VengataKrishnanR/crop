@@ -104,8 +104,8 @@ def _to_rule_config(client: TestClient, country: str = "DE") -> str:
         assert client.post(f"/api/onboardings/{case_id}/transition", json={"name": name}, headers=who).status_code == 200
     client.post(f"/api/onboardings/{case_id}/timeline/generate", headers=PM,
                 json={"answers": {"requested_rtp": "2027-03-31", "earliest_start": "2026-11-02"}})
-    for name in ("submit_timeline", "approve_timeline"):
-        assert client.post(f"/api/onboardings/{case_id}/transition", json={"name": name}, headers=PM).status_code == 200
+    for name, who in (("submit_timeline", CONSULTANT), ("approve_timeline", PM)):
+        assert client.post(f"/api/onboardings/{case_id}/transition", json={"name": name}, headers=who).status_code == 200
     client.post(f"/api/onboardings/{case_id}/m2c/start", headers=TEAM)
     return case_id
 
