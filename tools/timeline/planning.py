@@ -4,12 +4,15 @@ from __future__ import annotations
 import datetime as dt
 import math
 import re
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from tools.core.models import CtryProcMapping, Rule, SirgDef
+
+if TYPE_CHECKING:
+    from tools.agents.harness.errors import GateResult
 
 # The onboarding sequence, in order. ``stage`` keys are stable identifiers.
 MILESTONES: tuple[dict[str, str], ...] = (
@@ -251,3 +254,84 @@ def validate_plan(milestones: list[dict[str, Any]], answers: dict[str, Any]) -> 
         risks.append(f"Planned RTP {rtp_end.isoformat()} is {slip} working day(s) after the "
                      f"requested date {requested.isoformat()}.")
     return {"at_risk": at_risk, "risks": risks}
+
+
+def gate_plan(milestones: list[dict[str, Any]], answers: dict[str, Any]) -> "GateResult":
+    """The plan gate as a :class:`GateResult` (docs/adr/0002).
+
+    Reports every defect at once, with a path into the plan. Beyond
+    :func:`validate_plan` it also refuses start/end dates on a weekend or a
+    blackout date, as the design's plan gate requires. "At risk" is a warning:
+    it is computed here, never trusted from the planner, and does not block.
+    """
+    from tools.agents.harness.errors import GateError, GateResult
+
+    errors: list[GateError] = []
+    stages = [m.get("stage") for m in milestones]
+    if len(stages) != len(STAGE_KEYS):
+        errors.append(GateError(code="PLAN_STAGES", path="milestones",
+                                message=f"The plan has {len(stages)} milestone(s); exactly {len(STAGE_KEYS)} are required.",
+                                hint=f"Use exactly, in order: {', '.join(STAGE_KEYS)}."))
+    else:
+        for i, (got, want) in enumerate(zip(stages, STAGE_KEYS)):
+            if got != want:
+                errors.append(GateError(code="PLAN_STAGES", path=f"milestones[{i}].stage",
+                                        message=f"Milestone {i + 1} is {got!r}; expected {want!r}.",
+                                        hint=f"Use exactly, in order: {', '.join(STAGE_KEYS)}."))
+
+    blackout = _blackouts(answers)
+    dates: list[Optional[tuple[dt.date, dt.date]]] = []
+    for i, m in enumerate(milestones):
+        parsed: dict[str, dt.date] = {}
+        for key in ("start", "end"):
+            try:
+                parsed[key] = dt.date.fromisoformat(str(m[key]))
+            except (KeyError, ValueError):
+                errors.append(GateError(code="PLAN_DATE_FORMAT", path=f"milestones[{i}].{key}",
+                                        message=f"Milestone {m.get('stage')} has no valid {key} date.",
+                                        hint="Write dates as YYYY-MM-DD."))
+        if len(parsed) < 2:
+            dates.append(None)
+            continue
+        start, end = parsed["start"], parsed["end"]
+        dates.append((start, end))
+        if end < start:
+            errors.append(GateError(code="PLAN_END_BEFORE_START", path=f"milestones[{i}].end",
+                                    message=f"Milestone {m.get('stage')} ends ({end}) before it starts ({start}).",
+                                    hint=f"Set the end on or after {start.isoformat()}."))
+        for key, day in (("start", start), ("end", end)):
+            if not _is_working(day, blackout):
+                why = "a blackout date" if day in blackout else "a weekend"
+                errors.append(GateError(code="PLAN_NON_WORKING_DAY", path=f"milestones[{i}].{key}",
+                                        message=f"Milestone {m.get('stage')} {key} {day.isoformat()} is {why}.",
+                                        hint=f"Use the next working day, {next_working_day(day, blackout).isoformat()}."))
+
+    previous: Optional[dt.date] = None
+    for i, pair in enumerate(dates):
+        if pair is None:
+            continue
+        if previous and pair[0] < previous:
+            errors.append(GateError(code="PLAN_ORDER", path=f"milestones[{i}].start",
+                                    message=f"Milestone {milestones[i].get('stage')} starts before the previous one "
+                                            f"({previous.isoformat()}).",
+                                    hint=f"Start on or after {previous.isoformat()}."))
+        previous = pair[0]
+
+    if dates and dates[0] is not None and answers.get("earliest_start"):
+        earliest = dt.date.fromisoformat(str(answers["earliest_start"]))
+        if dates[0][0] < earliest:
+            errors.append(GateError(code="PLAN_BEFORE_EARLIEST", path="milestones[0].start",
+                                    message=f"The plan starts {dates[0][0].isoformat()}, before the earliest start "
+                                            f"{earliest.isoformat()} the PM gave.",
+                                    hint=f"Start on or after {earliest.isoformat()}."))
+    if dates and dates[-1] is not None and answers.get("requested_rtp") and len(dates) == len(STAGE_KEYS):
+        requested = dt.date.fromisoformat(str(answers["requested_rtp"]))
+        rtp_end = dates[-1][1]
+        if rtp_end > requested:
+            errors.append(GateError(code="PLAN_AT_RISK", path=f"milestones[{len(dates) - 1}].end",
+                                    severity="warning",
+                                    message=f"Planned RTP {rtp_end.isoformat()} is "
+                                            f"{working_days_between(requested, rtp_end)} working day(s) after the "
+                                            f"requested date {requested.isoformat()}.",
+                                    hint="Keep the realistic date and flag the plan at risk; do not compress stages."))
+    return GateResult.from_errors(errors)

@@ -20,7 +20,10 @@ from __future__ import annotations
 
 import copy
 import re
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from tools.agents.harness.errors import GateResult
 
 # Header sections carry per-call ids and timestamps; they always differ between calls.
 VOLATILE_KEYS = frozenset({"Hdr"})
@@ -238,3 +241,118 @@ def build_crms_payload(sample: dict, test_case: dict, country: str,
     shipments[0] = shp
     body["Shp"] = shipments
     return {"payload": payload, "changes": changes, "assumptions": assumptions}
+
+
+# --------------------------------------------------------------------------- #
+# structural validation (gate; docs/adr/0002)
+# --------------------------------------------------------------------------- #
+
+_CTRY = re.compile(r"^[A-Z]{2}$")
+_CUR = re.compile(r"^[A-Z]{3}$")
+_INCOTERM = re.compile(r"^[A-Z]{3}$")
+_ROOT = "ShpPcdDetailsMsg"
+
+
+def _number(value: Any) -> Optional[float]:
+    if isinstance(value, bool):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def validate_crms_payload(payload: Any, country: Optional[str] = None,
+                          direction: Optional[str] = None) -> "GateResult":
+    """Structural checks on a ``ShpPcdDetailsMsg`` request before it is sent.
+
+    Not a CRMS schema: it checks what :func:`build_crms_payload` sets and what a
+    test depends on -- the message skeleton, the country criterion and shipment
+    countries, amounts, currencies, weights, shipment class and incoterm. When
+    ``country`` / ``direction`` are given they must match the message.
+    """
+    from tools.agents.harness.errors import GateError, GateResult
+
+    errors: list[GateError] = []
+
+    def err(code: str, path: str, message: str, hint: str) -> None:
+        errors.append(GateError(code=code, path=path, message=message, hint=hint))
+
+    if not is_crms_payload(payload) or not isinstance(payload[_ROOT], dict):
+        err("CRMS_ROOT", _ROOT, "The request is not a ShpPcdDetailsMsg message.",
+            "Start from the endpoint's sample request; only field values may change.")
+        return GateResult.from_errors(errors)
+    body = payload[_ROOT].get("Bd")
+    if not isinstance(body, dict):
+        err("CRMS_BODY", f"{_ROOT}.Bd", "The message has no body (Bd).", "Keep the sample's Bd section.")
+        return GateResult.from_errors(errors)
+    shipments = body.get("Shp")
+    if not isinstance(shipments, list) or not shipments or not isinstance(shipments[0], dict):
+        err("CRMS_SHIPMENT", f"{_ROOT}.Bd.Shp", "The message has no shipment (Bd.Shp[0]).",
+            "Keep the sample's Bd.Shp list with one shipment.")
+        return GateResult.from_errors(errors)
+    shp = shipments[0]
+    sp = f"{_ROOT}.Bd.Shp[0]"
+    want_country = country.upper() if country else None
+
+    crit = _criterion(body, "CtryCd")
+    cpath = f"{_ROOT}.Bd.GenReq[0].GenrcRqCritr[CtryCd].Val"
+    values = (crit or {}).get("Val") if crit else None
+    if not isinstance(values, list) or len(values) != 1 or not _CTRY.match(str(values[0])):
+        err("CRMS_COUNTRY", cpath, "The country criterion must hold exactly one ISO-2 country code.",
+            f"Set it to [\"{want_country or 'XX'}\"].")
+    elif want_country and values[0] != want_country:
+        err("CRMS_COUNTRY_MISMATCH", cpath, f"The country criterion is {values[0]}, not the country under "
+            f"test {want_country}.", f"Set it to [\"{want_country}\"].")
+
+    proc = _criterion(body, "ProcTy")
+    proc_val = ((proc or {}).get("Val") or [None])[0] if proc else None
+    if proc is not None and proc_val not in ("Import", "Export"):
+        err("CRMS_DIRECTION", f"{_ROOT}.Bd.GenReq[0].GenrcRqCritr[ProcTy].Val",
+            f"Process type {proc_val!r} is not Import or Export.", "Use [\"Import\"] or [\"Export\"].")
+    direction = direction or proc_val
+    for key in ("DstCtryCd", "OrgCtryCd"):
+        if key in shp and not _CTRY.match(str(shp[key] or "")):
+            err("CRMS_CTRY_FORMAT", f"{sp}.{key}", f"{key} {shp[key]!r} is not an ISO-2 country code.",
+                "Use two upper-case letters, e.g. DE.")
+    if want_country and direction in ("Import", "Export"):
+        key = "DstCtryCd" if direction == "Import" else "OrgCtryCd"
+        if shp.get(key) != want_country:
+            err("CRMS_COUNTRY_MISMATCH", f"{sp}.{key}", f"{direction} into/out of {want_country} needs "
+                f"{key} = {want_country}; found {shp.get(key)!r}.", f"Set {key} to {want_country}.")
+
+    amount_lists: list[tuple[str, Any]] = [(f"{sp}.MonAmt[{i}]", m) for i, m in enumerate(shp.get("MonAmt") or [])]
+    for k, doc in enumerate(shp.get("ShpDoc") or []):
+        inv = (doc or {}).get("CmrcInv") or {}
+        amount_lists += [(f"{sp}.ShpDoc[{k}].CmrcInv.MonAmt[{i}]", m) for i, m in enumerate(inv.get("MonAmt") or [])]
+        if "IncTrmCd" in inv and not _INCOTERM.match(str(inv["IncTrmCd"] or "")):
+            err("CRMS_INCOTERM", f"{sp}.ShpDoc[{k}].CmrcInv.IncTrmCd",
+                f"Incoterm {inv['IncTrmCd']!r} is not a 3-letter code.", "Use e.g. DAP or DDP.")
+    for base, mon in amount_lists:
+        for j, amt in enumerate((mon or {}).get("Amt") or []):
+            value = _number((amt or {}).get("$"))
+            if value is None or value < 0:
+                err("CRMS_AMOUNT", f"{base}.Amt[{j}].$", f"Amount {(amt or {}).get('$')!r} is not a "
+                    "non-negative number.", "Write the amount as a number, e.g. 150.01.")
+            if not _CUR.match(str((amt or {}).get("@CurCd") or "")):
+                err("CRMS_CURRENCY", f"{base}.Amt[{j}].@CurCd", f"Currency {(amt or {}).get('@CurCd')!r} is "
+                    "not an ISO-4217 code.", "Use three upper-case letters, e.g. EUR.")
+
+    for i, m in enumerate(shp.get("Meas") or []):
+        if (m or {}).get("@TyCd") == "DEC" and "Wgt" in m:
+            value = _number((m["Wgt"] or {}).get("$"))
+            if value is None or value < 0:
+                err("CRMS_WEIGHT", f"{sp}.Meas[{i}].Wgt.$", f"Weight {(m['Wgt'] or {}).get('$')!r} is not a "
+                    "non-negative number.", "Write the weight in kg, e.g. \"2.50\".")
+
+    el = _shp_class(shp)
+    if el is not None:
+        clss = ((el.get("Val") or {}).get("$") if isinstance(el.get("Val"), dict) else None)
+        if clss not in ("B2B", "B2C"):
+            err("CRMS_CLASS", f"{sp}.DatElGrp[ShpClss].Clss", f"Shipment class {clss!r} is not B2B or B2C.",
+                "Use B2B or B2C.")
+    for i, srv in enumerate(shp.get("Srv") or []):
+        if not str(((srv or {}).get("GlSrvCd") or {}).get("$") or "").strip():
+            err("CRMS_SERVICE", f"{sp}.Srv[{i}].GlSrvCd.$", "A service entry has no service code.",
+                "Remove the entry or give it a code, e.g. DD.")
+    return GateResult.from_errors(errors)

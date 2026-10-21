@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Iterable, Optional, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Union
+
+if TYPE_CHECKING:
+    from tools.agents.harness.errors import GateResult
 
 # --------------------------------------------------------------------------- #
 # Known vocabulary, derived from expressions observed in live workbook rows.
@@ -412,6 +415,48 @@ def analyse(expression: str) -> list[Diagnostic]:
                 seen.add(key)
 
     return out
+
+
+# --------------------------------------------------------------------------- #
+# Gate adapter: the shared GateResult format (docs/adr/0002)
+# --------------------------------------------------------------------------- #
+
+def diagnostic_hint(code: str) -> Optional[str]:
+    fields = ", ".join(sorted(KNOWN_FIELDS))
+    lists = ", ".join(f"{k}.contains(...)" for k in sorted(KNOWN_METHODS))
+    return {
+        "EXPR_PARSE": "Check brackets and quotes; strings use double quotes and operators are "
+                      "==, !=, >=, <=, >, <, &&, ||, !.",
+        "EXPR_UNKNOWN_FN": f"Use one of the known functions: {', '.join(sorted(KNOWN_FUNCTIONS))}.",
+        "EXPR_ARITY": 'hscode takes exactly 2 quoted arguments, e.g. hscode("inboundHsCode","<blank>").',
+        "EXPR_UNKNOWN_FIELD": f"Use a known field ({fields}) or list ({lists}).",
+        "EXPR_UNKNOWN_METHOD": f"Lists only support .contains(\"CODE\"): {lists}.",
+        "EXPR_MASK_ARG": 'Quote each matchCiMask argument as "field|op|value", e.g. "shortCode|==|SDT".',
+        "EXPR_MASK_SYNTAX": 'Separate field, operator and value with pipes, e.g. "shortCode|==|SDT".',
+        "EXPR_PRECEDENCE": "Bracket the && clause to state the intent: (a && b) || c.",
+        "EXPR_REPEATED_TERM": "Remove the repeated term.",
+    }.get(code)
+
+
+def gate_other_logic(expression: str, path: str = "other_logic") -> "GateResult":
+    """:func:`analyse` as a :class:`GateResult`. Parse errors carry the character position
+    as ``path@N``; every diagnostic carries a fix hint. Empty expressions pass."""
+    from tools.agents.harness.errors import GateError, GateResult
+
+    if not expression or not expression.strip():
+        return GateResult.ok()
+    try:
+        parse(expression)
+    except ExpressionError as exc:
+        where = f"{path}@{exc.position}" if exc.position >= 0 else path
+        return GateResult.from_errors([GateError(code="EXPR_PARSE", path=where, severity="error",
+                                                 message=f"Expression does not parse: {exc.message}",
+                                                 hint=diagnostic_hint("EXPR_PARSE"))])
+    return GateResult.from_errors(
+        GateError(code=d.code, path=path, severity="error" if d.severity == "error" else "warning",
+                  message=d.message, hint=diagnostic_hint(d.code))
+        for d in analyse(expression)
+    )
 
 
 def referenced_service_codes(expression: str) -> set[str]:
