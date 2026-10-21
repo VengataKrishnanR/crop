@@ -305,6 +305,8 @@ agent.py                 ADK entry point: 8 sub-agents + root orchestrator
 components/              Template LLM gateway, logging, tracing (stub_llm.py scripts all 8 agents offline)
 prompts/                 Root and base prompts
 tools/agents/            Agent builders, prompts/*.md, output schemas
+tools/agents/harness/    Gate error format (GateError/GateResult), AgentOutput envelope, context builder,
+                         read-only tool registry + design Tool catalogue (see docs/adr/0002)
 tools/functions/         Read-only FunctionTools + server-only staging
 tools/core/              Config, ORM model, condition grammar, export, security (users/tokens)
 tools/ingestion/         M2C workbook + sir-configuration parsers
