@@ -1,6 +1,6 @@
 # Rule configuration: how it works
 
-*CCRE Onboarding Platform, step 3 "Rule config + DMG". Written 12-10-2026, describing branch `beta-packages`.*
+*CCRE Onboarding Platform, step 3 "Rule config + DMG". Written 12-10-2026.*
 
 This document explains how a country requirement becomes rows in the M2C workbook, and how the platform checks that CCRE can actually raise it. Part A is for business and project readers. Part B is for the CCRE team and developers. Part C works through two real examples.
 

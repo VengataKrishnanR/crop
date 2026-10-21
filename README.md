@@ -216,7 +216,7 @@ Step 3 is where the M2C is actually built. The draft starts as the country's liv
 
 **Errors** (e.g. min value above max, expiry before effective date, unparseable Other Logic, no requirement group) **block "Submit rule config + DMG for sanity check"**. **Package gaps** do not block submitting, because Support fixes them in the package; they are gated at the sanity check. Rows are editable only while the onboarding is in Rule configuration and only by the CCRE team / consultant; every edit is on the audit trail.
 
-**Who submits:** the **business** submits its requirement (the CCRE consultant approves or rejects it); the **CCRE consultant** prepares and submits the timeline (the PM approves or returns it).
+**Who submits:** the **business** submits its requirement (the CCRE consultant approves or rejects it); the **PM** owns the timeline: plans it (AI-assisted), edits it and approves it in one step.
 
 ---
 
@@ -225,7 +225,7 @@ Step 3 is where the M2C is actually built. The draft starts as the country's liv
 | Role | Does |
 |---|---|
 | **ADMIN** | Adds users, assigns roles and (for business users) countries; can read everything |
-| **PM** | Answers the timeline questionnaire; approves and publishes the timeline |
+| **PM** | Owns the timeline: answers the questionnaire, plans it (AI-assisted), edits and approves (publishes) it |
 | **CCRE_CONSULTANT** | Approves the business requirement; reviews test cases and UAT results |
 | **CCRE_TEAM** | Configures the M2C rules and DMG changes, runs the sanity check, prepares and executes UAT, confirms RTP |
 | **BUSINESS** | Country business team. Raises onboardings, describes the requirement (chat or form), sees the approved timeline, reviews test cases, signs off UAT. **Sees only their assigned countries and only the business steps**, with no M2C, validation, payloads, KPIs or admin |
@@ -238,7 +238,7 @@ Step 3 is where the M2C is actually built. The draft starts as the country's liv
 
 ```
 1  Requirement intake      Business: chatbot or form + NLP, submits   → CCRE consultant approves / rejects
-2  Timeline                CCRE consultant plans (AI) and submits     → PM approves (published) / rejects
+2  Timeline                PM plans (AI-assisted), edits and approves in one step (published)
 3  Rule config + DMG       CCRE team: M2C workspace (rows, bindings, changes, coverage, .xlsx); DMG email
 4  Sanity check            Checklist: M2C valid · package complete · DMG done → CCRE approves / rejects
 5  UAT test case prep      AI rows + "+ scenario" (NLP); may start during step 3

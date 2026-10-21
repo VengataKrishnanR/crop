@@ -21,4 +21,5 @@ cryptography>=42
 
 # Dev / test
 pytest>=8.0
+httpx2>=2.16           # transport for starlette.testclient (plain httpx is deprecated there)
 psycopg[binary]>=3.2   # SIR/SIRG reference database (PostgreSQL)
