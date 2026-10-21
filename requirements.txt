@@ -16,10 +16,13 @@ python-multipart
 
 # Domain: rule-layer persistence and the M2C workbook parser
 sqlalchemy>=2.0
+alembic>=1.13            # app schema migrations (migrations/app)
+pydantic-settings>=2.4   # typed settings (tools/core/config.py)
 openpyxl>=3.1
 cryptography>=42
 
 # Dev / test
 pytest>=8.0
 httpx2>=2.16           # transport for starlette.testclient (plain httpx is deprecated there)
-psycopg[binary]>=3.2   # SIR/SIRG reference database (PostgreSQL)
+psycopg[binary]>=3.2   # PostgreSQL driver: app + sirdb schemas
+testcontainers[postgres]>=4.8   # make test-pg (falls back to CCRE_TEST_PG_URL)

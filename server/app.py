@@ -54,6 +54,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
 
 from tools.agents import AGENT_SPECS, agents_available
 from tools.core.config import SETTINGS
@@ -93,6 +94,13 @@ app = FastAPI(
         "recommend; code validates; humans approve. The platform never uploads to CCRE."
     ),
 )
+
+
+@app.exception_handler(StaleDataError)
+def _stale_write(_request: Any, _exc: StaleDataError) -> JSONResponse:
+    """Optimistic lock (docs/adr/0003): someone else changed the row since it was read."""
+    return JSONResponse(status_code=409, content={"detail": {
+        "message": "This record was changed by someone else; reload and try again.", "code": "STALE"}})
 
 
 @app.on_event("startup")

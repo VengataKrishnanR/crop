@@ -22,7 +22,7 @@ from tools.workflow import state_machine as workflow
 from tools.core.config import SETTINGS
 from tools.core.db import get_session
 from tools.core.models import (
-    Approval, AuditEvent, ConfigPackage, CtryProcMapping, OnboardingCase, PermittedValue,
+    Approval, AuditEvent, ConfigPackage, CtryProcMapping, OnboardingCase,
     ProposedChange, Rule, RuleBinding, RuleSet, SirAttribute, SirDef, SirgDef, ValidationRun,
 )
 from tools.validation import available_checks, load_snapshot, run_checks, validate_rule_set
@@ -234,11 +234,9 @@ def country_status(country: str, session: Session = Depends(get_session)) -> dic
 
 @router.get("/catalog/permitted", tags=["catalog"])
 def permitted_values(session: Session = Depends(get_session)) -> dict[str, list[str]]:
-    rows = session.execute(select(PermittedValue.field, PermittedValue.value)).all()
-    out: dict[str, list[str]] = {}
-    for field, value in rows:
-        out.setdefault(field, []).append(value)
-    return {k: sorted(set(v)) for k, v in out.items()}
+    from tools.reference import get_reference
+
+    return {k: sorted(v) for k, v in get_reference(session).permitted_values().items()}
 
 
 # --------------------------------------------------------------------------- #

@@ -19,9 +19,12 @@ import uuid
 from typing import Any, Optional
 
 from sqlalchemy import (
-    Boolean, Date, DateTime, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint,
+    Boolean, Date, DateTime, Float, ForeignKey, Integer, JSON, MetaData, String, Text, UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+#: PostgreSQL schema of the application tables (sirdb sits beside it; docs/adr/0003).
+APP_SCHEMA = "app"
 
 
 def _uuid() -> str:
@@ -33,7 +36,7 @@ def _now() -> dt.datetime:
 
 
 class Base(DeclarativeBase):
-    pass
+    metadata = MetaData(schema=APP_SCHEMA)
 
 
 # --------------------------------------------------------------------------- #
@@ -80,7 +83,8 @@ class SirDef(Base):
     cmpt_nm: Mapped[Optional[str]] = mapped_column(String(128), index=True)
     cmpt_ty: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     ctry_cd: Mapped[Optional[str]] = mapped_column(String(4), nullable=True, index=True)
-    derived_from_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    # 64, not 36: package 2.10.4-beta.2 ships one id with a stray trailing character (kept as written).
+    derived_from_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     sensitivity: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     apply_all: Mapped[bool] = mapped_column(Boolean, default=False)
 
@@ -217,6 +221,10 @@ class RuleSet(Base):
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
     created_by: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     source_version: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    # Optimistic lock (docs/adr/0003): every UPDATE checks and bumps it; a stale write
+    # raises StaleDataError, which the API answers with 409.
+    row_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    __mapper_args__ = {"version_id_col": row_version}
 
     rules: Mapped[list["Rule"]] = relationship(back_populates="rule_set", cascade="all, delete-orphan")
     case: Mapped[Optional["OnboardingCase"]] = relationship(back_populates="rule_sets")
@@ -248,6 +256,10 @@ class Rule(Base):
     global_hold_cd: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
     sirg_cd: Mapped[Optional[str]] = mapped_column(String(16), index=True)
     doc_reference: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    # Optimistic lock (docs/adr/0003): every UPDATE checks and bumps it; a stale write
+    # raises StaleDataError, which the API answers with 409.
+    row_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    __mapper_args__ = {"version_id_col": row_version}
 
     rule_set: Mapped["RuleSet"] = relationship(back_populates="rules")
     bindings: Mapped[list["RuleBinding"]] = relationship(back_populates="rule", cascade="all, delete-orphan")
@@ -303,6 +315,14 @@ class OnboardingCase(Base):
     actual_rtp: Mapped[Optional[dt.date]] = mapped_column(Date, nullable=True)
     state: Mapped[str] = mapped_column(String(32), default="INTAKE", index=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
+    # The config package the case was configured on, pinned when the M2C draft starts,
+    # so the case stays reproducible against that package (docs/adr/0003).
+    package_version: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    package_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    # Optimistic lock (docs/adr/0003): every UPDATE checks and bumps it; a stale write
+    # raises StaleDataError, which the API answers with 409.
+    row_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    __mapper_args__ = {"version_id_col": row_version}
 
     rule_sets: Mapped[list["RuleSet"]] = relationship(back_populates="case")
     approvals: Mapped[list["Approval"]] = relationship(back_populates="case", cascade="all, delete-orphan")
@@ -492,6 +512,10 @@ class UatTestCase(Base):
     review_comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
+    # Optimistic lock (docs/adr/0003): every UPDATE checks and bumps it; a stale write
+    # raises StaleDataError, which the API answers with 409.
+    row_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    __mapper_args__ = {"version_id_col": row_version}
 
 
 class PayloadTemplate(Base):

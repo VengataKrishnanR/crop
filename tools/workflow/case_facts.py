@@ -33,19 +33,31 @@ def case_rule_set(session: Session, case: OnboardingCase) -> Optional[RuleSet]:
 
 
 def baseline_rule_set(session: Session, country: Optional[str] = None) -> Optional[RuleSet]:
-    """The newest workbook rule set not owned by a case (what ``ccre bootstrap`` loads)."""
-    stmt = select(RuleSet).where(RuleSet.case_id.is_(None)).order_by(RuleSet.created_at.desc())
-    if country:
-        stmt = stmt.where(RuleSet.id.in_(select(Rule.rule_set_id).where(Rule.ctry_cd == country.upper())))
-    return session.execute(stmt.limit(1)).scalar_one_or_none()
+    """Legacy only: the newest case-less rule set. Use :func:`tools.reference.get_reference`."""
+    from tools.reference import LegacyReferenceRepository
+
+    return LegacyReferenceRepository(session).baseline_rule_set(country)
+
+
+def pin_package(session: Session, case: OnboardingCase) -> None:
+    """Record the config package (version + hash) the case is configured on (docs/adr/0003)."""
+    from tools.core.packages import active_package_version, active_upload
+
+    case.package_version = active_package_version(session)
+    upload = active_upload(session)
+    case.package_hash = upload.sha256 if upload is not None and upload.version == case.package_version else None
 
 
 def start_m2c_draft(session: Session, case: OnboardingCase, actor: str) -> tuple[RuleSet, int]:
-    """Create the case's M2C draft, seeded with the country's existing workbook rows.
+    """Create the case's M2C draft, seeded with the country's baseline reference rows.
 
-    Returns the rule set and how many rules were copied. Idempotent: an existing
-    draft is returned unchanged.
+    The rows come from the configured reference source (sirdb by default). Starting
+    the draft is configuration time, so the case's package version and hash are
+    pinned here. Returns the rule set and how many rules were copied. Idempotent:
+    an existing draft is returned unchanged.
     """
+    from tools.reference import get_reference
+
     existing = case_rule_set(session, case)
     if existing is not None:
         count = session.execute(
@@ -53,44 +65,44 @@ def start_m2c_draft(session: Session, case: OnboardingCase, actor: str) -> tuple
         ).scalar_one()
         return existing, count
 
-    baseline = baseline_rule_set(session, case.ctry_cd)
+    reference = get_reference(session)
+    baseline = reference.baseline_rules(case.ctry_cd)
     draft = RuleSet(
         case_id=case.id, version="v0.1", label=f"{case.ctry_cd} M2C draft", created_by=actor,
-        source_version=baseline.source_version if baseline else None, sealed=False,
+        source_version=reference.workbook_version() if baseline else None, sealed=False,
     )
     session.add(draft)
     session.flush()
 
     copied = 0
-    if baseline is not None:
-        rules = session.execute(
-            select(Rule).where(Rule.rule_set_id == baseline.id, Rule.ctry_cd == case.ctry_cd)
-            .options(selectinload(Rule.bindings)).order_by(Rule.row_no)
-        ).scalars()
-        for rule in rules:
-            copy = Rule(
-                rule_set_id=draft.id, row_no=rule.row_no, direction=rule.direction, region=rule.region,
-                ctry_cd=rule.ctry_cd, shipment_type=rule.shipment_type,
-                effective_date=rule.effective_date, expiry_date=rule.expiry_date,
-                network_product_codes=rule.network_product_codes, value_basis=rule.value_basis,
-                currency=rule.currency, min_value=rule.min_value, max_value=rule.max_value,
-                min_weight=rule.min_weight, max_weight=rule.max_weight, other_logic=rule.other_logic,
-                country_hold_cd=rule.country_hold_cd, global_hold_cd=rule.global_hold_cd,
-                sirg_cd=rule.sirg_cd, doc_reference=rule.doc_reference,
-            )
-            session.add(copy)
-            session.flush()
-            for b in rule.bindings:
-                session.add(RuleBinding(
-                    rule_id=copy.id, sirg_cd=b.sirg_cd, sirg_id=b.sirg_id, sir_id=b.sir_id,
-                    cmpt_nm=b.cmpt_nm, waived_if_whitelisted=b.waived_if_whitelisted,
-                    waived_to_validate=b.waived_to_validate, check_service_code=b.check_service_code,
-                    attribute_ids=list(b.attribute_ids or []),
-                ))
-            copied += 1
+    for rule in baseline:
+        copy = Rule(
+            rule_set_id=draft.id, row_no=rule.row_no, direction=rule.direction, region=rule.region,
+            ctry_cd=rule.ctry_cd, shipment_type=rule.shipment_type,
+            effective_date=rule.effective_date, expiry_date=rule.expiry_date,
+            network_product_codes=rule.network_product_codes, value_basis=rule.value_basis,
+            currency=rule.currency, min_value=rule.min_value, max_value=rule.max_value,
+            min_weight=rule.min_weight, max_weight=rule.max_weight, other_logic=rule.other_logic,
+            country_hold_cd=rule.country_hold_cd, global_hold_cd=rule.global_hold_cd,
+            sirg_cd=rule.sirg_cd, doc_reference=rule.doc_reference,
+        )
+        session.add(copy)
+        session.flush()
+        for b in rule.bindings:
+            session.add(RuleBinding(
+                rule_id=copy.id, sirg_cd=b.sirg_cd, sirg_id=b.sirg_id, sir_id=b.sir_id,
+                cmpt_nm=b.cmpt_nm, waived_if_whitelisted=b.waived_if_whitelisted,
+                waived_to_validate=b.waived_to_validate, check_service_code=b.check_service_code,
+                attribute_ids=list(b.attribute_ids or []),
+            ))
+        copied += 1
+    pin_package(session, case)
     session.add(AuditEvent(case_id=case.id, actor=actor, action="m2c:draft_started",
                            detail={"rule_set_id": draft.id, "rules_copied": copied,
-                                   "baseline": baseline.id if baseline else None}))
+                                   "reference_source": reference.source,
+                                   "baseline": reference.workbook_version() if baseline else None,
+                                   "package_version": case.package_version,
+                                   "package_hash": case.package_hash}))
     session.flush()
     return draft, copied
 

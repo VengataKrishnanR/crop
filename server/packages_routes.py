@@ -21,16 +21,16 @@ from typing import Any, Optional
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from tools.core.config import REPO_ROOT
 from tools.core.db import get_session
 from tools.core.models import (
-    AuditEvent, ConfigPackage, CtryProcMapping, MirrorSirg, PackageUpload, Rule, SirAttribute, SirDef, SirgDef,
+    AuditEvent, ConfigPackage, CtryProcMapping, PackageUpload, SirAttribute, SirDef, SirgDef,
 )
 from tools.core.packages import active_package_version, active_upload
 from tools.package_review import review_package
-from tools.workflow.case_facts import baseline_rule_set
+from tools.reference import get_reference
 
 from .auth import CurrentUser, require_admin, require_internal
 
@@ -49,12 +49,13 @@ def _now() -> dt.datetime:
 
 
 def _workbook_mirror(session: Session) -> dict[str, Any]:
-    version = session.execute(select(MirrorSirg.source_version).order_by(MirrorSirg.id.desc()).limit(1)).scalar()
+    reference = get_reference(session)
+    version = reference.workbook_version()
     if not version:
         return {"version": None, "rows": []}
-    rows = session.execute(select(MirrorSirg.ctry_cd, MirrorSirg.sirg_cd, MirrorSirg.sir_id, MirrorSirg.cmpt_nm)
-                           .where(MirrorSirg.source_version == version)).all()
-    return {"version": version, "rows": [tuple(r) for r in rows if r[0] and r[1] and r[2]]}
+    rows = reference.mirror_sirg(version=version)
+    return {"version": version, "rows": [(m.ctry_cd, m.sirg_cd, m.sir_id, m.cmpt_nm) for m in rows
+                                         if m.ctry_cd and m.sirg_cd and m.sir_id]}
 
 
 def _package_mappings(session: Session, version: Optional[str]) -> set[tuple[str, str, str]]:
@@ -256,10 +257,7 @@ def trace(country: str, group: str, user: CurrentUser = Depends(require_internal
                        "title": title, "detail": detail})
 
     # M2C workbook side
-    base = baseline_rule_set(session, country)
-    rules = list(session.execute(select(Rule).where(Rule.rule_set_id == base.id, Rule.ctry_cd == country,
-                                                    Rule.sirg_cd == group)
-                                 .options(selectinload(Rule.bindings)).order_by(Rule.row_no)).scalars()) if base else []
+    rules = [r for r in get_reference(session).baseline_rules(country) if r.sirg_cd == group]
     wbm = _workbook_mirror(session)
     wb_rows = [r for r in wbm["rows"] if r[0] == country and r[1] == group]
     wb_sir_ids = sorted({r[2] for r in wb_rows})

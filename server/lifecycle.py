@@ -11,7 +11,7 @@ import datetime as dt
 import json
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -248,7 +248,8 @@ def _summary(session: Session, case: OnboardingCase) -> dict[str, Any]:
     return {"id": case.id, "code": case.code, "country": case.ctry_cd, "title": case.title,
             "state": str(state), "state_label": STATE_LABELS[state],
             "stage": stage.key if stage else None, "planned_rtp": planned_rtp,
-            "created_at": case.created_at.isoformat() if case.created_at else None}
+            "created_at": case.created_at.isoformat() if case.created_at else None,
+            "row_version": case.row_version, "package_version": case.package_version}
 
 
 @router.get("/onboardings", tags=["lifecycle"])
@@ -402,8 +403,15 @@ def apply_transition(session: Session, case: OnboardingCase, name: str, actor: s
 
 @router.post("/onboardings/{case_id}/transition", tags=["lifecycle"])
 def transition(case_id: str, body: S.LifecycleTransition, user: CurrentUser = Depends(current_user),
-               session: Session = Depends(get_session)) -> dict[str, Any]:
+               session: Session = Depends(get_session),
+               if_match: Optional[str] = Header(default=None, alias="If-Match")) -> dict[str, Any]:
+    """Fire a lifecycle transition. With ``If-Match: <row_version>`` a decision taken on a
+    stale view of the case is refused with 409 instead of silently applied (docs/adr/0003)."""
     case = _case(session, case_id, user)
+    if if_match is not None and if_match.strip().strip('"') != str(case.row_version):
+        raise HTTPException(409, detail={"message": "The onboarding changed since you loaded it; reload and "
+                                                    "decide again.", "code": "STALE",
+                                         "current_version": case.row_version})
     try:
         apply_transition(session, case, body.name, actor=user.label, role=Role(str(user.role)),
                          user=user, comment=body.comment)
