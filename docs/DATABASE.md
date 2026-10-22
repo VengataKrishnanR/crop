@@ -1,8 +1,32 @@
 # How the database is planned
 
-One relational database holds everything the platform knows. It runs on **SQLite** today (`.ccre_data\ccre_v2.db`) and moves to **PostgreSQL** by changing one setting, `CCRE_DATABASE_URL`. All access goes through SQLAlchemy, so no code changes.
+One **PostgreSQL** database holds everything the platform knows, in two schemas side by side (decision record: [docs/adr/0003](adr/0003-postgres-and-sirdb-single-source.md)):
 
-Tables are created automatically on start. New tables appear in an existing database by themselves. A **new column on an existing table** needs a migration, so use Alembic before going to production.
+| Schema | Holds | Changed by |
+|---|---|---|
+| `app` | Cases, lifecycle, drafts, UAT, users, audit, the package catalogue — the seven areas below | Alembic, `migrations/app/` |
+| `sirdb` | The M2C workbook as reference data: Import rules, SIR Reference, Technical SIR/SIRG, Validation lists, Other Logic; read through `sirdb.v_import_final` | SQL migrations `migrations/sirdb/0001–0005` ([docs/sirdb](sirdb/README.md)) |
+
+**Settings** (`tools/core/config.py`, environment only):
+
+| Variable | Values | Default |
+|---|---|---|
+| `APP_ENV` | `dev-sqlite`, `dev`, `test`, `uat`, `prod` | `dev` |
+| `CCRE_DATABASE_URL` | `postgresql://user:pw@host:5432/db` | required unless `APP_ENV=dev-sqlite` |
+| `REFERENCE_SOURCE` | `sirdb` (single source of truth), `legacy` (the app's own workbook ingestion, kept one release) | `sirdb`; `legacy` under `dev-sqlite` |
+| `CCRE_SIRDB_URL` | sirdb location when the app database is not PostgreSQL | the app database |
+
+SQLite is allowed **only** with `APP_ENV=dev-sqlite` (offline quick start, fast tests; app tables in `.ccre_data\ccre_v2.db`, no sirdb) and is **refused** under `APP_ENV=prod`.
+
+**Migrations.** Run once per deploy, before the application starts: `python scripts/migrate.py` (or `make migrate`) applies Alembic for `app`, then the sirdb SQL migrations, to `CCRE_DATABASE_URL`. `--status` reports without changing anything. Under `dev-sqlite` the tables are created on start instead.
+
+**Reference data** (workbook rows, bindings, Validation lists, Technical SIR/SIRG, Other Logic) is read only through `tools.reference.get_reference(session)`. With `REFERENCE_SOURCE=sirdb` it comes from `sirdb.v_import_final` and sirdb's SIR Reference joins; with `legacy` from the ingestion tables (`rule_set` without a case, `mirror_*`, `permitted_value`, `expression_template`). `python scripts/reference_parity.py --load` compares the two field by field; the accepted differences are listed in ADR 0003.
+
+**Concurrency.** `onboarding_case`, `rule_set`, `rule` and `uat_test_case` carry `row_version`. Every update checks and increments it; a write based on a stale read fails with **409**. `POST /api/onboardings/{id}/transition` also accepts `If-Match: <row_version>` (the case summary returns `row_version`).
+
+**Reproducibility.** When the M2C draft starts, the case records `package_version` and `package_hash` (SHA-256 of the active beta upload; empty for a package loaded by CLI).
+
+**Tests.** `pytest` runs on in-memory SQLite with the legacy source. `make test-pg` (Windows: `scripts\test-pg.ps1`) runs the same suite on PostgreSQL — a Testcontainers `postgres:16.4`, or an existing server named by `CCRE_TEST_PG_URL` (`-UseSirdbEnv` reads it from `deploy\sirdb.env`) — plus the migration, sirdb-repository and parity tests.
 
 ## The seven areas
 

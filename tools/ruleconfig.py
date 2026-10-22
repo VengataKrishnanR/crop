@@ -113,6 +113,12 @@ def row_issues(rule: Rule, cat: Catalog, country: str) -> list[dict[str, Any]]:
         out.append(_issue("warning", "value_basis", "Value basis set but no value band — the row applies at any value."))
     if rule.effective_date and rule.expiry_date and rule.expiry_date < rule.effective_date:
         out.append(_issue("error", "expiry_date", "Expiry date is before the effective date."))
+    # A TBD hold code makes the Document Reference a placeholder in sirdb, so the row joins no
+    # SIR Reference line and raises nothing (docs/adr/0003, parity: IL rows 32/33).
+    for field in ("country_hold_cd", "global_hold_cd"):
+        if (getattr(rule, field) or "").strip().upper() == "TBD":
+            out.append(_issue("error", field, "Hold code is TBD: the Document Reference cannot join a SIR "
+                                              "Reference line until the hold code is decided."))
     if rule.other_logic:
         for d in grammar.analyse(rule.other_logic):
             out.append(_issue("error" if d.severity == "error" else "warning", "other_logic", d.message))

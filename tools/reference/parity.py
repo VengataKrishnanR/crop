@@ -7,6 +7,9 @@ differences (docs/adr/0003) are reported separately and do not count as drift:
   the Import sheet only (design decision 7: Import first).
 * ``PROPOSAL_ROWS`` -- sirdb's ``v_import_final`` adds APPROVED platform proposals,
   which have no workbook row.
+* ``TBD_KEY_ROWS`` -- a Document Reference with a TBD hold code (e.g. ``IL|Import|TBD|CIDM``)
+  is a placeholder in sirdb and joins no SIR Reference line; the legacy ingestion joined
+  it. sirdb is kept; rule configuration reports a TBD hold code as an error instead.
 """
 from __future__ import annotations
 
@@ -42,6 +45,10 @@ class ParityReport:
         return not self.differences
 
 
+def _tbd_key(doc_reference: Optional[str]) -> bool:
+    return any(p.strip().upper() == "TBD" for p in (doc_reference or "").split("|"))
+
+
 def _binding_key(b: Any) -> tuple:
     return (b.sir_id or "", b.cmpt_nm or "", bool(b.waived_if_whitelisted), bool(b.waived_to_validate),
             b.check_service_code or "", tuple(b.attribute_ids or ()), b.sirg_cd or "")
@@ -68,7 +75,9 @@ def compare(legacy: ReferenceRepository, sirdb: ReferenceRepository, country: Op
             if va != vb:
                 diffs.append(Difference("rules", f"{key} ({a.ctry_cd})", name, va, vb))
         ba, bb = Counter(map(_binding_key, a.bindings)), Counter(map(_binding_key, b.bindings))
-        if ba != bb:
+        if ba != bb and not bb and _tbd_key(a.doc_reference):
+            accepted["TBD_KEY_ROWS"] += 1
+        elif ba != bb:
             diffs.append(Difference("bindings", f"{key} ({a.ctry_cd})", "bindings",
                                     sorted((ba - bb).elements()), sorted((bb - ba).elements())))
 

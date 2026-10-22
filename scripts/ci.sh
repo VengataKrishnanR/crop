@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# CI entrypoint — runs the full test suite offline (stub LLM, no network).
-# Usage: bash scripts/ci.sh
+# CI entrypoint — runs the test suite offline (stub LLM, no network).
+#   bash scripts/ci.sh            # SQLite suite
+#   CI_PG=1 bash scripts/ci.sh    # also the full suite on PostgreSQL (Testcontainers, needs Docker)
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -16,3 +17,7 @@ fi
 
 echo "Using interpreter: $PY"
 CCRE_LLM_MODE=stub "$PY" -m pytest tests -q
+if [ "${CI_PG:-0}" = "1" ]; then
+  echo "Full suite on PostgreSQL"
+  CCRE_LLM_MODE=stub CCRE_TEST_PG=1 "$PY" -m pytest tests -q
+fi
