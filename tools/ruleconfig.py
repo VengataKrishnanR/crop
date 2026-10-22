@@ -20,7 +20,7 @@ from __future__ import annotations
 import datetime as dt
 import io
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Optional, Sequence
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -28,9 +28,9 @@ from sqlalchemy.orm import Session, selectinload
 from tools.core import grammar
 from tools.core.export import SIR_REFERENCE_HEADERS, WORKBOOK_IMPORT_HEADERS
 from tools.core.models import (
-    ConfigPackage, CtryProcMapping, ExpressionTemplate, MirrorSir, MirrorSirg, OnboardingCase,
-    PermittedValue, Rule, RuleBinding, RuleSet, SirAttribute, SirDef, SirgDef,
+    ConfigPackage, CtryProcMapping, OnboardingCase, Rule, RuleBinding, RuleSet, SirAttribute, SirDef, SirgDef,
 )
+from tools.reference import get_reference
 
 DEFAULT_PROC_LVL = "IMP_CLR"
 
@@ -72,9 +72,7 @@ class Catalog:
         defs = {d.id: d for d in session.execute(select(SirDef).where(SirDef.package_version == version)).scalars()}
         rows = session.execute(select(CtryProcMapping.sirg_id, CtryProcMapping.sir_id).where(
             CtryProcMapping.package_version == version, CtryProcMapping.ctry_cd == country)).all()
-        permitted: dict[str, set[str]] = {}
-        for field, value in session.execute(select(PermittedValue.field, PermittedValue.value)).all():
-            permitted.setdefault(field, set()).add(value)
+        permitted = get_reference(session).permitted_values()
         return cls(version, {g.cd: g for g in groups}, {g.id: g for g in groups}, defs,
                    {(a, b) for a, b in rows}, {a for a, _ in rows}, permitted)
 
@@ -115,6 +113,12 @@ def row_issues(rule: Rule, cat: Catalog, country: str) -> list[dict[str, Any]]:
         out.append(_issue("warning", "value_basis", "Value basis set but no value band — the row applies at any value."))
     if rule.effective_date and rule.expiry_date and rule.expiry_date < rule.effective_date:
         out.append(_issue("error", "expiry_date", "Expiry date is before the effective date."))
+    # A TBD hold code makes the Document Reference a placeholder in sirdb, so the row joins no
+    # SIR Reference line and raises nothing (docs/adr/0003, parity: IL rows 32/33).
+    for field in ("country_hold_cd", "global_hold_cd"):
+        if (getattr(rule, field) or "").strip().upper() == "TBD":
+            out.append(_issue("error", field, "Hold code is TBD: the Document Reference cannot join a SIR "
+                                              "Reference line until the hold code is decided."))
     if rule.other_logic:
         for d in grammar.analyse(rule.other_logic):
             out.append(_issue("error" if d.severity == "error" else "warning", "other_logic", d.message))
@@ -174,18 +178,18 @@ def _bindings_key(rule: Rule) -> list[tuple]:
                    b.check_service_code or "", tuple(sorted(b.attribute_ids or []))) for b in rule.bindings)
 
 
-def changes(session: Session, draft: RuleSet, baseline: Optional[RuleSet], country: str) -> list[dict[str, Any]]:
-    """Draft rows vs the country's workbook rows. Matching is by workbook row number."""
-    def load(rs: Optional[RuleSet]) -> list[Rule]:
-        if rs is None:
-            return []
-        return list(session.execute(select(Rule).where(Rule.rule_set_id == rs.id, Rule.ctry_cd == country)
-                                    .options(selectinload(Rule.bindings)).order_by(Rule.row_no)).scalars())
+def changes(session: Session, draft: RuleSet, baseline: Sequence[Any], country: str) -> list[dict[str, Any]]:
+    """Draft rows vs the country's baseline reference rows. Matching is by workbook row number.
 
-    base = {r.row_no: r for r in load(baseline) if r.row_no is not None}
+    ``baseline`` is ``get_reference(session).baseline_rules(country)`` (any objects with
+    the ``Rule`` attribute names).
+    """
+    draft_rules = list(session.execute(select(Rule).where(Rule.rule_set_id == draft.id, Rule.ctry_cd == country)
+                                       .options(selectinload(Rule.bindings)).order_by(Rule.row_no)).scalars())
+    base = {r.row_no: r for r in baseline if r.row_no is not None and r.ctry_cd == country}
     out = []
     seen: set[int] = set()
-    for r in load(draft):
+    for r in draft_rules:
         old = base.get(r.row_no) if r.row_no is not None else None
         if old is None:
             out.append({"rule_id": r.id, "row_no": r.row_no, "status": "NEW", "row": rule_dict(r), "fields": {}})
@@ -210,8 +214,9 @@ def changes(session: Session, draft: RuleSet, baseline: Optional[RuleSet], count
 
 def coverage(session: Session, rules: list[Rule], cat: Catalog, country: str) -> dict[str, Any]:
     """Every (group, definition) the draft needs, and whether the package provides it."""
-    mirror_sirg = {m.sirg_cd: m for m in session.execute(select(MirrorSirg).where(MirrorSirg.ctry_cd == country)).scalars()}
-    mirror_sir = {m.sir_id: m for m in session.execute(select(MirrorSir)).scalars()}
+    reference = get_reference(session)
+    mirror_sirg = {m.sirg_cd: m for m in reference.mirror_sirg(country)}
+    mirror_sir = {m.sir_id: m for m in reference.mirror_sir()}
     needed: dict[tuple[str, str], dict[str, Any]] = {}
     for r in rules:
         for b in (r.bindings or [None]):
@@ -331,7 +336,7 @@ def build_expression(clauses: list[dict[str, Any]], joiner: str = "and") -> dict
 def palette(session: Session) -> list[dict[str, Any]]:
     """The workbook's Other Logic palette, each entry checked (some palette entries are wrong)."""
     out = []
-    for expr in session.execute(select(ExpressionTemplate.expression).distinct()).scalars():
+    for expr in dict.fromkeys(get_reference(session).expression_templates()):
         diags = grammar.analyse(expr)
         out.append({"expression": expr, "ok": not any(d.severity == "error" for d in diags),
                     "problems": [d.message for d in diags if d.severity == "error"]})

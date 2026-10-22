@@ -106,13 +106,10 @@ _ASK_ORDER = ["region", "shipment_type", "requirement_groups", "effective_date",
 # --------------------------------------------------------------------------- #
 
 def load_options(session, country: str) -> dict[str, Any]:
-    from sqlalchemy import select
-
-    from tools.core.models import PermittedValue, Rule, SirgDef
-    permitted: dict[str, set[str]] = {}
-    for field, value in session.execute(select(PermittedValue.field, PermittedValue.value)).all():
-        permitted.setdefault(field, set()).add(value)
-    rows = session.execute(select(Rule.ctry_cd, Rule.region, Rule.network_product_codes)).all()
+    from tools.reference import get_reference
+    reference = get_reference(session)
+    permitted = reference.permitted_values()
+    rows = [(r.ctry_cd, r.region, r.network_product_codes) for r in reference.baseline_rules()]
     regions = set(permitted.get("region", set())) | {r for _, r, _ in rows if r}
     codes: set[str] = set()
     for _, _, npc in rows:
@@ -725,11 +722,9 @@ LABELS = {**{f["key"]: f["label"] for f in FIELDS}, "conditions": "Conditions"}
 
 
 def condition_options(session) -> dict[str, list[str]]:
-    from sqlalchemy import select
-
-    from tools.core.models import ExpressionTemplate, Rule
-    texts = [t for t in list(session.execute(select(Rule.other_logic)).scalars())
-             + list(session.execute(select(ExpressionTemplate.expression)).scalars()) if t]
+    from tools.reference import get_reference
+    reference = get_reference(session)
+    texts = [t for t in [r.other_logic for r in reference.baseline_rules()] + reference.expression_templates() if t]
     blob = "\n".join(texts)
     services = sorted(set(BASE_SERVICE_CODES) | set(re.findall(r'serviceCodeList\.contains\("([A-Z0-9]+)"\)', blob)))
     shorts = sorted({"SDT"} | set(re.findall(r"shortCode[|,]==[|,]([A-Za-z0-9]+)", blob)))

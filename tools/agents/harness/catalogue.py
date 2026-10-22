@@ -251,14 +251,15 @@ def _check_expression(args: ExpressionArgs, scope: CallScope) -> dict[str, Any]:
 def _diff_against_workbook(args: CaseRef, scope: CallScope) -> dict[str, Any]:
     from tools import ruleconfig
     from tools.core.db import session_scope
-    from tools.workflow.case_facts import baseline_rule_set, case_rule_set
+    from tools.reference import get_reference
+    from tools.workflow.case_facts import case_rule_set
 
     with session_scope() as session:
         case = _load_case(session, args.case_id)
         draft = case_rule_set(session, case)
         if draft is None:
             return {"draft": None, "changes": []}
-        baseline = baseline_rule_set(session, case.ctry_cd)
+        baseline = get_reference(session).baseline_rules(case.ctry_cd)
         return {"draft": draft.version,
                 "changes": ruleconfig.changes(session, draft, baseline, case.ctry_cd)}
 

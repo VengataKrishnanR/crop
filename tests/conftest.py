@@ -20,9 +20,20 @@ os.environ["CCRE_LLM_MODE"] = "stub"
 os.environ["CCRE_AGENTS_ENABLED"] = "1"
 os.environ["AUTH_MODE"] = "none"
 os.environ["LOG_LEVEL"] = "WARNING"
-os.environ["CCRE_DATABASE_URL"] = "sqlite:///" + (
-    Path(tempfile.mkdtemp(prefix="ccre_test_")) / "agent_tools.db"
-).as_posix()
+# Two modes (docs/adr/0003): plain `pytest` runs on SQLite with the legacy reference
+# source; `make test-pg` sets CCRE_TEST_PG=1 and runs the same suite on PostgreSQL.
+TEST_PG = os.environ.get("CCRE_TEST_PG") == "1"
+if TEST_PG:
+    from tests.pg import start_test_database  # noqa: E402
+
+    os.environ["APP_ENV"] = "test"
+    os.environ["CCRE_DATABASE_URL"] = start_test_database()
+else:
+    os.environ["APP_ENV"] = "dev-sqlite"
+    os.environ["CCRE_DATABASE_URL"] = "sqlite:///" + (
+        Path(tempfile.mkdtemp(prefix="ccre_test_")) / "agent_tools.db"
+    ).as_posix()
+os.environ["REFERENCE_SOURCE"] = "legacy"
 
 import pytest
 from sqlalchemy import create_engine
@@ -38,19 +49,41 @@ from tools.core.models import (
 REFERENCE = Path(os.environ["CCRE_REFERENCE_DIR"]) if os.environ.get("CCRE_REFERENCE_DIR") else Path(__file__).resolve().parents[2] / "Reference"
 
 
+def _fresh_engine():
+    """An empty app database for one test.
+
+    SQLite: a private in-memory database. PostgreSQL: the run's shared database,
+    every app table truncated, so each test still starts empty.
+    """
+    from tools.core.db import create_schema, make_engine
+
+    if not TEST_PG:
+        engine = make_engine("sqlite://", poolclass=StaticPool)
+        create_schema(engine)
+        return engine, True
+    from tools.core.db import engine
+    # DELETE, not TRUNCATE: TRUNCATE needs an exclusive lock and waits forever behind any
+    # session a previous test left idle in a transaction.
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        conn.execute(text("SET LOCAL lock_timeout = '10s'"))
+        for table in reversed(Base.metadata.sorted_tables):
+            conn.execute(table.delete())
+    return engine, False
+
+
 @pytest.fixture
 def session() -> Session:
-    engine = create_engine(
-        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
-    Base.metadata.create_all(engine)
+    engine, private = _fresh_engine()
     maker = sessionmaker(bind=engine, expire_on_commit=False)
     db = maker()
     try:
         yield db
     finally:
         db.close()
-        engine.dispose()
+        if private:
+            engine.dispose()
 
 
 def _package_path() -> Optional[Path]:
@@ -201,10 +234,7 @@ def client():
     from server.app import app
     from tools.core.db import get_session
 
-    engine = create_engine(
-        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
-    Base.metadata.create_all(engine)
+    engine, private = _fresh_engine()
     maker = sessionmaker(bind=engine, expire_on_commit=False)
 
     def override():
@@ -218,7 +248,8 @@ def client():
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
-    engine.dispose()
+    if private:
+        engine.dispose()
 
 
 @pytest.fixture(scope="session", autouse=True)

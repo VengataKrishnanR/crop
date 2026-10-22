@@ -22,7 +22,8 @@ from tools import ruleconfig as rc
 from tools.core.db import get_session
 from tools.core.models import AuditEvent, OnboardingCase, Rule, RuleBinding, RuleSet, SirAttribute, SirDef
 from tools.workflow import State
-from tools.workflow.case_facts import baseline_rule_set, case_rule_set
+from tools.reference import get_reference
+from tools.workflow.case_facts import case_rule_set
 
 from .auth import CurrentUser, ensure_country, require_ccre, require_internal
 
@@ -436,9 +437,10 @@ def draft_changes(case_id: str, user: CurrentUser = Depends(require_internal),
                   session: Session = Depends(get_session)) -> dict[str, Any]:
     case = _case(session, case_id, user)
     rs = _draft(session, case)
-    base = baseline_rule_set(session, case.ctry_cd)
+    reference = get_reference(session)
+    base = reference.baseline_rules(case.ctry_cd)
     items = rc.changes(session, rs, base, case.ctry_cd)
-    return {"baseline": base.source_version if base else None, "items": items,
+    return {"baseline": reference.workbook_version() if base else None, "items": items,
             "counts": {s: sum(1 for i in items if i["status"] == s) for s in ("NEW", "CHANGED", "REMOVED", "UNCHANGED")},
             "labels": rc.RULE_FIELDS}
 
@@ -473,7 +475,7 @@ def m2c_workbook(case_id: str, user: CurrentUser = Depends(require_internal),
                  session: Session = Depends(get_session)) -> Response:
     case = _case(session, case_id, user)
     rs = _draft(session, case)
-    items = rc.changes(session, rs, baseline_rule_set(session, case.ctry_cd), case.ctry_cd)
+    items = rc.changes(session, rs, get_reference(session).baseline_rules(case.ctry_cd), case.ctry_cd)
     body = rc.build_m2c_workbook(session, case, rs, items)
     return Response(body, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     headers={"Content-Disposition": f'attachment; filename="{case.code}_M2C_{rs.version}.xlsx"'})

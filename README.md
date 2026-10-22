@@ -309,7 +309,9 @@ tools/agents/harness/    Gate error format (GateError/GateResult), AgentOutput e
                          read-only tool registry + design Tool catalogue (see docs/adr/0002)
 tools/functions/         Read-only FunctionTools + server-only staging
 tools/core/              Config, ORM model, condition grammar, export, security (users/tokens)
-tools/ingestion/         M2C workbook + sir-configuration parsers
+tools/ingestion/         M2C workbook (legacy reference source) + sir-configuration parsers
+tools/reference/        ReferenceRepository: sirdb (default) or legacy; parity check (docs/adr/0003)
+tools/sirdb/            SIR/SIRG reference database: loader, resolver, migrator (docs/sirdb)
 tools/validation/        16-check deterministic register
 tools/workflow/          Lifecycle state machine + per-case gate facts + M2C draft
 tools/timeline/          Questionnaire, baseline estimator, plan validation
@@ -317,7 +319,8 @@ tools/execution/         Evaluator, payload builders (incl. crms.py — onboarde
 server/                  app.py, auth.py, admin.py, endpoints.py, lifecycle.py, uat.py, downloads.py, kpis.py, advisory.py, routes.py, cli.py
 ui/                      Single-page app (sign-in, workspace, business view, KPIs, admin)
 config/                  .env.example · .env.apigee · .env.stub
-tests/                   Suite by category; root conftest.py writes test_report.xlsx
+tests/                   Suite by category; root conftest.py writes test_report.xlsx; pg.py for make test-pg
+migrations/app/          Alembic (schema app) · migrations/sirdb/ SQL (schema sirdb); run both: scripts/migrate.py
 ```
 
 **M2C scope:** the draft covers the Import tab. The other M2C tabs that power it are deliberately deferred and will be configured next.
@@ -335,7 +338,9 @@ tests/                   Suite by category; root conftest.py writes test_report.
 | `CCRE_UAT_EXECUTOR` | `mock` | Fallback when no Admin endpoint is chosen: `mock` · `http` · `package.module:Class` |
 | `CCRE_UAT_ENDPOINT`, `CCRE_UAT_AUTH_HEADER`, `CCRE_UAT_TIMEOUT_SECONDS` | — | Fallback `http` mode only; prefer Admin endpoints |
 | `CCRE_UAT_GROUPS_PATH`, `CCRE_UAT_CASE_CREATED_PATH` | `requirements[].group`, `caseCreated` | Where the response says what was raised |
-| `CCRE_DATABASE_URL` | SQLite `.ccre_data\ccre_v2.db` | Any SQLAlchemy URL |
+| `APP_ENV` | `dev` (`.env.stub`: `dev-sqlite`) | `dev-sqlite` · `dev` · `test` · `uat` · `prod`; SQLite only with `dev-sqlite`, never in `prod` |
+| `CCRE_DATABASE_URL` | required (PostgreSQL); `dev-sqlite`: `.ccre_data\ccre_v2.db` | `postgresql://user:pw@host:5432/db` — schemas `app` + `sirdb`, see docs/DATABASE.md |
+| `REFERENCE_SOURCE` | `sirdb` (`dev-sqlite`: `legacy`) | Where workbook reference data is read |
 | `CCRE_REFERENCE_DIR` | `..\Reference` | Workbook and package location |
 | `APIGEE_*` | — | DHL GenAI Gateway; see `config\.env.apigee` |
 
@@ -345,6 +350,7 @@ tests/                   Suite by category; root conftest.py writes test_report.
 
 ```powershell
 pytest                 # offline (stub LLM, AUTH_MODE=none + role headers); writes test_report.xlsx
+.\scripts\test-pg.ps1  # the same suite on PostgreSQL (Testcontainers; -UseSirdbEnv for the local ccre-sirdb); Linux: make test-pg
 ```
 
 The suite includes a full DE onboarding from intake to RTP, the UAT failure → correction → second-cycle loop, intake by chatbot, the BG package-gap block, RBAC with real sign-in, and the admin panel. Tests that need the reference files skip cleanly without them. See **QUICK_START.md** for a walkthrough and **TROUBLESHOOTING.md** for fixes.

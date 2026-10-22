@@ -58,7 +58,8 @@ def find_similar_rules(
     """Find existing rules resembling the one being drafted, to encourage reuse.
 
     This is a structured query, not a similarity model: the rule layer is small
-    and fully keyed, so exact filters beat embeddings here.
+    and fully keyed, so exact filters beat embeddings here. Rows are the baseline
+    reference rows (sirdb by default), not other cases' drafts.
 
     Args:
         country_code: ISO-2 country code to match, or empty for any.
@@ -68,15 +69,14 @@ def find_similar_rules(
     Returns:
         A dict with ``rules``: the matching rules and their condition expressions.
     """
+    from tools.reference import get_reference
+
     with session_scope() as session:
-        stmt = select(Rule)
-        if country_code:
-            stmt = stmt.where(Rule.ctry_cd == country_code.upper())
-        if requirement_group:
-            stmt = stmt.where(Rule.sirg_cd == requirement_group.upper())
-        if shipment_type:
-            stmt = stmt.where(Rule.shipment_type == shipment_type)
-        rules = list(session.execute(stmt.limit(MAX_ROWS)).scalars())
+        rules = [
+            r for r in get_reference(session).baseline_rules(country_code.upper() or None)
+            if (not requirement_group or r.sirg_cd == requirement_group.upper())
+            and (not shipment_type or r.shipment_type == shipment_type)
+        ][:MAX_ROWS]
         return {
             "count": len(rules),
             "rules": [

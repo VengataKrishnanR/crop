@@ -228,8 +228,8 @@ def evaluate(session: Session, case: OnboardingCase) -> dict[str, Any]:
 
     # 6. changes (information)
     if rs:
-        from tools.workflow.case_facts import baseline_rule_set
-        ch = rc.changes(session, rs, baseline_rule_set(session, country), country)
+        from tools.reference import get_reference
+        ch = rc.changes(session, rs, get_reference(session).baseline_rules(country), country)
         counts = {s: sum(1 for c in ch if c["status"] == s) for s in ("NEW", "CHANGED", "REMOVED", "UNCHANGED")}
         add("changes", True, f"{counts['NEW']} new, {counts['CHANGED']} changed, {counts['REMOVED']} removed, "
                              f"{counts['UNCHANGED']} unchanged row(s) compared with the workbook.",

@@ -12,9 +12,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from tools.core.models import (
-    ConfigPackage, CtryProcMapping, ExpressionTemplate, MirrorSir, MirrorSirg,
-    PermittedValue, ReleaseNoteEntry, Rule, RuleSet, SirAttribute, SirDef, SirgDef,
+    CtryProcMapping, ReleaseNoteEntry, Rule, RuleSet, SirAttribute, SirDef, SirgDef,
 )
+from tools.reference import MirrorSirgRow, MirrorSirRow, get_reference
 
 
 @dataclass
@@ -32,8 +32,8 @@ class Snapshot:
     release_entries: list[ReleaseNoteEntry] = field(default_factory=list)
 
     # workbook mirror
-    mirror_sir: list[MirrorSir] = field(default_factory=list)
-    mirror_sirg: list[MirrorSirg] = field(default_factory=list)
+    mirror_sir: list[MirrorSirRow] = field(default_factory=list)
+    mirror_sirg: list[MirrorSirgRow] = field(default_factory=list)
 
     # rules under review
     rules: list[Rule] = field(default_factory=list)
@@ -112,20 +112,14 @@ def load_snapshot(
             select(ReleaseNoteEntry).where(ReleaseNoteEntry.package_version == package_version)
         ).scalars())
 
+    reference = get_reference(session)
     if workbook_version is None:
-        newest = session.execute(
-            select(MirrorSirg.source_version).order_by(MirrorSirg.id.desc()).limit(1)
-        ).scalar_one_or_none()
-        workbook_version = newest or ""
+        workbook_version = reference.workbook_version() or ""
     snap.workbook_version = workbook_version or ""
 
     if workbook_version:
-        snap.mirror_sir = list(session.execute(
-            select(MirrorSir).where(MirrorSir.source_version == workbook_version)
-        ).scalars())
-        snap.mirror_sirg = list(session.execute(
-            select(MirrorSirg).where(MirrorSirg.source_version == workbook_version)
-        ).scalars())
+        snap.mirror_sir = reference.mirror_sir(version=workbook_version)
+        snap.mirror_sirg = reference.mirror_sirg(version=workbook_version)
         # An onboarding case's M2C draft is judged on its own countries: another
         # country's catalogue gaps in the shared workbook must not block it.
         if snap.rule_set is not None and snap.rule_set.case_id:
@@ -135,15 +129,7 @@ def load_snapshot(
             snap.mirror_sirg = [m for m in snap.mirror_sirg if m.ctry_cd in countries]
             scoped_sir = {m.sir_id for m in snap.mirror_sirg if m.sir_id}
             snap.mirror_sir = [m for m in snap.mirror_sir if m.sir_id in scoped_sir]
-        for row in session.execute(
-            select(PermittedValue).where(PermittedValue.source_version == workbook_version)
-        ).scalars():
-            snap.permitted.setdefault(row.field, set()).add(row.value)
-        snap.templates = [
-            t for t in session.execute(
-                select(ExpressionTemplate.expression)
-                .where(ExpressionTemplate.source_version == workbook_version)
-            ).scalars()
-        ]
+        snap.permitted = reference.permitted_values(version=workbook_version)
+        snap.templates = reference.expression_templates(version=workbook_version)
 
     return snap
