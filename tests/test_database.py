@@ -224,7 +224,7 @@ def test_migrations_reproduce_the_models_and_apply_sirdb(migrated_url: str) -> N
     engine = make_engine(migrated_url)
     with engine.connect() as conn:
         ctx = MigrationContext.configure(conn, opts={
-            "include_schemas": True, "compare_type": True,
+            "include_schemas": True, "compare_type": True, "version_table_schema": APP_SCHEMA,
             "include_name": lambda name, type_, _p: name == APP_SCHEMA if type_ == "schema" else True})
         assert compare_metadata(ctx, Base.metadata) == []
     tables = set(inspect(engine).get_table_names(schema="sirdb"))
