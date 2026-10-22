@@ -299,41 +299,7 @@ def dmg_not_required(case_id: str, body: Reason, user: CurrentUser = Depends(req
 # 4. sanity checklist
 # --------------------------------------------------------------------------- #
 
-@router.get("/onboardings/{case_id}/sanity", tags=["lifecycle"])
-def sanity_checklist(case_id: str, user: CurrentUser = Depends(require_internal),
-                     session: Session = Depends(get_session)) -> dict[str, Any]:
-    """What the sanity check verifies before UAT preparation, each item with ✓/✗ and why."""
-    case = _case(session, case_id, user)
-    ctx = gate_context(session, case)
-    rs = case_rule_set(session, case)
-    rows = session.execute(select(func.count()).select_from(Rule).where(
-        Rule.rule_set_id == rs.id, Rule.ctry_cd == case.ctry_cd)).scalar_one() if rs else 0
-    req = latest_requirement(session, case.id)
-    facts = complexity_facts(session, case.ctry_cd, (req.structured if req else {}) or {}, rs.id if rs else None)
-    dmg = latest_dmg_task(session, case.id)
-    blockers = [{"code": f.code, "message": f.message} for f in (ctx.report.blockers if ctx.report else [])]
-    items = [
-        {"key": "m2c", "title": "M2C draft has rows for the country", "ok": bool(rs) and rows > 0,
-         "detail": f"{rows} row(s) for {case.ctry_cd} in {rs.label or rs.version}." if rs else "The M2C draft has not been started."},
-        {"key": "validation", "title": "Rule validation has no blocking finding", "ok": ctx.validation_clean,
-         "detail": "16 deterministic checks passed without blockers." if ctx.validation_clean
-         else f"{len(blockers)} blocking finding(s) — fix them in rule config.", "findings": blockers},
-        {"key": "package", "title": "Config package covers the country and its requirement groups",
-         "ok": ctx.package_complete,
-         "detail": ("The package maps the country and every referenced requirement." if ctx.package_complete else
-                    ("The country has no mapping in the package. " if not facts["country_in_package"] else "")
-                    + (f"Missing groups: {', '.join(facts['groups_missing_from_package'])}. "
-                       if facts["groups_missing_from_package"] else "")
-                    + "Support must rebuild and upload the package.")},
-        {"key": "dmg", "title": "DMG email task completed", "ok": ctx.dmg_complete,
-         "detail": {None: "Not prepared yet.", "DRAFT": "Draft — not yet submitted for review.",
-                    "IN_REVIEW": "Waiting for CCRE review.", "SENT": f"Approved and sent{' on ' + dmg.sent_at.strftime('%Y-%m-%d') if dmg and dmg.sent_at else ''}.",
-                    "NOT_REQUIRED": f"Marked not required: {dmg.decision_comment if dmg else ''}"}[dmg.status if dmg else None]},
-    ]
-    return {"ready": all(i["ok"] for i in items), "items": items,
-            "explanation": "The sanity check is the last gate before UAT preparation: it confirms the M2C "
-                           "rows are valid and that CCRE can actually evaluate them (package coverage, DMG "
-                           "changes), so test cases are not written against a configuration that cannot run."}
+# The sanity checklist lives in server/sanity_routes.py.
 
 
 # --------------------------------------------------------------------------- #

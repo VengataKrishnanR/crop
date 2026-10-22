@@ -75,6 +75,7 @@ class Transition:
     requires_tests_passed: bool = False
     requires_dmg_complete: bool = False
     requires_rows_clean: bool = False
+    requires_sanity_run: bool = False
     requires_ccre_review_done: bool = False
     requires_business_review_done: bool = False
     #: submit | approve | reject | system — drives the uniform Approve / Reject UI
@@ -115,8 +116,7 @@ TRANSITIONS: tuple[Transition, ...] = (
        requires_rule_set=True, requires_dmg_complete=True, requires_rows_clean=True),
     _t(State.SANITY_CHECK, State.UAT_TC_PREP, _CCRE,
        "sanity_passed", "Approve sanity check",
-       requires_rule_set=True, requires_clean_validation=True, requires_package_complete=True,
-       requires_dmg_complete=True, kind="approve"),
+       requires_rule_set=True, requires_sanity_run=True, requires_dmg_complete=True, kind="approve"),
     _t(State.SANITY_CHECK, State.RULE_CONFIG, _CCRE,
        "sanity_failed", "Reject sanity check (back to rule config)", kind="reject"),
 
@@ -251,6 +251,7 @@ class GateContext:
     tests_failed: int = 0
     dmg_complete: bool = False
     rows_with_errors: int = 0      # M2C draft rows with a blocking row check
+    sanity_gap: Optional[str] = None   # why the sanity check cannot be approved yet
     tc_pending_ccre: int = 0       # rows still waiting for a CCRE decision
     tc_ccre_approved: int = 0      # approved by CCRE, waiting for the business decision
     tc_business_approved: int = 0  # approved by both — these are executed
@@ -303,6 +304,8 @@ def gate_reasons(transition: Transition, ctx: GateContext) -> list[str]:
             reasons.append("No test results have been recorded.")
         else:
             reasons.append(f"{ctx.tests_failed} of {ctx.tests_total} tests did not pass.")
+    if transition.requires_sanity_run and ctx.sanity_gap:
+        reasons.append(ctx.sanity_gap)
     if transition.requires_rows_clean and ctx.rows_with_errors:
         reasons.append(f"{ctx.rows_with_errors} M2C row(s) still have errors — fix them in Rule configuration.")
     if transition.requires_dmg_complete and not ctx.dmg_complete:

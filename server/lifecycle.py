@@ -394,6 +394,10 @@ def apply_transition(session: Session, case: OnboardingCase, name: str, actor: s
         _after_transition(session, case, name, user)
     else:
         _record_milestone_actuals(session, case, State(case.state))
+    if State(case.state) == State.SANITY_CHECK:
+        # Entering the sanity check runs it straight away — nobody has to start it by hand.
+        from tools import sanity
+        sanity.run(session, case, "system:on-entry")
 
 
 @router.post("/onboardings/{case_id}/transition", tags=["lifecycle"])

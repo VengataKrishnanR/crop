@@ -167,6 +167,9 @@ def gate_context(session: Session, case: OnboardingCase) -> GateContext:
         ctx.package_complete = run_checks(snapshot, only=_PACKAGE_CHECKS).is_clean
         from tools.ruleconfig import draft_row_errors
         ctx.rows_with_errors = draft_row_errors(session, case, rule_set)
+        if case.state == "SANITY_CHECK":
+            from tools.sanity import approval_gap
+            ctx.sanity_gap = approval_gap(session, case)
 
     counts = dict(session.execute(
         select(UatTestCase.status, func.count()).where(UatTestCase.case_id == case.id)

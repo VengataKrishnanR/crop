@@ -99,13 +99,27 @@ def test_bg_is_blocked_at_sanity_by_its_package_gap(client: TestClient, real_pac
                        json={"comment": "No DMG change for IOSS"}).status_code == 200
     client.post(f"/api/onboardings/{case_id}/transition", json={"name": "request_sanity_check"}, headers=TEAM)
     checklist = client.get(f"/api/onboardings/{case_id}/sanity", headers=TEAM).json()
-    status = {i["key"]: i["ok"] for i in checklist["items"]}
-    assert status == {"m2c": True, "validation": False, "package": False, "dmg": True}
-    assert checklist["ready"] is False
+    status = {i["key"]: i["status"] for i in checklist["items"]}
+    assert status["package"] == "fail" and status["dmg"] == "pass" and checklist["ready"] is False
+    # Entering the stage ran the check automatically and saved it as evidence.
+    assert checklist["latest_run"]["status"] == "FAIL" and checklist["latest_run"]["run_by"] == "system:on-entry"
     resp = client.post(f"/api/onboardings/{case_id}/transition", json={"name": "sanity_passed"}, headers=TEAM)
     assert resp.status_code == 409
-    reasons = " ".join(resp.json()["detail"]["reasons"])
-    assert "blocking finding" in reasons and "package" in reasons
+    assert "failed" in " ".join(resp.json()["detail"]["reasons"])
+    # Only a package gap or a deliberate requirement difference can be waived — by a consultant, with a reason.
+    assert client.post(f"/api/onboardings/{case_id}/sanity/waivers", headers=TEAM, json={
+        "item_key": "package", "reason": "Support ticket raised"}).status_code == 403
+    assert client.post(f"/api/onboardings/{case_id}/sanity/waivers", headers=CONSULTANT, json={
+        "item_key": "dmg", "reason": "not needed at all"}).status_code == 400
+    waived = client.post(f"/api/onboardings/{case_id}/sanity/waivers", headers=CONSULTANT, json={
+        "item_key": "package", "reason": "BG mapping requested from Support", "reference": "INC0012345"})
+    assert waived.status_code == 200, waived.text
+    after = client.get(f"/api/onboardings/{case_id}/sanity", headers=TEAM).json()
+    pkg = next(i for i in after["items"] if i["key"] == "package")
+    assert pkg["status"] == "waived" and pkg["waiver"]["reference"] == "INC0012345"
+    assert after["runs"][0]["run_by"] != "system:on-entry"         # the waiver re-ran the check
+    report = client.get(f"/api/onboardings/{case_id}/sanity/report.xlsx", headers=TEAM)
+    assert report.status_code == 200 and report.content[:2] == b"PK"
     # The failed sanity check is evidence: a validation run was persisted.
     report = client.post(f"/api/onboardings/{case_id}/m2c/validate", headers=TEAM).json()
     assert {f["code"].split("/")[0] for f in report["findings"] if f["severity"] == "blocker"} >= {"CHK015"}

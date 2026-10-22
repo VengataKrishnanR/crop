@@ -206,12 +206,19 @@ def test_dmg_not_required_completes_the_task(client: TestClient, loaded: None) -
 # --------------------------------------------------------------------------- #
 
 def test_sanity_checklist_explains_each_item(client: TestClient, loaded: None) -> None:
+    from test_e2e_positive import align_rows
     case_id = _to_rule_config(client)
     before = client.get(f"/api/onboardings/{case_id}/sanity", headers=TEAM).json()
-    assert before["explanation"] and before["ready"] is False
+    assert before["explanation"] and before["ready"] is False and before["in_stage"] is False
     items = {i["key"]: i for i in before["items"]}
-    assert items["m2c"]["ok"] and items["validation"]["ok"] and items["package"]["ok"]
-    assert items["dmg"]["ok"] is False and items["dmg"]["detail"] == "Not prepared yet."
+    assert list(items) == ["rows", "requirement_match", "rules", "package", "dmg", "changes"]
+    assert items["rows"]["status"] == "pass" and items["package"]["status"] == "pass"
+    assert items["requirement_match"]["status"] == "fail"          # DE row 38 differs from the requirement
+    assert items["requirement_match"]["findings"][0]["row"] == 38
+    assert items["dmg"]["status"] == "fail" and items["dmg"]["fix"]["action"] == "send_back"
+    assert all(i["why"] for i in before["items"])
+    assert "DMG" in before["send_back_reason"]
+    align_rows(client, case_id)
     client.post(f"/api/onboardings/{case_id}/dmg/not-required", headers=CONSULTANT, json={"comment": "none"})
     assert client.get(f"/api/onboardings/{case_id}/sanity", headers=TEAM).json()["ready"] is True
     assert client.get(f"/api/onboardings/{case_id}/sanity", headers=BUSINESS).status_code == 403
@@ -222,7 +229,9 @@ def test_sanity_checklist_explains_each_item(client: TestClient, loaded: None) -
 # --------------------------------------------------------------------------- #
 
 def test_scenario_becomes_a_test_case_that_needs_both_approvals(client: TestClient, loaded: None) -> None:
+    from test_e2e_positive import align_rows
     case_id = _to_rule_config(client)
+    align_rows(client, case_id)
     client.post(f"/api/onboardings/{case_id}/dmg/not-required", headers=CONSULTANT, json={"comment": "none"})
     for name in ("request_sanity_check", "sanity_passed"):
         assert client.post(f"/api/onboardings/{case_id}/transition", json={"name": name}, headers=TEAM).status_code == 200

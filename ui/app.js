@@ -1057,6 +1057,7 @@ function rcEditor(box, r, panel) {
     ${ws.editable ? `<details class="ccre-details"><summary>Build the condition from choices</summary><div id="rc-builder"></div></details>` : ''}
     ${ws.editable ? `<div class="ccre-row ccre-wrap ccre-gap">
       <button id="rf-save" class="dhl-btn dhl-btn--primary">Save row</button>
+      <button id="rf-align" class="dhl-btn dhl-btn--ghost" title="Copy the approved requirement's region, B2B/B2C, dates, product codes, value, weight and Other Logic onto this row">Align with the requirement</button>
       <button id="rf-dup" class="dhl-btn dhl-btn--ghost">Duplicate row</button>
       <button id="rf-del" class="dhl-btn dhl-btn--ghost ccre-act--reject">Remove row</button></div>` : ''}
     <h4>Requirement definitions for this row (SIR Reference)</h4>
@@ -1082,6 +1083,13 @@ function rcEditor(box, r, panel) {
     ['min_value', 'max_value', 'min_weight', 'max_weight'].forEach((f) => { payload[f] = numv(`rf-${f}`); });
     const res = await api('PUT', `/api/onboardings/${S.caseId}/rule-config/rows/${r.id}`, payload);
     toast(res.status === 'error' ? 'Saved — the row still has errors.' : 'Row saved.', res.status === 'error');
+    await renderRuleConfig(panel);
+  });
+  $('rf-align').onclick = () => run('Align', async () => {
+    const ok = await dialog('Align with the requirement?', '<p>The row gets the region, B2B/B2C, dates, product codes, value and weight limits and Other Logic. The requirement group and bound definitions stay. The change shows under <b>Changes vs workbook</b>.</p>', 'Align');
+    if (!ok) return;
+    await api('POST', `/api/onboardings/${S.caseId}/rule-config/rows/${r.id}/align-requirement`);
+    toast('Row aligned with the requirement.');
     await renderRuleConfig(panel);
   });
   $('rf-dup').onclick = () => run('Duplicate', async () => {
@@ -1228,7 +1236,13 @@ async function rcDownload(body) {
       <button id="dl-m2c" class="dhl-btn dhl-btn--primary">&#8681; Download M2C (.xlsx)</button></div>
     <div class="ccre-card"><h4>Full validation</h4><p class="ccre-hint">All 16 deterministic checks across the M2C and the config package — the same run the sanity check uses.</p>
       <button id="m2c-validate" class="dhl-btn dhl-btn--ghost">&#9989; Run validation</button></div></div>
-    <div id="m2c-report"></div>`;
+    <div id="m2c-report"></div>
+    <h4>Sanity pre-check</h4><p class="ccre-hint">The same six checks the sanity check runs — fix what is marked here, before you submit.</p>
+    <div id="rc-precheck"><p class="ccre-hint">Checking…</p></div>`;
+  api('GET', `/api/onboardings/${S.caseId}/sanity`).then((s) => {
+    $('rc-precheck').innerHTML = sanityCards(s, { inStage: false });
+    wireSanity($('rc-precheck'), s, () => rcDownload(body));
+  }).catch(() => {});
   $('dl-m2c').onclick = () => run('Download', () => download(`/api/onboardings/${S.caseId}/rule-config/m2c.xlsx`, 'M2C.xlsx'));
   $('m2c-validate').onclick = () => run('Validate', async () => {
     const rep = await api('POST', `/api/onboardings/${S.caseId}/m2c/validate`);
@@ -1313,17 +1327,132 @@ function wireDmg(el) {
 }
 
 // ── 4. Sanity check — a plain checklist ──────────────────────
+// ── 4. Sanity check — six plain checks, each with how to fix it ──
+const SANITY_STATUS = {
+  pass: ['ccre-st--ok', '&#10003; Passed'], fail: ['ccre-st--err', '&#10005; Needs attention'],
+  waived: ['ccre-st--pkg', '&#9888; Accepted as exception'], info: ['ccre-st', '&#9432; For review'],
+};
+
+function sanityFindings(i) {
+  const f = i.findings || [];
+  if (!f.length) return '';
+  if (i.key === 'rows') {
+    return table(['Row', 'Group', 'What is wrong'], f.map((x) => `<tr><td>${esc(x.row)}</td><td>${esc(x.group || '—')}</td><td>${list(x.problems)}</td></tr>`));
+  }
+  if (i.key === 'requirement_match') {
+    return f.map((x) => `<div class="ccre-sanity-sub"><b>${esc(x.problem)}</b>
+      ${x.differences.length ? table(['Field', 'The requirement says', 'The M2C says'], x.differences.map((d) =>
+        `<tr><td>${esc(d.field)}</td><td>${esc(d.requirement ?? '— (not set)')}</td><td>${esc(d.m2c ?? '— (not set)')}</td></tr>`)) : ''}</div>`).join('');
+  }
+  if (i.key === 'rules') {
+    return table(['Check', 'What is wrong', 'Where'], f.map((x) => `<tr><td>${esc(x.check)}</td><td>${esc(x.message)}</td><td>${esc((x.rows || []).join(', ') || x.where)}</td></tr>`));
+  }
+  if (i.key === 'package') {
+    return table(['Requirement group', 'Definition', 'Missing in the package'], f.map((x) => `<tr><td>${esc(x.group || '—')}</td><td>${esc(x.definition)}</td><td>${esc(x.needed)}</td></tr>`));
+  }
+  if (i.key === 'changes') {
+    return table(['Change', 'Row', 'Group', 'What changed'], f.map((x) => `<tr><td>${esc(x.status)}</td><td>${esc(x.row)}</td><td>${esc(x.group || '—')}</td>
+      <td>${Object.entries(x.fields || {}).map(([k, v]) => `<div><b>${esc(k)}</b>: <del>${esc(v.from ?? '—')}</del> → <ins>${esc(v.to ?? '—')}</ins></div>`).join('') || (x.status === 'new' ? 'New row' : 'Whole row')}</td></tr>`));
+  }
+  return '';
+}
+
+function sanityCards(s, { inStage }) {
+  return s.items.map((i, n) => {
+    const [cls, label] = SANITY_STATUS[i.status];
+    const actions = [];
+    if (i.fix && i.status === 'fail') {
+      if (i.fix.action === 'package_request') actions.push(`<button class="dhl-btn dhl-btn--ghost" data-sfix="package">&#8681; ${esc(i.fix.label)}</button>`);
+      else if (inStage && hasRole(...CCRE)) actions.push(`<button class="dhl-btn dhl-btn--ghost" data-sfix="send_back">${esc(i.fix.label)}</button>`);
+      else if (!inStage) actions.push(`<span class="ccre-hint">Fix it here in rule configuration.</span>`);
+    }
+    if (i.waivable && i.status === 'fail' && s.can_waive) actions.push(`<button class="dhl-btn dhl-btn--ghost" data-swaive="${esc(i.key)}">Accept as exception…</button>`);
+    const waiver = i.waiver ? `<div class="ccre-waiver"><b>Accepted as exception</b> by ${esc(i.waiver.by)}: ${esc(i.waiver.reason)}${i.waiver.reference ? ` · ref <b>${esc(i.waiver.reference)}</b>` : ''}
+      ${s.can_waive ? `<button class="dhl-btn dhl-btn--ghost ccre-small-btn" data-srevoke="${esc(i.waiver.id)}">Revoke</button>` : ''}</div>` : '';
+    return `<div class="ccre-sanity-card ccre-sanity-card--${i.status}">
+      <div class="ccre-sanity-num">${n + 1}</div>
+      <div class="ccre-sanity-body">
+        <div class="ccre-row ccre-space ccre-wrap"><strong>${esc(i.title)}</strong><span class="ccre-st ${cls}">${label}</span></div>
+        <div>${esc(i.summary)}</div>
+        <details class="ccre-accept"><summary>Why this matters</summary><div>${esc(i.why)}</div></details>
+        ${waiver}
+        ${(i.findings || []).length ? `<details class="ccre-details" ${i.status === 'fail' ? 'open' : ''}><summary>${i.key === 'changes' ? 'Show the changes' : `Details (${i.findings.length})`}</summary>${sanityFindings(i)}</details>` : ''}
+        ${(i.notes || []).length ? `<details class="ccre-details"><summary>Notes to read (${i.notes.length})</summary>${list(i.notes.map((x) => `${x.check}: ${x.message}`))}</details>` : ''}
+        ${actions.length ? `<div class="ccre-row ccre-wrap ccre-gap">${actions.join('')}</div>` : ''}
+      </div></div>`;
+  }).join('');
+}
+
+function wireSanity(el, s, rerender) {
+  el.querySelectorAll('[data-sfix="package"]').forEach((b) => {
+    b.onclick = () => run('Download', () => download(`/api/onboardings/${S.caseId}/rule-config/coverage.csv`, 'package_request.csv'));
+  });
+  el.querySelectorAll('[data-sfix="send_back"]').forEach((b) => { b.onclick = () => sanitySendBack(s); });
+  el.querySelectorAll('[data-swaive]').forEach((b) => {
+    b.onclick = () => run('Exception', async () => {
+      const item = s.items.find((x) => x.key === b.dataset.swaive);
+      const v = await dialog(`Accept as exception: ${item.title}`, `
+        <p class="ccre-hint">${b.dataset.swaive === 'package' ? 'Use this when Support has been asked to add the mapping and UAT may continue meanwhile.' : 'Use this when the M2C differs from the requirement on purpose (e.g. split into two rows).'}</p>
+        <label class="ccre-field-label">Reason (required)</label><textarea class="dhl-textarea ccre-small" name="reason" required></textarea>
+        <label class="ccre-field-label">Reference (Support ticket, email…)</label><input class="dhl-input" name="reference" placeholder="e.g. INC0012345">`, 'Accept as exception');
+      if (!v) return;
+      await api('POST', `/api/onboardings/${S.caseId}/sanity/waivers`, { item_key: b.dataset.swaive, reason: v.reason, reference: v.reference || null });
+      toast('Recorded — the sanity check ran again.');
+      await rerender();
+    });
+  });
+  el.querySelectorAll('[data-srevoke]').forEach((b) => {
+    b.onclick = () => run('Revoke', async () => {
+      await api('DELETE', `/api/onboardings/${S.caseId}/sanity/waivers/${b.dataset.srevoke}`);
+      toast('Exception revoked.');
+      await rerender();
+    });
+  });
+}
+
+function sanitySendBack(s) {
+  return run('Send back', async () => {
+    const v = await dialog('Send back to rule configuration', `<p class="ccre-hint">The reason is filled in from the checks that need attention — edit it if you like.</p>
+      <label class="ccre-field-label">Reason (shared with the team, kept on the audit trail)</label>
+      <textarea class="dhl-textarea" name="comment" rows="6" required>${esc(s.send_back_reason || '')}</textarea>`, 'Send back');
+    if (!v) return;
+    await api('POST', `/api/onboardings/${S.caseId}/transition`, { name: 'sanity_failed', comment: v.comment });
+    toast('Sent back to rule configuration.');
+    S.viewStage = null;
+    await refreshCase();
+  });
+}
+
 async function renderSanity(el) {
   if (isBusiness()) return businessWaiting(el, 'The CCRE team is checking the configuration before testing starts.');
   const s = await api('GET', `/api/onboardings/${S.caseId}/sanity`);
-  el.innerHTML = `<h3>Sanity check ${s.ready ? '<span class="dhl-val-chip dhl-val-chip--pass">ready to approve</span>' : '<span class="dhl-val-chip dhl-val-chip--fail">not ready</span>'}</h3>
-    <p>${esc(s.explanation)}</p>
-    ${s.items.map((i) => `<div class="ccre-check ${i.ok ? 'ccre-check--ok' : 'ccre-check--bad'}">
-      <span class="ccre-check__icon">${i.ok ? '&#10003;' : '&#10005;'}</span>
-      <div><strong>${esc(i.title)}</strong><div class="ccre-hint">${esc(i.detail)}</div>
-        ${(i.findings || []).length ? `<ul class="ccre-list ccre-gap">${i.findings.map((f) => `<li class="ccre-bad"><span class="ccre-finding__code">${esc(f.code)}</span> ${esc(f.message)}</li>`).join('')}</ul>` : ''}</div>
-    </div>`).join('')}
-    <p class="ccre-hint">${s.ready ? 'Everything is in place — approve with the button above.' : 'Fix the items marked ✕ (rule config / Support package rebuild / DMG email), or reject back to rule config with the reason.'}</p>`;
+  const scored = s.items.filter((i) => i.status !== 'info');
+  const good = scored.filter((i) => i.status !== 'fail').length;
+  const last = s.latest_run;
+  const banner = s.ready
+    ? `<div class="ccre-sanity-banner ccre-sanity-banner--ok"><b>&#10003; Ready to approve</b> — all ${scored.length} checks passed${s.counts.waived ? ` (${s.counts.waived} accepted as exception)` : ''}.</div>`
+    : `<div class="ccre-sanity-banner ccre-sanity-banner--bad"><b>${scored.length - good} of ${scored.length} checks need attention.</b> Each card says what is wrong and how to fix it — send it back to rule configuration (button at the bottom), or accept a package gap or a deliberate difference as an exception.</div>`;
+  el.innerHTML = `<div class="ccre-row ccre-space ccre-wrap"><h3>Sanity check</h3>
+      <div class="ccre-row ccre-wrap" style="gap:8px">
+        ${s.can_run ? '<button id="san-run" class="dhl-btn dhl-btn--ghost">&#8635; Run again</button>' : ''}
+        ${last ? '<button id="san-report" class="dhl-btn dhl-btn--ghost">&#8681; Report (.xlsx)</button>' : ''}</div></div>
+    <p class="ccre-hint">${esc(s.explanation)}</p>
+    ${banner}
+    <div class="ccre-sanity-progress"><div style="width:${Math.round((good / Math.max(scored.length, 1)) * 100)}%"></div></div>
+    ${last ? `<p class="ccre-hint">Last run ${esc(last.at.replace('T', ' ').slice(0, 16))} by ${esc(last.run_by === 'system:on-entry' ? 'the system (on entering the stage)' : last.run_by)} — <b>${esc(last.status)}</b>${last.current ? '' : ' · <span class="ccre-err">the configuration changed since — run it again</span>'}</p>` : ''}
+    ${s.ready ? nextStep('sanity_passed', 'every check passed — approve so UAT test cases can be prepared.') : ''}
+    ${sanityCards(s, { inStage: s.in_stage })}
+    ${s.in_stage && hasRole(...CCRE) && !s.ready ? `<div class="ccre-next ccre-next--back"><div><strong>Not ready?</strong> Send it back to rule configuration — the reason is filled in from the checks above.</div>
+      <button id="san-back" class="dhl-btn dhl-btn--primary">Send back to rule config</button></div>` : ''}
+    ${s.runs.length > 1 ? `<details class="ccre-details"><summary>Run history (${s.runs.length})</summary>${table(['When', 'By', 'Result', 'Passed / failed / exceptions', 'Cycle', ''],
+      s.runs.map((r) => `<tr><td>${esc(r.at.replace('T', ' ').slice(0, 16))}</td><td>${esc(r.run_by)}</td><td>${esc(r.status)}</td><td>${r.passed} / ${r.failed} / ${r.waived}</td><td>${r.cycle}</td>
+        <td><button class="dhl-btn dhl-btn--ghost ccre-small-btn" data-srep="${esc(r.id)}">Report</button></td></tr>`))}</details>` : ''}`;
+  wireNextStep(el);
+  wireSanity(el, s, () => renderSanity(el));
+  if ($('san-run')) $('san-run').onclick = () => run('Run', async () => { const r = await api('POST', `/api/onboardings/${S.caseId}/sanity/run`); toast(r.status === 'PASS' ? 'All checks passed.' : `${r.failed} check(s) need attention.`, r.status !== 'PASS'); await refreshCase(); });
+  if ($('san-report')) $('san-report').onclick = () => run('Report', () => download(`/api/onboardings/${S.caseId}/sanity/report.xlsx`, 'sanity.xlsx'));
+  el.querySelectorAll('[data-srep]').forEach((b) => { b.onclick = () => run('Report', () => download(`/api/onboardings/${S.caseId}/sanity/report.xlsx?run_id=${b.dataset.srep}`, 'sanity.xlsx')); });
+  if ($('san-back')) $('san-back').onclick = () => sanitySendBack(s);
 }
 
 // ── 5/6. UAT test cases — AI rows + "+ scenario", decided row by row ──

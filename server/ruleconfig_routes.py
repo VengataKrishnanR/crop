@@ -230,6 +230,32 @@ def rows_from_requirement(case_id: str, user: CurrentUser = Depends(require_ccre
     return [_row_out(r, cat, case.ctry_cd) for r in rows]
 
 
+@router.post("/onboardings/{case_id}/rule-config/rows/{rule_id}/align-requirement")
+def align_row(case_id: str, rule_id: str, user: CurrentUser = Depends(require_ccre),
+              session: Session = Depends(get_session)) -> dict[str, Any]:
+    """Copy the approved requirement's M2C criteria onto an existing row (group and bindings stay)."""
+    from tools.workflow.case_facts import latest_requirement
+
+    case = _case(session, case_id, user)
+    rule = _row(session, _editable(session, case), case, rule_id)
+    req = latest_requirement(session, case.id)
+    values = ((req.structured or {}).get("m2c_row") if req else None)
+    if not values:
+        raise HTTPException(409, "The requirement has no complete M2C criteria to copy.")
+    before = rc.rule_dict(rule)
+    for key, value in values.items():
+        if key == "ctry_cd":
+            continue
+        if key in ("effective_date", "expiry_date") and value:
+            value = dt.date.fromisoformat(value)
+        setattr(rule, key, value)
+    after = rc.rule_dict(rule)
+    _audit(session, case, user, "m2c:row_aligned_to_requirement",
+           {"rule_id": rule.id, "row_no": rule.row_no, "requirement_version": req.version,
+            "changed": {k: {"from": before[k], "to": after[k]} for k in after if before[k] != after[k]}})
+    return _fresh(session, rule, case)
+
+
 @router.put("/onboardings/{case_id}/rule-config/rows/{rule_id}")
 def edit_row(case_id: str, rule_id: str, body: RowIn, user: CurrentUser = Depends(require_ccre),
              session: Session = Depends(get_session)) -> dict[str, Any]:
