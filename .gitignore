@@ -5,4 +5,8 @@ __pycache__/
 .venv/
 .ccre_data/
 .env
+secret.key
 test_report.xlsx
+
+# SIR/SIRG database secrets
+deploy/sirdb.env

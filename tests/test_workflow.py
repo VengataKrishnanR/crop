@@ -37,7 +37,7 @@ def test_sequence_follows_the_onboarding_order() -> None:
     """Intake → requirement → timeline → rule config → sanity → UAT prep → reviews → execution → sign-off → RTP."""
     path = [
         ("submit_requirement", State.REQUIREMENT_REVIEW), ("approve_requirement", State.TIMELINE_PLANNING),
-        ("submit_timeline", State.TIMELINE_REVIEW), ("approve_timeline", State.RULE_CONFIG),
+        ("approve_timeline", State.RULE_CONFIG),
         ("request_sanity_check", State.SANITY_CHECK), ("sanity_passed", State.UAT_TC_PREP),
         ("submit_test_cases", State.UAT_TC_REVIEW_CCRE),
         ("ccre_approve_test_cases", State.UAT_TC_REVIEW_BUSINESS),
@@ -91,7 +91,10 @@ def test_the_system_can_never_move_into_an_approved_state() -> None:
 
 def test_every_state_is_reachable_and_labelled() -> None:
     targets = {t.target for t in workflow.TRANSITIONS} | {State.INTAKE}
-    assert targets == set(State)
+    # TIMELINE_REVIEW is only left for onboardings that reached it under the earlier flow;
+    # new onboardings go straight from planning to rule configuration (the PM approves).
+    assert targets | {State.TIMELINE_REVIEW} == set(State)
+    assert workflow.transitions_from(State.TIMELINE_REVIEW)              # they can still finish
     assert set(workflow.STATE_LABELS) == set(State)
     staged = {s for stage in workflow.STAGES for s in stage.states}
     assert staged | {State.WITHDRAWN} == set(State)

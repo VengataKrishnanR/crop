@@ -38,24 +38,28 @@ def test_only_the_business_submits_its_requirement(client: TestClient) -> None:
     assert any(a["name"] == "submit_requirement" and a["mine"] for a in business["actions"])
 
 
-def test_consultant_submits_the_timeline_and_the_pm_approves(client: TestClient) -> None:
+def test_the_pm_owns_the_timeline(client: TestClient) -> None:
     case_id = client.post("/api/onboardings", json={"ctry_cd": "DE", "title": "t"}, headers=BUSINESS).json()["id"]
     client.post(f"/api/onboardings/{case_id}/intake/form", headers=BUSINESS,
                 json={"m2c": FULL_M2C, "description": "DE needs POA when DDP", "requirement_groups": ["POA"]})
     for name, who in (("submit_requirement", BUSINESS), ("approve_requirement", CONSULTANT)):
         assert client.post(f"/api/onboardings/{case_id}/transition", json={"name": name}, headers=who).status_code == 200
-    gen = client.post(f"/api/onboardings/{case_id}/timeline/generate", headers=CONSULTANT,
-                      json={"answers": {"requested_rtp": "2027-03-31", "earliest_start": "2026-11-02"}})
-    assert gen.status_code == 200, gen.text
+    # Waiting for the PM, not the consultant.
+    view = client.get(f"/api/onboardings/{case_id}", headers=CONSULTANT).json()
+    assert view["waiting"]["roles"] == ["PM"] and not any(a["mine"] for a in view["actions"]
+                                                          if a["name"] != "withdraw")
+    answers = {"answers": {"requested_rtp": "2027-03-31", "earliest_start": "2026-11-02"}}
+    assert client.post(f"/api/onboardings/{case_id}/timeline/generate", headers=CONSULTANT,
+                       json=answers).status_code == 403
+    assert client.post(f"/api/onboardings/{case_id}/timeline/generate", headers=PM, json=answers).status_code == 200
     pm_view = client.get(f"/api/onboardings/{case_id}", headers=PM).json()
-    assert not any(a["mine"] and a["name"] == "submit_timeline" for a in pm_view["actions"])  # PM waits
-    assert pm_view["waiting"]["roles"] == ["CCRE_CONSULTANT"]
-    assert client.post(f"/api/onboardings/{case_id}/transition", json={"name": "submit_timeline"},
-                       headers=PM).status_code in (403, 409)
-    assert client.post(f"/api/onboardings/{case_id}/transition", json={"name": "submit_timeline"},
-                       headers=CONSULTANT).status_code == 200
-    pm_view = client.get(f"/api/onboardings/{case_id}", headers=PM).json()
-    assert {a["name"] for a in pm_view["actions"] if a["mine"]} == {"approve_timeline", "return_timeline"}
+    assert "approve_timeline" in {a["name"] for a in pm_view["actions"] if a["mine"]}
+    assert client.post(f"/api/onboardings/{case_id}/transition", json={"name": "approve_timeline"},
+                       headers=CONSULTANT).status_code in (403, 409)
+    assert client.post(f"/api/onboardings/{case_id}/transition", json={"name": "approve_timeline"},
+                       headers=PM).status_code == 200
+    assert client.get(f"/api/onboardings/{case_id}", headers=PM).json()["state"] == "RULE_CONFIG"
+    assert client.get(f"/api/onboardings/{case_id}/timeline", headers=BUSINESS).json()["status"] == "APPROVED"
 
 
 # --------------------------------------------------------------------------- #

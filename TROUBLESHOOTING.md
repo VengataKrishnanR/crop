@@ -25,7 +25,7 @@
 | Row is “⚠ Package gap” | The config package does not ship / map the group or definition for the country | Rule config → Package coverage → **Package request (.csv)** to Support; load the new package when it arrives |
 | “Rows can only be edited while … Rule configuration” | The onboarding moved on | Reject back to rule configuration (sanity check or UAT review) to correct |
 | Consultant cannot submit the requirement | Only the business submits its own requirement | The business user clicks **Submit requirement for approval** |
-| PM cannot submit the timeline | The consultant submits; the PM approves | The CCRE consultant clicks **Submit timeline for PM approval** |
+| Consultant cannot plan or approve the timeline | The PM owns the timeline | The PM generates or edits the plan, then clicks **Approve and publish timeline** |
 | “The requirement is missing M2C details: …” | A column is unanswered or not accepted | 1. Requirement: fill the red fields (or answer the chat), then Save |
 | A date is “not valid” | Wrong format | Use DD-MM-YYYY, e.g. 15-11-2026 |
 | A min value shows “Written in M2C as 150.01” | The M2C stores inclusive bounds | Expected: `> 150` = `>= 150.01`. Use `>=` if 150 itself is included |

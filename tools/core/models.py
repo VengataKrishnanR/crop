@@ -721,3 +721,34 @@ class SanityWaiver(Base):
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
     revoked_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     revoked_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
+
+
+# --------------------------------------------------------------------------- #
+# Beta files (sir-configuration packages) uploaded by an admin
+# --------------------------------------------------------------------------- #
+
+class PackageUpload(Base):
+    """One uploaded beta file: stored by its hash, reviewed, and — on an admin's decision — active.
+
+    Exactly one upload is ACTIVE at a time; every check in the platform reads the
+    active package. Uploads are never overwritten: a new file is a new row.
+    """
+
+    __tablename__ = "package_upload"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    filename: Mapped[str] = mapped_column(String(255))
+    sha256: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    size: Mapped[int] = mapped_column(Integer)
+    stored_path: Mapped[str] = mapped_column(String(512))
+    version: Mapped[str] = mapped_column(String(64), index=True)       # catalog key (package_version)
+    declared_version: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)   # from CHANGELOG
+    release_date: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    # REVIEWED -> ACTIVE -> SUPERSEDED;  REVIEWED -> REJECTED
+    status: Mapped[str] = mapped_column(String(16), default="REVIEWED", index=True)
+    review: Mapped[Any] = mapped_column(JSON, default=dict)
+    uploaded_by: Mapped[str] = mapped_column(String(255))
+    uploaded_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_now)
+    decided_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    decided_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
+    decision_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

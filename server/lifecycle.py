@@ -45,8 +45,8 @@ router = APIRouter()
 advisory = AdvisoryService()
 
 _INTAKE_ROLES = (UserRole.BUSINESS, UserRole.CCRE_TEAM, UserRole.CCRE_CONSULTANT, UserRole.ADMIN)
-# The consultant plans the timeline (the PM may fill in answers too); the PM approves it.
-_TIMELINE_ROLES = (UserRole.CCRE_CONSULTANT, UserRole.PM, UserRole.ADMIN)
+# The PM owns the timeline: answers, plans, edits and approves it. Everyone internal can view it.
+_TIMELINE_ROLES = (UserRole.PM, UserRole.ADMIN)
 
 # Which timeline milestone each state belongs to (for recording actual dates).
 _STATE_MILESTONE = {

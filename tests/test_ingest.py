@@ -124,8 +124,8 @@ def test_workbook_resolves_concatenate_keys_into_bindings(
     result = ingest_workbook(session, real_workbook_path)
     session.commit()
     assert result.bindings > 0
-    # Nine SIR Reference keys have no Import row in this workbook.
-    assert len(result.orphan_bindings) == 9
+    # Eight SIR Reference lines are used by no Import rule (rows 33, 52-56, 59, 60).
+    assert len(result.orphan_bindings) == 8
 
 
 def test_bg_rules_are_present_with_their_expressions(

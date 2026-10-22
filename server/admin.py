@@ -27,8 +27,8 @@ router = APIRouter()
 
 ROLE_DESCRIPTIONS = {
     "ADMIN": "Manages users and roles; full read access.",
-    "PM": "Answers the timeline questionnaire and approves the timeline.",
-    "CCRE_CONSULTANT": "Approves the business requirement; reviews test cases and UAT results.",
+    "PM": "Owns the timeline: answers the questionnaire, plans the dates (AI) and approves them.",
+    "CCRE_CONSULTANT": "Reviews whether the requirement can be configured in CCRE and approves it; reviews test cases and UAT results.",
     "CCRE_TEAM": "Configures the M2C rules and DMG changes, prepares and runs UAT.",
     "BUSINESS": "Country business team: submits requirements, sees the timeline, reviews test cases and signs off UAT. Limited to assigned countries.",
 }

@@ -122,6 +122,12 @@ def _sheet_dicts(workbook: Any, name: str) -> list[dict[str, Any]]:
     return out
 
 
+def _placeholder(value: str) -> bool:
+    """Empty values and TEST|TEST|... placeholders never join anything. (A TBD hold code inside an
+    otherwise real key, e.g. IL|Import|TBD|CIDM, still joins: both sides carry the same key.)"""
+    return not value or any(p.strip().upper() == "TEST" for p in value.split("|"))
+
+
 def _split_attribute_ids(raw: Any) -> list[str]:
     """``AttributeID`` holds one or more ids joined by ``&`` (sometimes ``&&``)."""
     text = _s(raw)
@@ -205,14 +211,24 @@ def ingest_workbook(
         session.flush()
         result.rule_set_id = rule_set.id
 
-        # Bindings join on Document Reference; group them up front.
+        # SIR Reference lines join an Import rule in one of two documented ways:
+        #   legacy (hold-code rules): SIR Reference.Document Reference == Import.Document Reference
+        #   SIRG rules: first three parts of SIR Reference.SIR Document Reference
+        #               (Country|Import|SIRGCd|CmptNm) == Import.SIRG Document Reference
+        # Placeholders (TEST...) never join.
         bindings_by_key: dict[str, list[dict[str, Any]]] = {}
+        bindings_by_sirg: dict[str, list[dict[str, Any]]] = {}
+        all_binding_rows: list[int] = []
         for row in _sheet_dicts(workbook, SHEET_SIR_REF):
+            all_binding_rows.append(row["__row__"])
             key = _s(row.get("Document Reference"))
-            if key:
+            if key and not _placeholder(key):
                 bindings_by_key.setdefault(key, []).append(row)
+            sdr = _s(row.get("SIR Document Reference")).split("|")
+            if len(sdr) == 4 and not _placeholder("|".join(sdr)):
+                bindings_by_sirg.setdefault("|".join(sdr[:3]), []).append(row)
 
-        used_keys: set[str] = set()
+        used_rows: set[int] = set()
 
         for sheet_name, direction in ((SHEET_IMPORT, "Import"), (SHEET_EXPORT, "Export")):
             for row in _sheet_dicts(workbook, sheet_name):
@@ -253,9 +269,13 @@ def ingest_workbook(
                 session.flush()
                 result.rules += 1
 
-                matched = bindings_by_key.get(doc_ref, [])
-                if doc_ref:
-                    used_keys.add(doc_ref)
+                matched, seen_rows = [], set()
+                candidates = ([] if _placeholder(doc_ref) else bindings_by_key.get(doc_ref, [])) +                              ([] if _placeholder(sirg_ref) else bindings_by_sirg.get(sirg_ref, []))
+                for b in candidates:
+                    if b["__row__"] not in seen_rows:
+                        seen_rows.add(b["__row__"])
+                        matched.append(b)
+                used_rows |= seen_rows
                 if not matched:
                     result.unbound_rules.append(f"{ctry} row {row['__row__']} key={doc_ref or '(none)'}")
                 for binding_row in matched:
@@ -271,7 +291,7 @@ def ingest_workbook(
                     ))
                     result.bindings += 1
 
-        result.orphan_bindings = sorted(set(bindings_by_key) - used_keys)
+        result.orphan_bindings = [f"SIR Reference row {r}" for r in all_binding_rows if r not in used_rows]
         session.flush()
     finally:
         workbook.close()

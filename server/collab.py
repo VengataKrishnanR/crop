@@ -360,6 +360,75 @@ def add_scenario(case_id: str, body: ScenarioIn, user: CurrentUser = Depends(cur
     return [_test_case_out(tc, business=user.is_business) for tc in created]
 
 
+@router.post("/onboardings/{case_id}/uat/test-cases/sample", tags=["uat"])
+def add_sample_test_case(case_id: str, user: CurrentUser = Depends(current_user),
+                         session: Session = Depends(get_session)) -> dict[str, Any]:
+    """One complete test case built from the onboarding's own M2C row — no AI, nothing to type.
+
+    A positive case: a shipment that meets every condition of the row must raise its requirement
+    group. It is added as a normal row and goes through the same review as every other."""
+    from tools.core.packages import active_package_version
+
+    case = _case(session, case_id, user)
+    if user.is_business:
+        _require_state(case, State.UAT_TC_REVIEW_BUSINESS)
+    elif user.role in CCRE_ROLES:
+        _require_state(case, *_SCENARIO_STATES)
+    else:
+        raise HTTPException(403, "Only the CCRE team or the business team add test cases.")
+    rs = case_rule_set(session, case)
+    if rs is None:
+        raise HTTPException(409, "Start the M2C draft first — the sample test case is built from its rows.")
+    rules = list(session.execute(select(Rule).where(Rule.rule_set_id == rs.id, Rule.ctry_cd == case.ctry_cd)
+                                 .order_by(Rule.row_no.is_(None), Rule.row_no)).scalars())
+    rule = next((r for r in rules if r.sirg_cd), None)
+    if rule is None:
+        raise HTTPException(409, "The M2C draft has no row with a requirement group to test.")
+
+    group, ctry = rule.sirg_cd, case.ctry_cd
+    shipment = rule.shipment_type if rule.shipment_type in ("B2B", "B2C") else "B2C"
+    conditions = [{"field": "destination_country", "operator": "equals", "value": ctry},
+                  {"field": "shipment_type", "operator": "equals", "value": shipment}]
+    value_text = ""
+    if rule.min_value is not None or rule.max_value is not None:
+        lo, hi = rule.min_value, rule.max_value
+        value = (lo + 1 if lo is not None else 0) if hi is None else ((lo or 0) + hi) / 2
+        value = round(value, 2)
+        basis = "intrinsic_value" if rule.value_basis == "IV" else "declared_value"
+        conditions += [{"field": basis, "operator": "equals", "value": str(value)},
+                       {"field": "currency", "operator": "equals", "value": rule.currency or "EUR"}]
+        value_text = f", {basis.replace('_', ' ')} {value} {rule.currency or 'EUR'}"
+    if rule.min_weight is not None or rule.max_weight is not None:
+        w = round((rule.min_weight or 0) + 0.5 if rule.max_weight is None
+                  else ((rule.min_weight or 0) + rule.max_weight) / 2, 2)
+        conditions.append({"field": "shipment_weight_kg", "operator": "equals", "value": str(w)})
+        value_text += f", {w} kg"
+    if rule.other_logic:
+        conditions.append({"field": "other_logic", "operator": "equals", "value": rule.other_logic})
+    row = f"row {rule.row_no}" if rule.row_no else "the new row"
+    cmpt = ", ".join(b.cmpt_nm for b in rule.bindings if b.cmpt_nm) or group
+
+    existing = set(session.execute(select(UatTestCase.test_id).where(UatTestCase.case_id == case.id)).scalars())
+    n = 1
+    while f"SAMPLE-{ctry}-{group}-{n:02d}" in existing:
+        n += 1
+    tc = UatTestCase(
+        case_id=case.id, rule_set_id=rs.id, test_id=f"SAMPLE-{ctry}-{group}-{n:02d}", kind="positive",
+        scenario=(f"{shipment} shipment to {ctry}{value_text}"
+                  + (" that satisfies the Other Logic" if rule.other_logic else "")
+                  + f" — meets every condition of M2C {row}, so CCRE raises {group}."),
+        business_summary=f"A {shipment} shipment to {ctry} that meets the rule must be asked for {group}.",
+        preconditions=[f"M2C draft {rs.version} loaded in UAT",
+                       f"Config package {active_package_version(session) or '—'} active"],
+        input_conditions=conditions, expected_requirement=group, expected_case_created=True,
+        validation_criteria=f"A case is created and requirement {group} ({cmpt}) is raised for the shipment.",
+        rule_coverage=[rule.id], priority="high", status="DRAFT", created_by=user.label)
+    session.add(tc)
+    _audit(session, case.id, user.label, "uat:sample_test_case_added", {"test_id": tc.test_id, "rule_row": rule.row_no})
+    session.commit()
+    return _test_case_out(tc, business=user.is_business)
+
+
 @router.post("/onboardings/{case_id}/uat/test-cases/decide", tags=["uat"])
 def decide_rows(case_id: str, body: RowDecision, user: CurrentUser = Depends(current_user),
                 session: Session = Depends(get_session)) -> dict[str, Any]:

@@ -106,7 +106,7 @@ def _to_rule_config(client: TestClient, country: str = "DE") -> str:
         assert client.post(f"/api/onboardings/{case_id}/transition", json={"name": name}, headers=who).status_code == 200
     client.post(f"/api/onboardings/{case_id}/timeline/generate", headers=PM,
                 json={"answers": {"requested_rtp": "2027-03-31", "earliest_start": "2026-11-02"}})
-    for name, who in (("submit_timeline", CONSULTANT), ("approve_timeline", PM)):
+    for name, who in (("approve_timeline", PM),):
         assert client.post(f"/api/onboardings/{case_id}/transition", json={"name": name}, headers=who).status_code == 200
     client.post(f"/api/onboardings/{case_id}/m2c/start", headers=TEAM)
     return case_id
@@ -212,7 +212,10 @@ def test_sanity_checklist_explains_each_item(client: TestClient, loaded: None) -
     assert before["explanation"] and before["ready"] is False and before["in_stage"] is False
     items = {i["key"]: i for i in before["items"]}
     assert list(items) == ["rows", "requirement_match", "rules", "package", "dmg", "changes"]
-    assert items["rows"]["status"] == "pass" and items["package"]["status"] == "pass"
+    assert items["rows"]["status"] == "pass"
+    # DE row 38 is bound to a newer DEPOA definition than the 2.10.4 package ships.
+    assert items["package"]["status"] == "fail" and items["package"]["findings"][0]["definition"] == "DEPOA"
+    assert items["package"]["fix"]["action"] == "package_request" and items["package"]["waivable"]
     assert items["requirement_match"]["status"] == "fail"          # DE row 38 differs from the requirement
     assert items["requirement_match"]["findings"][0]["row"] == 38
     assert items["dmg"]["status"] == "fail" and items["dmg"]["fix"]["action"] == "send_back"
@@ -300,3 +303,22 @@ def test_mail_settings_and_log(client: TestClient, outbox: Path) -> None:
     assert log[0]["kind"] == "TEST"
     assert client.get("/api/admin/mail", headers=TEAM).status_code == 403
     assert client.put("/api/admin/mail", json={"security": "bogus", "from_address": "a@b.cd"}).status_code == 400
+
+
+def test_sample_test_case_is_complete_and_goes_through_review(client: TestClient, loaded: None) -> None:
+    case_id = _to_rule_config(client)
+    resp = client.post(f"/api/onboardings/{case_id}/uat/test-cases/sample", headers=TEAM)
+    assert resp.status_code == 200, resp.text
+    tc = resp.json()
+    assert tc["test_id"] == "SAMPLE-DE-POA-01" and tc["status"] == "DRAFT" and tc["kind"] == "positive"
+    assert tc["expected_requirement"] == "POA" and tc["expected_case_created"] is True
+    again = client.post(f"/api/onboardings/{case_id}/uat/test-cases/sample", headers=TEAM).json()
+    assert again["test_id"] == "SAMPLE-DE-POA-02"
+    rows = client.get(f"/api/onboardings/{case_id}/uat/test-cases", headers=TEAM).json()
+    sample = next(r for r in rows if r["test_id"] == "SAMPLE-DE-POA-01")
+    fields = {c["field"] for c in sample["input_conditions"]}
+    assert {"destination_country", "shipment_type"} <= fields
+    assert sample["validation_criteria"] and sample["rule_coverage"]
+    # Business users may only add during their review; PMs never.
+    assert client.post(f"/api/onboardings/{case_id}/uat/test-cases/sample", headers=BUSINESS).status_code == 409
+    assert client.post(f"/api/onboardings/{case_id}/uat/test-cases/sample", headers=PM).status_code == 403

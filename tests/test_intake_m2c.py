@@ -208,3 +208,32 @@ def test_nlp_reading_is_offered_as_builder_rows(client: TestClient) -> None:
     assert {f["key"] for f in spec["fields"]} >= {"declared_value", "weight", "service_code", "incoterm", "short_code"}
     assert "DD" in spec["options"]["service_codes"] and "DDP" in spec["options"]["incoterms"]
     assert "CN" in spec["options"]["countries"]
+
+
+# --------------------------------------------------------------------------- #
+# requirement groups come from the active config package, for the country
+# --------------------------------------------------------------------------- #
+
+def test_groups_offered_are_the_packages_groups_for_the_country(client: TestClient, loaded: None) -> None:
+    de = client.get(f"/api/onboardings/{_case(client, 'DE')}/intake/fields", headers=BUSINESS).json()
+    spec = next(f for f in de["fields"] if f["key"] == "requirement_groups")
+    assert spec["options"] == ["CPPY", "DES", "ELEC", "GIFT", "IADR", "PERS", "POA", "POAB"]
+    poa = next(g for g in spec["details"] if g["code"] == "POA")
+    assert poa["name"] == "Power of Attorney" and poa["definitions"][0]["cmpt_nm"] == "DEPOA"
+    assert poa["definitions"][0]["fields"] > 0
+    assert "2.10.4-beta.2" in spec["accepted"] and "POA" in spec["accepted"]
+    # BG is not in this package at all: nothing to offer, and the reason is given.
+    bg = client.get(f"/api/onboardings/{_case(client, 'BG')}/intake/fields", headers=BUSINESS).json()
+    bg_spec = next(f for f in bg["fields"] if f["key"] == "requirement_groups")
+    assert bg_spec["options"] == [] and "none yet" in bg_spec["accepted"]
+
+
+def test_a_group_outside_the_package_is_flagged_as_a_package_gap(client: TestClient, loaded: None) -> None:
+    case_id = _case(client, "DE")
+    res = client.post(f"/api/onboardings/{case_id}/intake/extract", headers=BUSINESS,
+                      json={"text": "", "m2c": {**FULL_M2C, "requirement_groups": ["IOSS"]}}).json()
+    w = res["warnings"]["requirement_groups"]
+    assert w.startswith("Package gap: IOSS is not mapped for DE") and "Available for DE: CPPY" in w
+    ok = client.post(f"/api/onboardings/{case_id}/intake/extract", headers=BUSINESS,
+                     json={"text": "", "m2c": {**FULL_M2C, "requirement_groups": ["POA"]}}).json()
+    assert "requirement_groups" not in ok["warnings"]

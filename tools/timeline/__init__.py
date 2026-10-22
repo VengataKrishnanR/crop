@@ -10,11 +10,12 @@ from .planning import (
     add_working_days,
     complexity_facts,
     estimate,
+    gate_plan,
     normalise_answers,
     validate_plan,
 )
 
 __all__ = [
     "MILESTONES", "QUESTIONS", "add_working_days", "complexity_facts", "estimate",
-    "normalise_answers", "validate_plan",
+    "gate_plan", "normalise_answers", "validate_plan",
 ]
